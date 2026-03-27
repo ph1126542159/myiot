@@ -1,4 +1,0 @@
-<extensions>
-  <extension point="osp.web.server.requesthandler" path="/myiot/monitor/metrics.json" class="MyIoT::WebUI::SystemMonitor::SystemMetricsRequestHandlerFactory" library="io.myiot.webui.monitor" allowSpecialization="none" hidden="true"/>
-  <extension point="osp.web.server.directory" path="/myiot/monitor" resource="webapp" allowSpecialization="owner" hidden="true"/>
-</extensions>

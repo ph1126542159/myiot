@@ -1,3 +1,0 @@
-<extensions>
-  <extension point="osp.web.server.directory" path="/myiot/console" resource="webapp" allowSpecialization="owner" hidden="true"/>
-</extensions>
