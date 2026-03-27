@@ -9,12 +9,20 @@
 #include "Poco/OSP/ServiceRef.h"
 #include "Poco/OSP/ServiceRegistry.h"
 #include "Poco/Path.h"
+#include "Poco/SAX/InputSource.h"
 #include "Poco/StreamCopier.h"
 #include "Poco/String.h"
 #include "Poco/StringTokenizer.h"
 #include "Poco/Thread.h"
+#include "Poco/XML/DOMParser.h"
+#include "Poco/Zip/ZipArchive.h"
+#include "Poco/Zip/ZipStream.h"
 #include <sstream>
 #include <set>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace MyIoT {
 namespace Services {
@@ -32,16 +40,98 @@ using Poco::OSP::PreferencesService;
 using Poco::OSP::ServiceRef;
 using Poco::Path;
 using Poco::StringTokenizer;
+using Poco::XML::DOMParser;
+using Poco::Zip::ZipArchive;
+using Poco::Zip::ZipIOS;
+using Poco::Zip::ZipLocalFileHeader;
 
 namespace
 {
 const int IGNORE_WINDOW_SECONDS = 8;
+
+class PayloadZipEntryInputStream: public ZipIOS, public std::istream
+{
+public:
+    PayloadZipEntryInputStream(std::istream& input, const ZipLocalFileHeader& entry):
+        ZipIOS(input, entry, true),
+        std::istream(&_buf)
+    {
+    }
+};
 
 std::string trimRepositoryToken(const std::string& token)
 {
     Path path(token);
     path.makeAbsolute();
     return path.toString();
+}
+
+#if defined(_WIN32)
+std::wstring widePathFromUtf8(const std::string& path)
+{
+    if (path.empty()) return std::wstring();
+
+    const int length = MultiByteToWideChar(CP_UTF8, 0, path.data(), static_cast<int>(path.size()), nullptr, 0);
+    std::wstring result(static_cast<std::size_t>(length), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, path.data(), static_cast<int>(path.size()), result.data(), length);
+    return result;
+}
+
+bool canOpenBundleExclusively(const std::string& path)
+{
+    const std::wstring widePath = widePathFromUtf8(path);
+    HANDLE handle = CreateFileW(
+        widePath.c_str(),
+        GENERIC_READ,
+        0,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+
+    if (handle == INVALID_HANDLE_VALUE) return false;
+    CloseHandle(handle);
+    return true;
+}
+#endif
+
+bool endsWithExtensionsXml(const std::string& name)
+{
+    if (name.size() < 14) return false;
+    return Poco::icompare(name.substr(name.size() - 14), "extensions.xml") == 0;
+}
+
+bool hasValidExtensionsXml(const std::string& payload)
+{
+    try
+    {
+        std::istringstream archiveStream(payload, std::ios::binary);
+        ZipArchive archive(archiveStream);
+
+        for (auto it = archive.headerBegin(); it != archive.headerEnd(); ++it)
+        {
+            if (!it->second.isFile()) continue;
+            if (!endsWithExtensionsXml(it->first)) continue;
+
+            PayloadZipEntryInputStream entryStream(archiveStream, it->second);
+            std::ostringstream xmlBuffer;
+            Poco::StreamCopier::copyStream(entryStream, xmlBuffer);
+            const std::string xmlText = xmlBuffer.str();
+            if (xmlText.empty()) return false;
+
+            DOMParser parser;
+            std::istringstream xmlInput(xmlText);
+            Poco::XML::InputSource source(xmlInput);
+            parser.parse(&source);
+            return true;
+        }
+
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
 }
 }
 
@@ -222,6 +312,9 @@ void BundleWatcherService::ignorePath(const std::string& path)
 
 bool BundleWatcherService::tryReadBundlePayload(const std::string& path, std::string& payload) const
 {
+    Poco::Timestamp lastModified;
+    bool hasBaseline = false;
+
     for (int attempt = 0; attempt < _options.retryCount; ++attempt)
     {
         try
@@ -240,6 +333,23 @@ bool BundleWatcherService::tryReadBundlePayload(const std::string& path, std::st
                 continue;
             }
 
+            const Poco::Timestamp currentModified = bundleFile.getLastModified();
+            if (!hasBaseline || currentModified != lastModified)
+            {
+                lastModified = currentModified;
+                hasBaseline = true;
+                Poco::Thread::sleep(_options.settleDelayMs);
+                continue;
+            }
+
+#if defined(_WIN32)
+            if (!canOpenBundleExclusively(path))
+            {
+                Poco::Thread::sleep(_options.settleDelayMs);
+                continue;
+            }
+#endif
+
             FileInputStream input(path, std::ios::binary);
             if (!input.good())
             {
@@ -253,7 +363,12 @@ bool BundleWatcherService::tryReadBundlePayload(const std::string& path, std::st
 
             Poco::Thread::sleep(_options.settleDelayMs);
             File verified(path);
-            if (verified.exists() && verified.isFile() && verified.getSize() == fileSize && !payload.empty())
+            if (verified.exists() &&
+                verified.isFile() &&
+                verified.getSize() == fileSize &&
+                verified.getLastModified() == currentModified &&
+                !payload.empty() &&
+                hasValidExtensionsXml(payload))
             {
                 return true;
             }

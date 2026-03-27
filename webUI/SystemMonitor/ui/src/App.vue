@@ -27,6 +27,12 @@ function formatPercent(value) {
   return `${toNumber(value).toFixed(1)}%`
 }
 
+function formatTemperature(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '暂不可用'
+  return `${numeric.toFixed(1)}°C`
+}
+
 function formatCount(value) {
   return new Intl.NumberFormat('zh-CN').format(Math.round(toNumber(value)))
 }
@@ -48,6 +54,7 @@ function formatRate(value) {
 function sanitizeSample(payload) {
   return {
     cpuPercent: toNumber(payload.cpu?.usagePercent),
+    cpuTemperatureCelsius: payload.cpu?.temperatureAvailable ? Number(payload.cpu?.temperatureCelsius) : Number.NaN,
     memoryPercent: toNumber(payload.memory?.usagePercent),
     processCount: toNumber(payload.counts?.processes),
     threadCount: toNumber(payload.counts?.threads),
@@ -124,6 +131,12 @@ const overviewCards = computed(() => {
       subtitle: '系统总占用'
     },
     {
+      key: 'temperature',
+      title: 'CPU 温度',
+      value: formatTemperature(metrics.cpu?.temperatureCelsius),
+      subtitle: metrics.cpu?.temperatureAvailable ? 'WMI 热区采样' : '当前设备暂未提供温度传感器'
+    },
+    {
       key: 'memory',
       title: '内存',
       value: formatBytes(metrics.memory?.usedBytes),
@@ -150,6 +163,9 @@ const chartSeries = computed(() => {
 
   const samples = historyPoints.value
   const cpuValues = samples.map((entry) => entry.cpuPercent)
+  const cpuTemperatureValues = samples
+    .map((entry) => entry.cpuTemperatureCelsius)
+    .filter((value) => Number.isFinite(value))
   const memoryValues = samples.map((entry) => entry.memoryPercent)
   const processValues = samples.map((entry) => entry.processCount)
   const threadValues = samples.map((entry) => entry.threadCount)
@@ -174,6 +190,15 @@ const chartSeries = computed(() => {
       helper: `${formatBytes(metrics.memory?.usedBytes)} / ${formatBytes(metrics.memory?.totalBytes)}`,
       values: memoryValues,
       maxValue: 100
+    },
+    {
+      key: 'temperature',
+      title: 'CPU 温度',
+      accent: 'chart-danger',
+      currentValue: formatTemperature(metrics.cpu?.temperatureCelsius),
+      helper: metrics.cpu?.temperatureAvailable ? '摄氏度' : '当前设备暂未提供温度',
+      values: samples.map((entry) => Number.isFinite(entry.cpuTemperatureCelsius) ? entry.cpuTemperatureCelsius : 0),
+      maxValue: metricMax(cpuTemperatureValues, 70, 1.08)
     },
     {
       key: 'processes',
@@ -517,7 +542,7 @@ async function handleSignOut() {
 <style scoped>
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px;
 }
 
@@ -631,6 +656,10 @@ async function handleSignOut() {
   color: #84d5ff;
 }
 
+.chart-danger {
+  color: #ff8d6d;
+}
+
 .chart-line {
   fill: none;
   stroke: currentColor;
@@ -672,7 +701,6 @@ async function handleSignOut() {
 }
 
 @media (max-width: 1160px) {
-  .stats-grid,
   .chart-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

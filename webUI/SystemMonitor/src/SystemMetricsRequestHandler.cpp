@@ -14,16 +14,20 @@
 #include "Poco/Timestamp.h"
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <vector>
 
 #if defined(_WIN32)
+#include <comdef.h>
 #include <iphlpapi.h>
 #include <netioapi.h>
 #include <pdh.h>
 #include <tlhelp32.h>
+#include <wbemidl.h>
 #include <windows.h>
+#pragma comment(lib, "wbemuuid.lib")
 #endif
 
 namespace {
@@ -100,6 +104,8 @@ struct MetricsSample
 {
     std::uint64_t sampleIntervalMs = 0;
     double cpuUsagePercent = 0.0;
+    double cpuTemperatureCelsius = 0.0;
+    bool cpuTemperatureAvailable = false;
     std::uint64_t memoryTotalBytes = 0;
     std::uint64_t memoryUsedBytes = 0;
     std::uint64_t memoryFreeBytes = 0;
@@ -213,6 +219,141 @@ std::vector<DiskMetric> collectDiskMetrics()
     return disks;
 }
 
+bool tryCollectCpuTemperature(double& temperatureCelsius)
+{
+    HRESULT initializeResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const bool shouldUninitialize = SUCCEEDED(initializeResult);
+    if (FAILED(initializeResult) && initializeResult != RPC_E_CHANGED_MODE)
+    {
+        return false;
+    }
+
+    HRESULT securityResult = CoInitializeSecurity(
+        nullptr,
+        -1,
+        nullptr,
+        nullptr,
+        RPC_C_AUTHN_LEVEL_DEFAULT,
+        RPC_C_IMP_LEVEL_IMPERSONATE,
+        nullptr,
+        EOAC_NONE,
+        nullptr);
+    if (FAILED(securityResult) && securityResult != RPC_E_TOO_LATE)
+    {
+        if (shouldUninitialize) CoUninitialize();
+        return false;
+    }
+
+    IWbemLocator* pLocator = nullptr;
+    IWbemServices* pServices = nullptr;
+    IEnumWbemClassObject* pEnumerator = nullptr;
+    bool hasTemperature = false;
+    double bestTemperature = std::numeric_limits<double>::lowest();
+
+    HRESULT result = CoCreateInstance(
+        CLSID_WbemLocator,
+        nullptr,
+        CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator,
+        reinterpret_cast<void**>(&pLocator));
+
+    if (SUCCEEDED(result))
+    {
+        result = pLocator->ConnectServer(
+            _bstr_t(L"ROOT\\WMI"),
+            nullptr,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            nullptr,
+            &pServices);
+    }
+
+    if (SUCCEEDED(result))
+    {
+        result = CoSetProxyBlanket(
+            pServices,
+            RPC_C_AUTHN_WINNT,
+            RPC_C_AUTHZ_NONE,
+            nullptr,
+            RPC_C_AUTHN_LEVEL_CALL,
+            RPC_C_IMP_LEVEL_IMPERSONATE,
+            nullptr,
+            EOAC_NONE);
+    }
+
+    if (SUCCEEDED(result))
+    {
+        result = pServices->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            nullptr,
+            &pEnumerator);
+    }
+
+    if (SUCCEEDED(result) && pEnumerator)
+    {
+        while (true)
+        {
+            IWbemClassObject* pObject = nullptr;
+            ULONG returned = 0;
+            result = pEnumerator->Next(200, 1, &pObject, &returned);
+            if (FAILED(result) || returned == 0) break;
+
+            VARIANT value;
+            VariantInit(&value);
+            if (SUCCEEDED(pObject->Get(L"CurrentTemperature", 0, &value, nullptr, nullptr)))
+            {
+                double rawTemperature = 0.0;
+                switch (value.vt)
+                {
+                case VT_I4:
+                    rawTemperature = static_cast<double>(value.lVal);
+                    break;
+                case VT_UI4:
+                    rawTemperature = static_cast<double>(value.ulVal);
+                    break;
+                case VT_I8:
+                    rawTemperature = static_cast<double>(value.llVal);
+                    break;
+                case VT_UI8:
+                    rawTemperature = static_cast<double>(value.ullVal);
+                    break;
+                case VT_R8:
+                    rawTemperature = value.dblVal;
+                    break;
+                default:
+                    break;
+                }
+
+                // WMI reports deci-Kelvin.
+                const double celsius = rawTemperature > 0.0 ? (rawTemperature / 10.0) - 273.15 : 0.0;
+                if (celsius >= -20.0 && celsius <= 150.0)
+                {
+                    bestTemperature = std::max(bestTemperature, celsius);
+                    hasTemperature = true;
+                }
+            }
+
+            VariantClear(&value);
+            pObject->Release();
+        }
+    }
+
+    if (pEnumerator) pEnumerator->Release();
+    if (pServices) pServices->Release();
+    if (pLocator) pLocator->Release();
+    if (shouldUninitialize) CoUninitialize();
+
+    if (hasTemperature)
+    {
+        temperatureCelsius = bestTemperature;
+    }
+    return hasTemperature;
+}
+
 class MetricsSampler
 {
 public:
@@ -284,6 +425,8 @@ public:
             _lastUserTime = user;
             _hasCpuBaseline = true;
         }
+
+        sample.cpuTemperatureAvailable = tryCollectCpuTemperature(sample.cpuTemperatureCelsius);
 
         MEMORYSTATUSEX memoryStatus;
         memoryStatus.dwLength = sizeof(memoryStatus);
@@ -406,6 +549,11 @@ Poco::JSON::Object::Ptr createSamplePayload(const MetricsSample& sample)
 
     Poco::JSON::Object::Ptr cpu = new Poco::JSON::Object;
     cpu->set("usagePercent", sample.cpuUsagePercent);
+    cpu->set("temperatureAvailable", sample.cpuTemperatureAvailable);
+    if (sample.cpuTemperatureAvailable)
+    {
+        cpu->set("temperatureCelsius", sample.cpuTemperatureCelsius);
+    }
     payload->set("cpu", cpu);
 
     Poco::JSON::Object::Ptr memory = new Poco::JSON::Object;
@@ -457,7 +605,9 @@ Poco::JSON::Object::Ptr createUnsupportedPayload()
     payload->set("message", "当前平台暂未实现系统监控数据采样。");
     payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
     payload->set("sampleIntervalMs", 0);
-    payload->set("cpu", Poco::JSON::Object::Ptr(new Poco::JSON::Object));
+    Poco::JSON::Object::Ptr cpu = new Poco::JSON::Object;
+    cpu->set("temperatureAvailable", false);
+    payload->set("cpu", cpu);
     payload->set("memory", Poco::JSON::Object::Ptr(new Poco::JSON::Object));
     payload->set("counts", Poco::JSON::Object::Ptr(new Poco::JSON::Object));
     payload->set("io", Poco::JSON::Object::Ptr(new Poco::JSON::Object));
