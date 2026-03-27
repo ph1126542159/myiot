@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { authenticate, refreshSession, sessionState } from './core/sessionGateway'
 
 const REMEMBERED_CREDENTIALS_KEY = 'myiot.launcher.rememberedCredentials'
@@ -12,6 +12,7 @@ const banner = ref({
   type: 'info',
   text: '请输入账号和密码。'
 })
+const autoFilledFromStorage = ref(false)
 
 function readRememberedCredentials() {
   try {
@@ -47,6 +48,10 @@ function clearRememberedCredentials() {
   }
 }
 
+const hasRememberedCredentials = computed(() =>
+  Boolean(readRememberedCredentials()?.username || readRememberedCredentials()?.password)
+)
+
 onMounted(async () => {
   const payload = await refreshSession()
   if (payload.authenticated) {
@@ -59,19 +64,37 @@ onMounted(async () => {
     username.value = rememberedCredentials.username
     password.value = rememberedCredentials.password
     rememberPassword.value = Boolean(rememberedCredentials.username || rememberedCredentials.password)
+    autoFilledFromStorage.value = rememberPassword.value
   }
 
   banner.value = {
     type: 'info',
-    text: '请输入账号和密码。'
+    text: autoFilledFromStorage.value ? '已自动填入上次保存的账号密码，请确认后登录。' : '请输入账号和密码。'
   }
 })
 
 watch(rememberPassword, (enabled) => {
   if (!enabled) {
     clearRememberedCredentials()
+    autoFilledFromStorage.value = false
   }
 })
+
+watch([username, password], () => {
+  autoFilledFromStorage.value = false
+})
+
+function clearSavedCredentials() {
+  username.value = ''
+  password.value = ''
+  rememberPassword.value = false
+  autoFilledFromStorage.value = false
+  clearRememberedCredentials()
+  banner.value = {
+    type: 'info',
+    text: '已清除当前浏览器保存的账号密码，请重新输入。'
+  }
+}
 
 async function submitLogin() {
   loading.value = true
@@ -134,6 +157,18 @@ async function submitLogin() {
             >
               {{ banner.text }}
             </v-alert>
+
+            <div v-if="hasRememberedCredentials" class="saved-credentials-row">
+              <span>当前浏览器存在已保存的账号密码</span>
+              <v-btn
+                variant="text"
+                color="secondary"
+                size="small"
+                @click="clearSavedCredentials"
+              >
+                清除已保存密码
+              </v-btn>
+            </div>
 
             <v-form class="login-form-simple" @submit.prevent="submitLogin">
               <label class="field-label">账号</label>
@@ -224,6 +259,16 @@ async function submitLogin() {
   margin-top: 22px;
 }
 
+.saved-credentials-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  color: rgba(210, 232, 255, 0.72);
+  font-size: 0.9rem;
+}
+
 .login-options-row {
   display: flex;
   align-items: center;
@@ -244,6 +289,7 @@ async function submitLogin() {
 }
 
 @media (max-width: 520px) {
+  .saved-credentials-row,
   .login-options-row {
     align-items: flex-start;
     flex-direction: column;
