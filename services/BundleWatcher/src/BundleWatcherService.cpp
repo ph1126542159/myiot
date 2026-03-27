@@ -1,6 +1,7 @@
 #include "BundleWatcherService.h"
 
 #include "Poco/Delegate.h"
+#include "Poco/DOM/DOMParser.h"
 #include "Poco/File.h"
 #include "Poco/FileStream.h"
 #include "Poco/OSP/Bundle.h"
@@ -14,7 +15,6 @@
 #include "Poco/String.h"
 #include "Poco/StringTokenizer.h"
 #include "Poco/Thread.h"
-#include "Poco/XML/DOMParser.h"
 #include "Poco/Zip/ZipArchive.h"
 #include "Poco/Zip/ZipStream.h"
 #include <sstream>

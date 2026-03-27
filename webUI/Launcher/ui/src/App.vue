@@ -1,14 +1,51 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { authenticate, refreshSession, sessionState } from './core/sessionGateway'
+
+const REMEMBERED_CREDENTIALS_KEY = 'myiot.launcher.rememberedCredentials'
 
 const username = ref('')
 const password = ref('')
+const rememberPassword = ref(false)
 const loading = ref(false)
 const banner = ref({
   type: 'info',
   text: '请输入账号和密码。'
 })
+
+function readRememberedCredentials() {
+  try {
+    const raw = window.localStorage.getItem(REMEMBERED_CREDENTIALS_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+
+    return {
+      username: typeof parsed.username === 'string' ? parsed.username : '',
+      password: typeof parsed.password === 'string' ? parsed.password : ''
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeRememberedCredentials() {
+  try {
+    window.localStorage.setItem(REMEMBERED_CREDENTIALS_KEY, JSON.stringify({
+      username: username.value,
+      password: password.value
+    }))
+  } catch {
+  }
+}
+
+function clearRememberedCredentials() {
+  try {
+    window.localStorage.removeItem(REMEMBERED_CREDENTIALS_KEY)
+  } catch {
+  }
+}
 
 onMounted(async () => {
   const payload = await refreshSession()
@@ -17,9 +54,22 @@ onMounted(async () => {
     return
   }
 
+  const rememberedCredentials = readRememberedCredentials()
+  if (rememberedCredentials) {
+    username.value = rememberedCredentials.username
+    password.value = rememberedCredentials.password
+    rememberPassword.value = Boolean(rememberedCredentials.username || rememberedCredentials.password)
+  }
+
   banner.value = {
     type: 'info',
     text: '请输入账号和密码。'
+  }
+})
+
+watch(rememberPassword, (enabled) => {
+  if (!enabled) {
+    clearRememberedCredentials()
   }
 })
 
@@ -41,7 +91,12 @@ async function submitLogin() {
   }
 
   if (result.ok) {
-    password.value = ''
+    if (rememberPassword.value) {
+      writeRememberedCredentials()
+    } else {
+      clearRememberedCredentials()
+      password.value = ''
+    }
     window.setTimeout(() => {
       window.location.replace('/myiot/home/index.html')
     }, 260)
@@ -97,6 +152,17 @@ async function submitLogin() {
                 placeholder="请输入密码"
                 autocomplete="current-password"
               ></v-text-field>
+
+              <div class="login-options-row">
+                <v-checkbox
+                  v-model="rememberPassword"
+                  label="记住密码"
+                  color="primary"
+                  density="comfortable"
+                  hide-details
+                ></v-checkbox>
+                <span class="login-option-hint">仅保存在当前浏览器</span>
+              </div>
 
               <v-btn
                 color="primary"
@@ -158,8 +224,33 @@ async function submitLogin() {
   margin-top: 22px;
 }
 
+.login-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.login-option-hint {
+  color: rgba(210, 232, 255, 0.58);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
 .login-button-simple {
   min-width: 100%;
   box-shadow: 0 18px 34px rgba(58, 216, 255, 0.2);
+}
+
+@media (max-width: 520px) {
+  .login-options-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .login-option-hint {
+    margin-top: -6px;
+  }
 }
 </style>
