@@ -6,6 +6,7 @@
 #include "Poco/JSON/Array.h"
 #include "Poco/JSON/Object.h"
 #include "Poco/JSON/Stringifier.h"
+#include "Poco/Net/NetException.h"
 #include "Poco/Net/HTTPServerRequest.h"
 #include "Poco/Net/HTTPServerResponse.h"
 #include "Poco/OSP/ServiceFinder.h"
@@ -50,8 +51,26 @@ void sendJSON(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Ptr p
     response.setChunkedTransferEncoding(true);
     response.setContentType("application/json");
     response.set("Cache-Control", "no-cache");
-    std::ostream& out = response.send();
-    Poco::JSON::Stringifier::stringify(payload, out);
+    try
+    {
+        std::ostream& out = response.send();
+        Poco::JSON::Stringifier::stringify(payload, out);
+    }
+    catch (const Poco::Net::ConnectionResetException&)
+    {
+    }
+    catch (const Poco::Net::ConnectionAbortedException&)
+    {
+    }
+    catch (const Poco::IOException& exc)
+    {
+        const std::string message = exc.displayText();
+        if (message.find("broken pipe") == std::string::npos &&
+            message.find("Broken pipe") == std::string::npos)
+        {
+            throw;
+        }
+    }
 }
 
 int parseLineLimit(Poco::Net::HTTPServerRequest& request)

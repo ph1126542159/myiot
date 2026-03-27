@@ -96,6 +96,11 @@ public:
 		/// libraryName. If libraryName is the empty string,
 		/// return the path to the code cache directory.
 
+	void unloadBundle(Bundle::Ptr pBundle) const;
+		/// Unloads the given bundle from the running OSP framework.
+		///
+		/// The bundle must already be stopped before calling this method.
+
 	const Poco::Path& temporaryDirectory() const;
 		/// Returns the path to the bundle's temporary (transient)
 		/// data directory.

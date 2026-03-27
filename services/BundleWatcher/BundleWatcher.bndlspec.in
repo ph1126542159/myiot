@@ -1,0 +1,28 @@
+<bundlespec>
+  <manifest>
+    <name>MyIoT Bundle Watcher</name>
+    <symbolicName>@MYIOT_SERVICE_BUNDLE_NAME@</symbolicName>
+    <version>@MYIOT_SERVICE_PACKAGE_VERSION@</version>
+    <vendor>MyIoT</vendor>
+    <copyright>(c) 2026 MyIoT</copyright>
+    <activator>
+      <class>MyIoT::Services::BundleWatcher::BundleActivator</class>
+      <library>@MYIOT_SERVICE_BUNDLE_NAME@</library>
+    </activator>
+    <lazyStart>false</lazyStart>
+    <runLevel>620</runLevel>
+    <dependency>
+      <symbolicName>osp.core</symbolicName>
+      <version>[1.0.0,3.0.0)</version>
+    </dependency>
+  </manifest>
+  <code>
+    bin/${osName}/${osArch}/*.so,
+    bin/${osName}/${osArch}/*.dylib,
+    bin/${osName}/${osArch}/*.dll,
+    bin/${osName}/${osArch}/*.pdb,
+  </code>
+  <files>
+    bundle/*
+  </files>
+</bundlespec>

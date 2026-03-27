@@ -28,31 +28,18 @@ const bundleListPackage = computed(() =>
   featurePackages.find((featurePackage) => featurePackage.id === 'myiot.bundle-list') ?? null
 )
 
+const registryPackages = computed(() =>
+  featurePackages.filter((featurePackage) => featurePackage.id !== 'myiot.home')
+)
+
 const launchablePackages = computed(() =>
   featurePackages.filter((featurePackage) => featurePackage.entryPath)
-)
-
-const currentDeviceAddress = computed(() =>
-  sessionState.serverAddress ||
-  (sessionState.deviceIp
-    ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : '未识别')
-)
-
-const accessEntryUrl = computed(() =>
-  sessionState.accessUrl ? `${sessionState.accessUrl}/myiot/home/index.html` : ''
-)
-
-const networkConflictHint = computed(() =>
-  sessionState.deviceIp
-    ? '局域网里多台设备不会互相冲突；每台设备通过自己的 IP 访问。只有同一台机器上重复占用相同端口时，实例才会冲突。默认端口通常是 HTTP 22080、HTTPS 22443。'
-    : '当前还没有识别到设备地址，请稍后刷新页面。'
 )
 
 const signalItems = computed(() => [
   { label: '会话链路', value: '稳定', icon: 'mdi-lan-connect', tone: 'primary' },
   { label: '组件同步', value: `${featurePackages.length} 个就绪`, icon: 'mdi-layers-triple-outline', tone: 'secondary' },
-  { label: '节点安全', value: 'TLS 已启用', icon: 'mdi-shield-check-outline', tone: 'info' }
+  { label: '访问协议', value: (sessionState.accessProtocol || 'http').toUpperCase(), icon: 'mdi-shield-check-outline', tone: 'info' }
 ])
 
 const timeline = [
@@ -108,6 +95,7 @@ async function loadLogs() {
     logsRequestInFlight = false
   }
 }
+
 
 onMounted(async () => {
   const payload = await refreshSession()
@@ -213,10 +201,9 @@ async function handleSignOut() {
 
             <div class="registry-list">
               <div
-                v-for="featurePackage in featurePackages"
+                v-for="featurePackage in registryPackages"
                 :key="featurePackage.id"
                 class="registry-card"
-                :class="{ 'registry-card-active': featurePackage.id === 'myiot.home' }"
               >
                 <div class="registry-card-top">
                   <div class="registry-card-title">
@@ -294,42 +281,6 @@ async function handleSignOut() {
                 >
                   {{ banner.text }}
                 </v-alert>
-
-                <div class="device-access-card mt-6">
-                  <div class="device-access-head">
-                    <div>
-                      <p class="section-kicker">当前设备地址</p>
-                      <h3>登录后可直接定位到本机入口</h3>
-                    </div>
-                    <v-chip size="small" variant="tonal" color="primary">
-                      {{ sessionState.accessProtocol || 'http' }}
-                    </v-chip>
-                  </div>
-
-                  <div class="device-access-grid">
-                    <div class="device-access-item">
-                      <span>当前设备 IP</span>
-                      <strong>{{ sessionState.deviceIp || '未识别' }}</strong>
-                    </div>
-                    <div class="device-access-item">
-                      <span>监听端口</span>
-                      <strong>{{ sessionState.devicePort || '未识别' }}</strong>
-                    </div>
-                    <div class="device-access-item">
-                      <span>Socket 地址</span>
-                      <strong>{{ currentDeviceAddress }}</strong>
-                    </div>
-                  </div>
-
-                  <div v-if="accessEntryUrl" class="device-access-url-box">
-                    <span>主页访问地址</span>
-                    <a :href="accessEntryUrl" class="device-access-url">{{ accessEntryUrl }}</a>
-                  </div>
-
-                  <p class="device-access-note">
-                    {{ networkConflictHint }}
-                  </p>
-                </div>
 
                 <div class="signal-row">
                   <div
@@ -420,7 +371,7 @@ async function handleSignOut() {
 
                   <div class="d-grid ga-3 mt-4">
                     <div class="telemetry-item">
-                      <span>安全会话</span>
+                      <span>登录鉴权</span>
                       <strong>已建立</strong>
                     </div>
                     <div class="telemetry-item">
@@ -430,38 +381,6 @@ async function handleSignOut() {
                     <div class="telemetry-item">
                       <span>预留扩展位</span>
                       <strong>{{ downstreamPackages.length }}</strong>
-                    </div>
-                  </div>
-                </section>
-
-                <section class="feature-panel">
-                  <div class="feature-frame"></div>
-
-                  <p class="section-kicker">后续扩展模块</p>
-                  <div class="package-stack mt-4">
-                    <div
-                      v-for="featurePackage in downstreamPackages"
-                      :key="featurePackage.id"
-                      class="package-tile"
-                    >
-                      <div class="package-tile-top">
-                        <div class="package-tile-title">
-                          <v-icon :icon="featurePackage.icon" size="18"></v-icon>
-                          <strong>{{ featurePackage.title }}</strong>
-                        </div>
-                        <v-chip
-                          size="x-small"
-                          variant="tonal"
-                          :color="getPackageStatusTone(featurePackage.status)"
-                        >
-                          {{ formatPackageStatus(featurePackage.status) }}
-                        </v-chip>
-                      </div>
-                      <p class="package-tile-copy">{{ featurePackage.description }}</p>
-                      <div class="package-tile-meta">
-                        <span>{{ featurePackage.category }}</span>
-                        <span>v{{ featurePackage.version }}</span>
-                      </div>
                     </div>
                   </div>
                 </section>
@@ -606,80 +525,6 @@ async function handleSignOut() {
 </template>
 
 <style scoped>
-.device-access-card {
-  display: grid;
-  gap: 16px;
-  padding: 20px 22px;
-  border: 1px solid rgba(112, 240, 193, 0.24);
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(17, 40, 68, 0.92), rgba(7, 18, 33, 0.78));
-  box-shadow: inset 0 0 0 1px rgba(58, 216, 255, 0.08);
-}
-
-.device-access-head,
-.device-access-grid,
-.device-access-url-box {
-  display: flex;
-  gap: 14px;
-}
-
-.device-access-head h3 {
-  margin: 0;
-}
-
-.device-access-head,
-.device-access-url-box {
-  align-items: center;
-  justify-content: space-between;
-}
-
-.device-access-grid {
-  flex-wrap: wrap;
-}
-
-.device-access-item {
-  min-width: 180px;
-  flex: 1 1 180px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(78, 188, 255, 0.12);
-  background: rgba(5, 16, 29, 0.64);
-}
-
-.device-access-item span,
-.device-access-url-box span {
-  display: block;
-  margin-bottom: 8px;
-  color: rgba(210, 232, 255, 0.62);
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-}
-
-.device-access-item strong,
-.device-access-url {
-  color: #e6f4ff;
-  word-break: break-all;
-}
-
-.device-access-url-box {
-  flex-wrap: wrap;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(78, 188, 255, 0.12);
-  background: rgba(5, 16, 29, 0.64);
-}
-
-.device-access-url {
-  font-family: Consolas, "Courier New", monospace;
-}
-
-.device-access-note {
-  margin: 0;
-  color: rgba(210, 232, 255, 0.74);
-  line-height: 1.7;
-}
-
 .log-board {
   display: grid;
   gap: 18px;
@@ -830,12 +675,6 @@ async function handleSignOut() {
 }
 
 @media (max-width: 780px) {
-  .device-access-head,
-  .device-access-url-box {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .process-log-shell {
     grid-template-columns: 1fr;
   }

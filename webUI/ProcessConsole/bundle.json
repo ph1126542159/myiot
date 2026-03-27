@@ -1,0 +1,12 @@
+{
+  "id": "myiot.process-console-ui",
+  "name": "终端",
+  "title": "终端交互",
+  "version": "0.1.0",
+  "status": "active",
+  "category": "diagnostics",
+  "order": 35,
+  "icon": "mdi-console-network-outline",
+  "entryPath": "/myiot/console/index.html",
+  "description": "独立打开当前进程终端交互页面，执行调试命令并查看即时输出。"
+}

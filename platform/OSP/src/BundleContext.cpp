@@ -84,6 +84,12 @@ std::string BundleContext::pathForLibrary(const std::string& libraryName)
 }
 
 
+void BundleContext::unloadBundle(Bundle::Ptr pBundle) const
+{
+	_loader.unloadBundle(pBundle);
+}
+
+
 const Poco::Path& BundleContext::temporaryDirectory() const
 {
 	File f(_temporaryDir);

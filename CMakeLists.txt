@@ -199,6 +199,7 @@ endif()
 option(MYIOT_ENABLE_MACCHINA_PLATFORM "Build selected macchina.io platform modules" ON)
 option(MYIOT_ENABLE_JS_MODULES "Build JS/V8-related platform modules" OFF)
 option(MYIOT_ENABLE_POCO_BOOTSTRAP "Download and build official Poco when it is not available locally" ON)
+option(MYIOT_ENABLE_HTTPS_BUNDLES "Build HTTPS-related OSP bundles" OFF)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 set(POCO_UNBUNDLED OFF CACHE BOOL "Use external third-party dependencies" FORCE)
@@ -460,7 +461,11 @@ if(WIN32)
 endif()
 
 if(MYIOT_ENABLE_MACCHINA_PLATFORM)
-    if(EXISTS "${MACCHINA_PLATFORM_DIR}/components")
+    if(EXISTS "${MACCHINA_PLATFORM_DIR}/CodeGeneration"
+       AND EXISTS "${MACCHINA_PLATFORM_DIR}/Geo"
+       AND EXISTS "${MACCHINA_PLATFORM_DIR}/Serial"
+       AND EXISTS "${MACCHINA_PLATFORM_DIR}/WebTunnel"
+       AND EXISTS "${MACCHINA_PLATFORM_DIR}/OSP")
         message(STATUS "Using vendored macchina.io platform extension sources at: ${MACCHINA_PLATFORM_DIR}")
     else()
         message(FATAL_ERROR "macchina.io platform sources not found: ${MACCHINA_PLATFORM_DIR}")
@@ -488,18 +493,23 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
         OSPBundleCreator
         OSPCodeCacheUtility
         OSP_ActiveRecord_Bundle
-        OSP_Crypto_Bundle
         OSP_Data_Bundle
         OSP_Data_SQLite_Bundle
         OSP_Net_Bundle
-        OSP_NetSSL_Bundle
         OSP_SimpleAuth_Bundle
         OSPStripBundle
         OSP_Web_Bundle
         OSP_WebEvent_Bundle
         OSP_WebServer_Bundle
-        OSP_SecureWebServer_Bundle
     )
+
+    if(MYIOT_ENABLE_HTTPS_BUNDLES)
+        list(APPEND MYIOT_PLATFORM_TARGETS
+            OSP_Crypto_Bundle
+            OSP_NetSSL_Bundle
+            OSP_SecureWebServer_Bundle
+        )
+    endif()
 
     add_library(myiot_poco_platform INTERFACE)
     target_link_libraries(myiot_poco_platform
@@ -543,4 +553,5 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
 endif()
 
 add_subdirectory(webUI)
+add_subdirectory(services)
 add_subdirectory(server)

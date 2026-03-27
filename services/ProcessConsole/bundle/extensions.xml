@@ -1,0 +1,3 @@
+<extensions>
+  <extension point="osp.web.server.requesthandler" path="/myiot/services/process-console/exec" class="MyIoT::Services::ProcessConsole::ConsoleCommandRequestHandlerFactory" library="io.myiot.services.processconsole" allowSpecialization="none" hidden="true"/>
+</extensions>

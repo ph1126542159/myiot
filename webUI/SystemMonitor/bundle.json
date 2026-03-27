@@ -1,0 +1,17 @@
+{
+  "id": "myiot.system-monitor",
+  "name": "监控",
+  "title": "系统监控",
+  "version": "0.1.0",
+  "category": "diagnostics",
+  "icon": "mdi-chart-timeline-variant",
+  "order": 40,
+  "status": "active",
+  "entryPath": "/myiot/monitor/index.html",
+  "description": "实时展示系统磁盘、内存、线程、进程、IO、网络和 CPU 走势。",
+  "capabilities": [
+    "system-monitoring",
+    "runtime-metrics",
+    "performance-curves"
+  ]
+}

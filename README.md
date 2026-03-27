@@ -13,12 +13,14 @@ MyIoT 是一个基于 `macchina.io EDGE`、`POCO OSP` 和 `CMake` 的 IoT/边缘
 
 ## 当前功能
 
-- 登录入口：`/myiot/login/index.html`
-- 控制台主页：`/myiot/home/index.html`
+- 推荐入口：`/`
+- 未登录时会跳转到：`/myiot/login/index.html`
+- 已登录后会跳转到：`/myiot/home/index.html`
 - 系统包列表：`/myiot/packages/index.html`
 - 登录后主页显示当前设备访问地址、IP 和端口
 - 支持 OSP bundle 打包与加载
 - 支持本地日志轮询展示
+- 支持进程诊断控制台接口：`/myiot/services/process-console/exec`
 - 支持通过 CMake 自动拉取和构建 Poco、Fast-CDR、Fast-DDS、foonathan_memory_vendor
 
 默认示例账号：
@@ -99,10 +101,20 @@ cmake --build build --config Debug --parallel
 - HTTP：`0.0.0.0:22080`
 - HTTPS：`0.0.0.0:22443`
 
-因此常见访问方式是：
+因此推荐的访问方式是先打开根路径：
+
+- `http://127.0.0.1:22080/`
+- `https://127.0.0.1:22443/`
+
+程序会自动跳转：
+
+- 未登录：跳到 `/myiot/login/index.html`
+- 已登录：跳到 `/myiot/home/index.html`
+
+如果你想直接访问静态页面，也可以使用：
 
 - `http://127.0.0.1:22080/myiot/login/index.html`
-- `https://127.0.0.1:22443/myiot/login/index.html`
+- `http://127.0.0.1:22080/myiot/home/index.html`
 
 如果在局域网内访问，请把 `127.0.0.1` 换成设备自身的局域网 IP。
 

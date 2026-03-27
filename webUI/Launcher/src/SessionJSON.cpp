@@ -2,6 +2,7 @@
 #include "Poco/JSON/Object.h"
 #include "Poco/JSON/Stringifier.h"
 #include "Poco/Net/IPAddress.h"
+#include "Poco/Net/NetException.h"
 #include "Poco/Net/HTTPServerRequest.h"
 #include "Poco/Net/HTTPServerResponse.h"
 #include "Poco/OSP/ServiceFinder.h"
@@ -21,8 +22,26 @@ void sendPayload(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Pt
 {
     response.setChunkedTransferEncoding(true);
     response.setContentType("application/json");
-    std::ostream& out = response.send();
-    Poco::JSON::Stringifier::stringify(payload, out);
+    try
+    {
+        std::ostream& out = response.send();
+        Poco::JSON::Stringifier::stringify(payload, out);
+    }
+    catch (const Poco::Net::ConnectionResetException&)
+    {
+    }
+    catch (const Poco::Net::ConnectionAbortedException&)
+    {
+    }
+    catch (const Poco::IOException& exc)
+    {
+        const std::string message = exc.displayText();
+        if (message.find("broken pipe") == std::string::npos &&
+            message.find("Broken pipe") == std::string::npos)
+        {
+            throw;
+        }
+    }
 }
 
 std::string buildAccessURL(Poco::Net::HTTPServerRequest& request)

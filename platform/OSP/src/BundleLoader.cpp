@@ -579,7 +579,21 @@ void BundleLoader::uninstallBundle(Bundle* pBundle)
 	uninstallLibraries(pBundle);
 
 	File bundleFile(pBundle->path());
-	bundleFile.remove(true);
+	try
+	{
+		bundleFile.remove(true);
+	}
+	catch (Poco::FileException&)
+	{
+		if (!bundleFile.exists())
+		{
+			if (_logger.information())
+			{
+				_logger.information("Bundle file for %s was already removed from repository."s, pBundle->symbolicName());
+			}
+		}
+		else throw;
+	}
 
 	BundleEvent unloadedEvent(pBundle, BundleEvent::EV_BUNDLE_UNLOADED);
 	if (it != _bundles.end())
