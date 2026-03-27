@@ -1,0 +1,17 @@
+{
+  "id": "myiot.launcher",
+  "name": "登录",
+  "title": "登录入口",
+  "version": "0.1.0",
+  "category": "launcher",
+  "icon": "mdi-shield-key-outline",
+  "order": 10,
+  "status": "active",
+  "entryPath": "/myiot/login/index.html",
+  "description": "MyIoT 的轻量登录入口，负责身份验证和主页面跳转。",
+  "capabilities": [
+    "session",
+    "launcher-entry",
+    "auth"
+  ]
+}

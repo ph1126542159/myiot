@@ -1,0 +1,17 @@
+{
+  "id": "myiot.bundle-list",
+  "name": "包列表",
+  "title": "系统包列表",
+  "version": "0.1.0",
+  "category": "diagnostics",
+  "icon": "mdi-package-variant-closed",
+  "order": 30,
+  "status": "active",
+  "entryPath": "/myiot/packages/index.html",
+  "description": "展示当前系统已加载的所有 OSP 功能包、状态、版本和运行级别。",
+  "capabilities": [
+    "bundle-inspection",
+    "runtime-diagnostics",
+    "package-catalog"
+  ]
+}

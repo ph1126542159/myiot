@@ -1,0 +1,17 @@
+{
+  "id": "myiot.home",
+  "name": "主页面",
+  "title": "控制台主页",
+  "version": "0.1.0",
+  "category": "home",
+  "icon": "mdi-view-dashboard-outline",
+  "order": 20,
+  "status": "active",
+  "entryPath": "/myiot/home/index.html",
+  "description": "MyIoT 的主控制台页面，展示功能包、状态总览和后续扩展入口。",
+  "capabilities": [
+    "dashboard",
+    "package-navigation",
+    "workspace-home"
+  ]
+}
