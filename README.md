@@ -43,7 +43,7 @@ MyIoT/
 主要子目录说明：
 
 - `server/`
-  负责生成 `macchina.exe`，并携带 `macchina.properties`、证书和启动配置。
+  负责生成 `macchina` 可执行程序（Windows 下为 `macchina.exe`），并携带 `macchina.properties`、证书和启动配置。
 - `webUI/Launcher/`
   登录入口与会话接口。
 - `webUI/Home/`
@@ -55,13 +55,22 @@ MyIoT/
 
 ## 构建方式
 
-当前项目使用 `CMake` 构建，Windows 下默认使用 Visual Studio 2022 生成器。
+当前项目使用 `CMake` 构建，支持 Windows/Linux 双平台。
 
 ### 首次构建
+
+Windows（Visual Studio 2022）：
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022"
 cmake --build build --config Debug --parallel
+```
+
+Linux（Ninja 或 Unix Makefiles）：
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
 ```
 
 ### 输出目录
@@ -73,7 +82,7 @@ cmake --build build --config Debug --parallel
 
 例如：
 
-- `build/bin/macchina.exe`
+- `build/bin/macchina`（Windows 下为 `build/bin/macchina.exe`）
 - `build/bin/io.myiot.webui.launcherd.dll`
 - `build/bin/io.myiot.webui.homed.dll`
 
@@ -81,8 +90,16 @@ cmake --build build --config Debug --parallel
 
 构建完成后，直接运行：
 
+Windows：
+
 ```powershell
 .\build\bin\macchina.exe
+```
+
+Linux：
+
+```bash
+./build/bin/macchina
 ```
 
 运行时需要确保同目录下存在这些文件，当前构建流程会自动复制：
@@ -90,6 +107,9 @@ cmake --build build --config Debug --parallel
 - `macchina.properties`
 - `macchina.pem`
 - `rootcert.pem`
+
+Windows 额外会复制：
+
 - `libcrypto-3-x64.dll`
 - `libssl-3-x64.dll`
 - `legacy.dll`

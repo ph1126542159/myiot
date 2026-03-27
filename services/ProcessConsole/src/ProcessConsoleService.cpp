@@ -11,8 +11,11 @@
 #include "Poco/Thread.h"
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iomanip>
+#include <limits.h>
 #include <set>
 #include <sstream>
 #include <string>
@@ -22,6 +25,14 @@
 #include <dbghelp.h>
 #include <tlhelp32.h>
 #include <windows.h>
+#else
+#include <dirent.h>
+#include <execinfo.h>
+#include <unistd.h>
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
 #endif
 
 namespace MyIoT {
@@ -118,9 +129,136 @@ std::string executablePath()
         buffer.resize(buffer.size() * 2);
     }
 #else
+    std::vector<char> buffer(PATH_MAX, '\0');
+    const ssize_t length = readlink("/proc/self/exe", buffer.data(), buffer.size() - 1);
+    if (length > 0)
+    {
+        return std::string(buffer.data(), static_cast<std::size_t>(length));
+    }
     return Poco::Path::current();
 #endif
 }
+
+#if !defined(_WIN32)
+
+struct LinuxThreadInfo
+{
+    std::uint64_t threadId = 0;
+    char state = '?';
+    std::string name;
+    bool current = false;
+};
+
+struct LinuxModuleInfo
+{
+    std::string path;
+    std::uintptr_t baseAddress = 0;
+};
+
+bool isNumericString(const std::string& value)
+{
+    if (value.empty()) return false;
+    for (char ch: value)
+    {
+        if (ch < '0' || ch > '9') return false;
+    }
+    return true;
+}
+
+std::vector<LinuxThreadInfo> enumerateLinuxThreads()
+{
+    std::vector<LinuxThreadInfo> threads;
+    DIR* taskDir = opendir("/proc/self/task");
+    if (!taskDir) return threads;
+
+    const std::uint64_t currentTid = static_cast<std::uint64_t>(Poco::Thread::currentTid());
+    dirent* entry = nullptr;
+    while ((entry = readdir(taskDir)) != nullptr)
+    {
+        std::string tidName(entry->d_name);
+        if (!isNumericString(tidName)) continue;
+
+        LinuxThreadInfo info;
+        info.threadId = static_cast<std::uint64_t>(std::strtoull(tidName.c_str(), nullptr, 10));
+        info.current = info.threadId == currentTid;
+
+        std::ifstream statusFile("/proc/self/task/" + tidName + "/status");
+        std::string line;
+        while (std::getline(statusFile, line))
+        {
+            if (line.rfind("Name:", 0) == 0)
+            {
+                info.name = Poco::trim(line.substr(5));
+            }
+            else if (line.rfind("State:", 0) == 0)
+            {
+                const std::size_t tabPos = line.find('\t');
+                const std::size_t valuePos = tabPos != std::string::npos ? tabPos + 1 : 6;
+                if (valuePos < line.size()) info.state = line[valuePos];
+            }
+        }
+
+        threads.push_back(info);
+    }
+
+    closedir(taskDir);
+    std::sort(threads.begin(), threads.end(), [](const LinuxThreadInfo& left, const LinuxThreadInfo& right) {
+        return left.threadId < right.threadId;
+    });
+    return threads;
+}
+
+std::vector<LinuxModuleInfo> enumerateLinuxModules()
+{
+    std::vector<LinuxModuleInfo> modules;
+    std::ifstream mapsFile("/proc/self/maps");
+    if (!mapsFile.good()) return modules;
+
+    std::set<std::string> seen;
+    std::string line;
+    while (std::getline(mapsFile, line))
+    {
+        const std::size_t dashPos = line.find('-');
+        const std::size_t spacePos = line.find(' ');
+        if (dashPos == std::string::npos || spacePos == std::string::npos || dashPos >= spacePos) continue;
+
+        const std::size_t pathPos = line.find('/');
+        if (pathPos == std::string::npos) continue;
+        const std::string path = line.substr(pathPos);
+        if (!seen.insert(path).second) continue;
+
+        const std::string baseHex = line.substr(0, dashPos);
+        LinuxModuleInfo info;
+        info.path = path;
+        info.baseAddress = static_cast<std::uintptr_t>(std::strtoull(baseHex.c_str(), nullptr, 16));
+        modules.push_back(info);
+    }
+
+    std::sort(modules.begin(), modules.end(), [](const LinuxModuleInfo& left, const LinuxModuleInfo& right) {
+        return left.baseAddress < right.baseAddress;
+    });
+    return modules;
+}
+
+std::vector<std::string> captureLinuxStack(int limit)
+{
+    if (limit < 1) limit = 16;
+    std::vector<void*> addresses(static_cast<std::size_t>(limit), nullptr);
+    const int count = backtrace(addresses.data(), static_cast<int>(addresses.size()));
+    std::vector<std::string> frames;
+    if (count <= 0) return frames;
+
+    char** symbols = backtrace_symbols(addresses.data(), count);
+    if (!symbols) return frames;
+    for (int i = 0; i < count; ++i)
+    {
+        frames.emplace_back(symbols[i] ? symbols[i] : "<unresolved>");
+    }
+    std::free(symbols);
+    return frames;
+}
+
+#endif
 
 #if defined(_WIN32)
 
@@ -420,7 +558,12 @@ private:
         appendLine(output, "Threads: " + std::to_string(threadList.size()));
         appendLine(output, "Modules: " + std::to_string(moduleList.size()));
 #else
-        appendLine(output, "Threads/Modules: 当前平台未启用 Windows 诊断扩展。");
+        const auto threadList = enumerateLinuxThreads();
+        const auto moduleList = enumerateLinuxModules();
+        data->set("threadCount", static_cast<int>(threadList.size()));
+        data->set("moduleCount", static_cast<int>(moduleList.size()));
+        appendLine(output, "Threads: " + std::to_string(threadList.size()));
+        appendLine(output, "Modules: " + std::to_string(moduleList.size()));
 #endif
 
         return payload;
@@ -462,9 +605,34 @@ private:
         data->set("returnedCount", returned);
         appendLine(output, "共发现 " + std::to_string(threadList.size()) + " 个线程，本次返回 " + std::to_string(returned) + " 个。");
 #else
-        payload->set("ok", false);
-        payload->set("message", "当前平台未实现线程枚举。");
-        appendLine(output, "当前平台未实现线程枚举。");
+        Poco::JSON::Array::Ptr items = new Poco::JSON::Array;
+        const auto threadList = enumerateLinuxThreads();
+        int returned = 0;
+
+        for (const auto& thread: threadList)
+        {
+            if (returned >= limit) break;
+
+            Poco::JSON::Object::Ptr item = new Poco::JSON::Object;
+            item->set("threadId", static_cast<Poco::UInt64>(thread.threadId));
+            item->set("state", std::string(1, thread.state));
+            item->set("name", thread.name);
+            item->set("current", thread.current);
+            items->add(item);
+
+            std::ostringstream line;
+            line << (thread.current ? "* " : "  ")
+                 << "TID=" << thread.threadId
+                 << " state=" << thread.state
+                 << " name=" << (thread.name.empty() ? "<unnamed>" : thread.name);
+            appendLine(output, line.str());
+            ++returned;
+        }
+
+        data->set("threads", items);
+        data->set("threadCount", static_cast<int>(threadList.size()));
+        data->set("returnedCount", returned);
+        appendLine(output, "共发现 " + std::to_string(threadList.size()) + " 个线程，本次返回 " + std::to_string(returned) + " 个。");
 #endif
 
         return payload;
@@ -501,9 +669,27 @@ private:
         data->set("returnedCount", returned);
         appendLine(output, "共发现 " + std::to_string(moduleList.size()) + " 个模块，本次返回 " + std::to_string(returned) + " 个。");
 #else
-        payload->set("ok", false);
-        payload->set("message", "当前平台未实现模块枚举。");
-        appendLine(output, "当前平台未实现模块枚举。");
+        Poco::JSON::Array::Ptr items = new Poco::JSON::Array;
+        const auto moduleList = enumerateLinuxModules();
+        int returned = 0;
+
+        for (const auto& module: moduleList)
+        {
+            if (returned >= limit) break;
+
+            Poco::JSON::Object::Ptr item = new Poco::JSON::Object;
+            item->set("path", module.path);
+            item->set("baseAddress", formatPointer(module.baseAddress));
+            items->add(item);
+
+            appendLine(output, module.path + " @ " + formatPointer(module.baseAddress));
+            ++returned;
+        }
+
+        data->set("modules", items);
+        data->set("moduleCount", static_cast<int>(moduleList.size()));
+        data->set("returnedCount", returned);
+        appendLine(output, "共发现 " + std::to_string(moduleList.size()) + " 个模块，本次返回 " + std::to_string(returned) + " 个。");
 #endif
 
         return payload;
@@ -543,9 +729,21 @@ private:
         data->set("frameCount", static_cast<int>(frames.size()));
         appendLine(output, "说明: 这里抓取的是当前处理该请求线程的调用栈。");
 #else
-        payload->set("ok", false);
-        payload->set("message", "当前平台未实现堆栈抓取。");
-        appendLine(output, "当前平台未实现堆栈抓取。");
+        Poco::JSON::Array::Ptr items = new Poco::JSON::Array;
+        const auto frames = captureLinuxStack(limit);
+
+        for (std::size_t i = 0; i < frames.size(); ++i)
+        {
+            Poco::JSON::Object::Ptr item = new Poco::JSON::Object;
+            item->set("index", static_cast<int>(i));
+            item->set("symbol", frames[i]);
+            items->add(item);
+            appendLine(output, "#" + std::to_string(i) + " " + frames[i]);
+        }
+
+        data->set("frames", items);
+        data->set("frameCount", static_cast<int>(frames.size()));
+        appendLine(output, "说明: 这里抓取的是当前处理该请求线程的调用栈。");
 #endif
 
         return payload;
@@ -575,9 +773,22 @@ private:
         data->set("functionCount", static_cast<int>(items->size()));
         appendLine(output, "说明: 函数名来自当前调用栈的符号解析结果。");
 #else
-        payload->set("ok", false);
-        payload->set("message", "当前平台未实现函数符号解析。");
-        appendLine(output, "当前平台未实现函数符号解析。");
+        Poco::JSON::Array::Ptr items = new Poco::JSON::Array;
+        std::set<std::string> seen;
+        const auto frames = captureLinuxStack(limit);
+
+        for (const auto& frame: frames)
+        {
+            if (frame.empty()) continue;
+            if (!seen.insert(frame).second) continue;
+
+            items->add(frame);
+            appendLine(output, frame);
+        }
+
+        data->set("functions", items);
+        data->set("functionCount", static_cast<int>(items->size()));
+        appendLine(output, "说明: 函数名来自当前调用栈符号文本。");
 #endif
 
         return payload;

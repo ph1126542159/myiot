@@ -22,7 +22,7 @@ function(myiot_add_osp_bundle target_name output_name)
         get_filename_component(bundle_spec "${BUNDLE_BUNDLE_SPEC}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
         set(bundle_output_dir "${CMAKE_BINARY_DIR}/bundles")
         set(bundle_stamp "${CMAKE_CURRENT_BINARY_DIR}/${target_name}.bndl.stamp")
-        set(bundle_code_args "/code=$<TARGET_FILE:${target_name}>")
+        set(bundle_code_args "--code=$<TARGET_FILE:${target_name}>")
         set(bundle_resource_deps)
 
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bundle")
@@ -30,16 +30,16 @@ function(myiot_add_osp_bundle target_name output_name)
         endif()
 
         if(MSVC)
-            list(APPEND bundle_code_args "/code=$<TARGET_PDB_FILE:${target_name}>")
+            list(APPEND bundle_code_args "--code=$<TARGET_PDB_FILE:${target_name}>")
         endif()
 
         add_custom_command(
             OUTPUT "${bundle_stamp}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${bundle_output_dir}"
             COMMAND $<TARGET_FILE:OSPBundleCreator>
-                "/output-dir=${bundle_output_dir}"
-                "/osname=${MYIOT_OSP_BUNDLE_OSNAME}"
-                "/osarch=${MYIOT_OSP_BUNDLE_OSARCH}"
+                "--output-dir=${bundle_output_dir}"
+                "--osname=${MYIOT_OSP_BUNDLE_OSNAME}"
+                "--osarch=${MYIOT_OSP_BUNDLE_OSARCH}"
                 ${bundle_code_args}
                 "${bundle_spec}"
             COMMAND ${CMAKE_COMMAND} -E touch "${bundle_stamp}"
@@ -93,12 +93,10 @@ set(MYIOT_OSP_BUNDLE_INCLUDE_DIRS
 set(MYIOT_OSP_BUNDLE_OSNAME "${MYIOT_PLATFORM_OSNAME}")
 set(MYIOT_OSP_BUNDLE_OSARCH "${MYIOT_PLATFORM_OSARCH}")
 
-add_subdirectory(ActiveRecord)
 add_subdirectory(BundleAdmin)
 add_subdirectory(BundleCreator)
 add_subdirectory(CodeCacheUtility)
 add_subdirectory(Core)
-add_subdirectory(Data)
 add_subdirectory(Net)
 add_subdirectory(SimpleAuth)
 add_subdirectory(StripBundle)
@@ -106,6 +104,11 @@ add_subdirectory(Unit)
 add_subdirectory(Web)
 add_subdirectory(WebEvent)
 add_subdirectory(WebServer)
+
+if(MYIOT_ENABLE_DATA_MODULES)
+    add_subdirectory(ActiveRecord)
+    add_subdirectory(Data)
+endif()
 
 if(MYIOT_ENABLE_HTTPS_BUNDLES)
     add_subdirectory(Crypto)

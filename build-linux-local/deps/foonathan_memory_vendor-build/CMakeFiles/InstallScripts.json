@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

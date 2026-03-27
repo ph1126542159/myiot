@@ -72,7 +72,7 @@ set(MYIOT_DEPS_DIR
     "${CMAKE_BINARY_DIR}/deps"
     CACHE PATH "Directory used to download and build third-party dependencies")
 
-option(MYIOT_ENABLE_FASTDDS_BOOTSTRAP "Download and build Fast-DDS when it is not available locally" ON)
+option(MYIOT_ENABLE_FASTDDS_BOOTSTRAP "Download and build Fast-DDS when it is not available locally" OFF)
 
 set(MYIOT_FASTDDS_VERSION "v3.3.0" CACHE STRING "Fast-DDS version to bootstrap when missing")
 set(MYIOT_FASTCDR_VERSION "v2.3.0" CACHE STRING "Fast-CDR version paired with the selected Fast-DDS version")
@@ -97,6 +97,32 @@ if(MYIOT_ENABLE_FASTDDS_BOOTSTRAP)
             -DCMAKE_PREFIX_PATH:PATH=${MYIOT_FASTDDS_PREFIX}
             -DBUILD_TESTING:BOOL=OFF
         )
+
+        if(CMAKE_C_COMPILER)
+            list(APPEND _myiot_fastdds_external_cmake_args
+                -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
+            )
+        endif()
+        if(CMAKE_C_COMPILER_ARG1)
+            list(APPEND _myiot_fastdds_external_cmake_args
+                -DCMAKE_C_COMPILER_ARG1:STRING=${CMAKE_C_COMPILER_ARG1}
+            )
+        endif()
+        if(CMAKE_CXX_COMPILER)
+            list(APPEND _myiot_fastdds_external_cmake_args
+                -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
+            )
+        endif()
+        if(CMAKE_CXX_COMPILER_ARG1)
+            list(APPEND _myiot_fastdds_external_cmake_args
+                -DCMAKE_CXX_COMPILER_ARG1:STRING=${CMAKE_CXX_COMPILER_ARG1}
+            )
+        endif()
+        if(CMAKE_MAKE_PROGRAM)
+            list(APPEND _myiot_fastdds_external_cmake_args
+                -DCMAKE_MAKE_PROGRAM:FILEPATH=${CMAKE_MAKE_PROGRAM}
+            )
+        endif()
 
         if(NOT CMAKE_CONFIGURATION_TYPES AND CMAKE_BUILD_TYPE)
             list(APPEND _myiot_fastdds_external_cmake_args
@@ -200,6 +226,7 @@ option(MYIOT_ENABLE_MACCHINA_PLATFORM "Build selected macchina.io platform modul
 option(MYIOT_ENABLE_JS_MODULES "Build JS/V8-related platform modules" OFF)
 option(MYIOT_ENABLE_POCO_BOOTSTRAP "Download and build official Poco when it is not available locally" ON)
 option(MYIOT_ENABLE_HTTPS_BUNDLES "Build HTTPS-related OSP bundles" OFF)
+option(MYIOT_ENABLE_DATA_MODULES "Build Poco Data/DataSQLite/ActiveRecord modules and OSP data bundles" OFF)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 set(POCO_UNBUNDLED OFF CACHE BOOL "Use external third-party dependencies" FORCE)
@@ -228,13 +255,18 @@ set(MYIOT_POCO_COMPONENTS
     Crypto
     NetSSL
     Zip
-    Data
-    DataSQLite
     CppParser
-    ActiveRecord
     Redis
     JWT
 )
+
+if(MYIOT_ENABLE_DATA_MODULES)
+    list(APPEND MYIOT_POCO_COMPONENTS
+        Data
+        DataSQLite
+        ActiveRecord
+    )
+endif()
 
 set(MACCHINA_PLATFORM_DIR
     "${CMAKE_SOURCE_DIR}/platform"
@@ -279,10 +311,17 @@ endfunction()
 
 set(Poco_FOUND FALSE)
 set(_myiot_local_poco_config_dir "${CMAKE_INSTALL_PREFIX}/cmake")
-set(_myiot_local_poco_foundation_debug "${CMAKE_INSTALL_PREFIX}/lib/PocoFoundationmdd.lib")
-set(_myiot_local_poco_foundation_release "${CMAKE_INSTALL_PREFIX}/lib/PocoFoundationmd.lib")
-set(_myiot_local_cppunit_debug "${CMAKE_INSTALL_PREFIX}/lib/CppUnitmdd.lib")
-set(_myiot_local_cppunit_release "${CMAKE_INSTALL_PREFIX}/lib/CppUnitmd.lib")
+if(WIN32)
+    set(_myiot_local_poco_foundation_debug "${CMAKE_INSTALL_PREFIX}/lib/PocoFoundationmdd.lib")
+    set(_myiot_local_poco_foundation_release "${CMAKE_INSTALL_PREFIX}/lib/PocoFoundationmd.lib")
+    set(_myiot_local_cppunit_debug "${CMAKE_INSTALL_PREFIX}/lib/CppUnitmdd.lib")
+    set(_myiot_local_cppunit_release "${CMAKE_INSTALL_PREFIX}/lib/CppUnitmd.lib")
+else()
+    set(_myiot_local_poco_foundation_debug "${CMAKE_INSTALL_PREFIX}/lib/libPocoFoundationd.a")
+    set(_myiot_local_poco_foundation_release "${CMAKE_INSTALL_PREFIX}/lib/libPocoFoundation.a")
+    set(_myiot_local_cppunit_debug "${CMAKE_INSTALL_PREFIX}/lib/libCppUnitd.a")
+    set(_myiot_local_cppunit_release "${CMAKE_INSTALL_PREFIX}/lib/libCppUnit.a")
+endif()
 
 if(EXISTS "${_myiot_local_poco_config_dir}/PocoConfig.cmake"
    AND EXISTS "${_myiot_local_poco_config_dir}/PocoCppUnitTargets.cmake"
@@ -309,16 +348,23 @@ if(EXISTS "${_myiot_local_poco_config_dir}/PocoConfig.cmake"
             Poco::Crypto
             Poco::NetSSL
             Poco::Zip
-            Poco::Data
-            Poco::DataSQLite
             Poco::CppParser
-            Poco::ActiveRecord
             Poco::Redis
             Poco::JWT
             Poco::CppUnit
         )
             myiot_normalize_imported_target_locations(${_myiot_poco_target})
         endforeach()
+
+        if(MYIOT_ENABLE_DATA_MODULES)
+            foreach(_myiot_poco_data_target
+                Poco::Data
+                Poco::DataSQLite
+                Poco::ActiveRecord
+            )
+                myiot_normalize_imported_target_locations(${_myiot_poco_data_target})
+            endforeach()
+        endif()
     endif()
 endif()
 
@@ -349,8 +395,13 @@ if(NOT Poco_FOUND AND MYIOT_ENABLE_POCO_BOOTSTRAP)
     set(ENABLE_XML ON CACHE BOOL "Enable XML" FORCE)
     set(ENABLE_JSON ON CACHE BOOL "Enable JSON" FORCE)
     set(ENABLE_MONGODB OFF CACHE BOOL "Disable MongoDB" FORCE)
-    set(ENABLE_DATA ON CACHE BOOL "Enable Data" FORCE)
-    set(ENABLE_DATA_SQLITE ON CACHE BOOL "Enable Data SQLite" FORCE)
+    if(MYIOT_ENABLE_DATA_MODULES)
+        set(ENABLE_DATA ON CACHE BOOL "Enable Data" FORCE)
+        set(ENABLE_DATA_SQLITE ON CACHE BOOL "Enable Data SQLite" FORCE)
+    else()
+        set(ENABLE_DATA OFF CACHE BOOL "Disable Data" FORCE)
+        set(ENABLE_DATA_SQLITE OFF CACHE BOOL "Disable Data SQLite" FORCE)
+    endif()
     set(ENABLE_REDIS ON CACHE BOOL "Enable Redis" FORCE)
     set(ENABLE_PDF OFF CACHE BOOL "Disable PDF" FORCE)
     set(ENABLE_UTIL ON CACHE BOOL "Enable Util" FORCE)
@@ -361,7 +412,11 @@ if(NOT Poco_FOUND AND MYIOT_ENABLE_POCO_BOOTSTRAP)
     set(ENABLE_POCODOC OFF CACHE BOOL "Disable PocoDoc" FORCE)
     set(ENABLE_PAGECOMPILER ON CACHE BOOL "Enable PageCompiler" FORCE)
     set(ENABLE_PAGECOMPILER_FILE2PAGE ON CACHE BOOL "Enable File2Page" FORCE)
-    set(ENABLE_ACTIVERECORD ON CACHE BOOL "Enable ActiveRecord" FORCE)
+    if(MYIOT_ENABLE_DATA_MODULES)
+        set(ENABLE_ACTIVERECORD ON CACHE BOOL "Enable ActiveRecord" FORCE)
+    else()
+        set(ENABLE_ACTIVERECORD OFF CACHE BOOL "Disable ActiveRecord" FORCE)
+    endif()
     set(ENABLE_ACTIVERECORD_COMPILER OFF CACHE BOOL "Disable ActiveRecord compiler" FORCE)
     set(ENABLE_NETSSL_WIN OFF CACHE BOOL "Disable NetSSL_Win" FORCE)
     set(ENABLE_NETSSL ON CACHE BOOL "Enable NetSSL" FORCE)
@@ -417,16 +472,20 @@ if(NOT Poco_FOUND AND MYIOT_ENABLE_POCO_BOOTSTRAP)
             Crypto
             NetSSL
             Zip
-            Data
-            DataSQLite
             CppParser
-            ActiveRecord
             Redis
             JWT
             CppUnit
             PageCompiler
             File2Page
     )
+    if(MYIOT_ENABLE_DATA_MODULES)
+        add_dependencies(myiot_poco_bootstrap
+            Data
+            DataSQLite
+            ActiveRecord
+        )
+    endif()
 elseif(NOT Poco_FOUND)
     message(FATAL_ERROR "Official Poco was not found and MYIOT_ENABLE_POCO_BOOTSTRAP is OFF.")
 endif()
@@ -492,9 +551,6 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
         OSP_BundleAdmin_Bundle
         OSPBundleCreator
         OSPCodeCacheUtility
-        OSP_ActiveRecord_Bundle
-        OSP_Data_Bundle
-        OSP_Data_SQLite_Bundle
         OSP_Net_Bundle
         OSP_SimpleAuth_Bundle
         OSPStripBundle
@@ -502,6 +558,14 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
         OSP_WebEvent_Bundle
         OSP_WebServer_Bundle
     )
+
+    if(MYIOT_ENABLE_DATA_MODULES)
+        list(APPEND MYIOT_PLATFORM_TARGETS
+            OSP_ActiveRecord_Bundle
+            OSP_Data_Bundle
+            OSP_Data_SQLite_Bundle
+        )
+    endif()
 
     if(MYIOT_ENABLE_HTTPS_BUNDLES)
         list(APPEND MYIOT_PLATFORM_TARGETS
@@ -522,10 +586,7 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
             Poco::Crypto
             Poco::NetSSL
             Poco::Zip
-            Poco::Data
-            Poco::DataSQLite
             Poco::CppParser
-            Poco::ActiveRecord
             Poco::Redis
             Poco::JWT
             Poco::CppUnit
@@ -538,6 +599,15 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
             Poco::OSPWebEvent
             Poco::OSPUnit
     )
+
+    if(MYIOT_ENABLE_DATA_MODULES)
+        target_link_libraries(myiot_poco_platform
+            INTERFACE
+                Poco::Data
+                Poco::DataSQLite
+                Poco::ActiveRecord
+        )
+    endif()
 
     install(TARGETS ${MYIOT_PLATFORM_TARGETS}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

@@ -1,0 +1,14 @@
+# Target labels
+ myiot_foonathan_memory_vendor
+# Source files and their labels
+/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_foonathan_memory_vendor
+/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_foonathan_memory_vendor.rule
+/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_foonathan_memory_vendor-complete.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-build.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-configure.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-download.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-install.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-mkdir.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-patch_disconnected.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-test.rule
+/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-update_disconnected.rule

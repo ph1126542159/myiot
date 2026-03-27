@@ -1,0 +1,100 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_fastdds_external"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_fastdds_external.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_fastdds_external-complete.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-build.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-configure.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-download.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-install.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-mkdir.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-patch_disconnected.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-test.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastdds_external-prefix/src/myiot_fastdds_external-stamp/myiot_fastdds_external-update_disconnected.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_fastcdr-complete.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/CMakeFiles/myiot_foonathan_memory_vendor-complete.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-build.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-configure.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-download.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-install.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-mkdir.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-patch_disconnected.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-test.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_fastcdr-prefix/src/myiot_fastcdr-stamp/myiot_fastcdr-update_disconnected.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-build.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-configure.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-download.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-install.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-mkdir.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-patch_disconnected.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-test.rule"
+		},
+		{
+			"file" : "/home/ph/work/myiot/build-linux-local/myiot_foonathan_memory_vendor-prefix/src/myiot_foonathan_memory_vendor-stamp/myiot_foonathan_memory_vendor-update_disconnected.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"myiot_fastdds_external"
+		],
+		"name" : "myiot_fastdds_external"
+	}
+}

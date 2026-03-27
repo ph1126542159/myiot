@@ -1,0 +1,2660 @@
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_UNAME"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "uname"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/uname"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/uname"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/uname"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/uname"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/uname"
+      - "/usr/local/sbin/uname"
+      - "/usr/local/bin/uname"
+      - "/usr/sbin/uname"
+    found: "/usr/bin/uname"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineSystem.cmake:212 (message)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      The system is: Linux - 6.17.0-19-generic - x86_64
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeNinjaFindMake.cmake:5 (find_program)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_MAKE_PROGRAM"
+    description: "Program used to build from build.ninja files."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ninja-build"
+      - "ninja"
+      - "samu"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/ninja-build"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/ninja"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/samu"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/ninja-build"
+    found: "/home/ph/.local/myiot-toolchain/tools/ninja/ninja"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:64 (_cmake_find_compiler)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_C_COMPILER"
+    description: "C compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "cc"
+      - "gcc"
+      - "cl"
+      - "bcc"
+      - "xlc"
+      - "icx"
+      - "clang"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/cc"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/cc"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/cc"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/cc"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/cc"
+      - "/usr/local/sbin/cc"
+      - "/usr/local/bin/cc"
+      - "/usr/sbin/cc"
+      - "/usr/bin/cc"
+      - "/sbin/cc"
+      - "/bin/cc"
+      - "/usr/games/cc"
+      - "/usr/local/games/cc"
+      - "/snap/bin/cc"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/cc"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/gcc"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/gcc"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/gcc"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/gcc"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/gcc"
+      - "/usr/local/sbin/gcc"
+      - "/usr/local/bin/gcc"
+      - "/usr/sbin/gcc"
+      - "/usr/bin/gcc"
+      - "/sbin/gcc"
+      - "/bin/gcc"
+      - "/usr/games/gcc"
+      - "/usr/local/games/gcc"
+      - "/snap/bin/gcc"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/gcc"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/cl"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/cl"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/cl"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/cl"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/cl"
+      - "/usr/local/sbin/cl"
+      - "/usr/local/bin/cl"
+      - "/usr/sbin/cl"
+      - "/usr/bin/cl"
+      - "/sbin/cl"
+      - "/bin/cl"
+      - "/usr/games/cl"
+      - "/usr/local/games/cl"
+      - "/snap/bin/cl"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/cl"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/bcc"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/bcc"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/bcc"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/bcc"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/bcc"
+      - "/usr/local/sbin/bcc"
+      - "/usr/local/bin/bcc"
+      - "/usr/sbin/bcc"
+      - "/usr/bin/bcc"
+      - "/sbin/bcc"
+      - "/bin/bcc"
+      - "/usr/games/bcc"
+      - "/usr/local/games/bcc"
+      - "/snap/bin/bcc"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/bcc"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/xlc"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/xlc"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/xlc"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/xlc"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/xlc"
+      - "/usr/local/sbin/xlc"
+      - "/usr/local/bin/xlc"
+      - "/usr/sbin/xlc"
+      - "/usr/bin/xlc"
+      - "/sbin/xlc"
+      - "/bin/xlc"
+      - "/usr/games/xlc"
+      - "/usr/local/games/xlc"
+      - "/snap/bin/xlc"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/xlc"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/icx"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/icx"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/icx"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/icx"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/icx"
+      - "/usr/local/sbin/icx"
+      - "/usr/local/bin/icx"
+      - "/usr/sbin/icx"
+      - "/usr/bin/icx"
+      - "/sbin/icx"
+      - "/bin/icx"
+      - "/usr/games/icx"
+      - "/usr/local/games/icx"
+      - "/snap/bin/icx"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/icx"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/clang"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/clang"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/clang"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/clang"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/clang"
+      - "/usr/local/sbin/clang"
+      - "/usr/local/bin/clang"
+      - "/usr/sbin/clang"
+      - "/usr/bin/clang"
+      - "/sbin/clang"
+      - "/bin/clang"
+      - "/usr/games/clang"
+      - "/usr/local/games/clang"
+      - "/snap/bin/clang"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/clang"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -Aa 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -D__CLASSIC_C__ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --target=arm-arm-none-eabi;-mcpu=cortex-m3 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c;-I__does_not_exist__ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -Aa 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -D__CLASSIC_C__ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --target=arm-arm-none-eabi;-mcpu=cortex-m3 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler: CMAKE_C_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c;-I__does_not_exist__ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_AR"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ar"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/ar"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/ar"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/ar"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/ar"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/ar"
+      - "/usr/local/sbin/ar"
+      - "/usr/local/bin/ar"
+      - "/usr/sbin/ar"
+    found: "/usr/bin/ar"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_RANLIB"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ranlib"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/ranlib"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/ranlib"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/ranlib"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/ranlib"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/ranlib"
+      - "/usr/local/sbin/ranlib"
+      - "/usr/local/bin/ranlib"
+      - "/usr/sbin/ranlib"
+    found: "/usr/bin/ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_STRIP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "strip"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/strip"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/strip"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/strip"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/strip"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/strip"
+      - "/usr/local/sbin/strip"
+      - "/usr/local/bin/strip"
+      - "/usr/sbin/strip"
+    found: "/usr/bin/strip"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_LINKER"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ld"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/ld"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/ld"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/ld"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/ld"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/ld"
+      - "/usr/local/sbin/ld"
+      - "/usr/local/bin/ld"
+      - "/usr/sbin/ld"
+    found: "/usr/bin/ld"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_NM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "nm"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/nm"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/nm"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/nm"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/nm"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/nm"
+      - "/usr/local/sbin/nm"
+      - "/usr/local/bin/nm"
+      - "/usr/sbin/nm"
+    found: "/usr/bin/nm"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJDUMP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objdump"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/objdump"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/objdump"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/objdump"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/objdump"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/objdump"
+      - "/usr/local/sbin/objdump"
+      - "/usr/local/bin/objdump"
+      - "/usr/sbin/objdump"
+    found: "/usr/bin/objdump"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJCOPY"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objcopy"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/objcopy"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/objcopy"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/objcopy"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/objcopy"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/objcopy"
+      - "/usr/local/sbin/objcopy"
+      - "/usr/local/bin/objcopy"
+      - "/usr/sbin/objcopy"
+    found: "/usr/bin/objcopy"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_READELF"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "readelf"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/readelf"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/readelf"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/readelf"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/readelf"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/readelf"
+      - "/usr/local/sbin/readelf"
+      - "/usr/local/bin/readelf"
+      - "/usr/sbin/readelf"
+    found: "/usr/bin/readelf"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_DLLTOOL"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "dlltool"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/dlltool"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/dlltool"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/dlltool"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/dlltool"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/dlltool"
+      - "/usr/local/sbin/dlltool"
+      - "/usr/local/bin/dlltool"
+      - "/usr/sbin/dlltool"
+      - "/usr/bin/dlltool"
+      - "/sbin/dlltool"
+      - "/bin/dlltool"
+      - "/usr/games/dlltool"
+      - "/usr/local/games/dlltool"
+      - "/snap/bin/dlltool"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/dlltool"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_ADDR2LINE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "addr2line"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/addr2line"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/addr2line"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/addr2line"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/addr2line"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/addr2line"
+      - "/usr/local/sbin/addr2line"
+      - "/usr/local/bin/addr2line"
+      - "/usr/sbin/addr2line"
+    found: "/usr/bin/addr2line"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_TAPI"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "tapi"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/tapi"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/tapi"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/tapi"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/tapi"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/tapi"
+      - "/usr/local/sbin/tapi"
+      - "/usr/local/bin/tapi"
+      - "/usr/sbin/tapi"
+      - "/usr/bin/tapi"
+      - "/sbin/tapi"
+      - "/bin/tapi"
+      - "/usr/games/tapi"
+      - "/usr/local/games/tapi"
+      - "/snap/bin/tapi"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/tapi"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:69 (_cmake_find_compiler)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER"
+    description: "CXX compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "c++"
+      - "CC"
+      - "g++"
+      - "aCC"
+      - "cl"
+      - "bcc"
+      - "xlC"
+      - "icpx"
+      - "icx"
+      - "clang++"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/sbin/"
+      - "/usr/bin/"
+      - "/sbin/"
+      - "/bin/"
+      - "/usr/games/"
+      - "/usr/local/games/"
+      - "/snap/bin/"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/"
+    searched_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/c++"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/c++"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/c++"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/c++"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/c++"
+      - "/usr/local/sbin/c++"
+      - "/usr/local/bin/c++"
+      - "/usr/sbin/c++"
+      - "/usr/bin/c++"
+      - "/sbin/c++"
+      - "/bin/c++"
+      - "/usr/games/c++"
+      - "/usr/local/games/c++"
+      - "/snap/bin/c++"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/c++"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/CC"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/CC"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/CC"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/CC"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/CC"
+      - "/usr/local/sbin/CC"
+      - "/usr/local/bin/CC"
+      - "/usr/sbin/CC"
+      - "/usr/bin/CC"
+      - "/sbin/CC"
+      - "/bin/CC"
+      - "/usr/games/CC"
+      - "/usr/local/games/CC"
+      - "/snap/bin/CC"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/CC"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/g++"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/g++"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/g++"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/g++"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/g++"
+      - "/usr/local/sbin/g++"
+      - "/usr/local/bin/g++"
+      - "/usr/sbin/g++"
+      - "/usr/bin/g++"
+      - "/sbin/g++"
+      - "/bin/g++"
+      - "/usr/games/g++"
+      - "/usr/local/games/g++"
+      - "/snap/bin/g++"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/g++"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/aCC"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/aCC"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/aCC"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/aCC"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/aCC"
+      - "/usr/local/sbin/aCC"
+      - "/usr/local/bin/aCC"
+      - "/usr/sbin/aCC"
+      - "/usr/bin/aCC"
+      - "/sbin/aCC"
+      - "/bin/aCC"
+      - "/usr/games/aCC"
+      - "/usr/local/games/aCC"
+      - "/snap/bin/aCC"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/aCC"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/cl"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/cl"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/cl"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/cl"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/cl"
+      - "/usr/local/sbin/cl"
+      - "/usr/local/bin/cl"
+      - "/usr/sbin/cl"
+      - "/usr/bin/cl"
+      - "/sbin/cl"
+      - "/bin/cl"
+      - "/usr/games/cl"
+      - "/usr/local/games/cl"
+      - "/snap/bin/cl"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/cl"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/bcc"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/bcc"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/bcc"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/bcc"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/bcc"
+      - "/usr/local/sbin/bcc"
+      - "/usr/local/bin/bcc"
+      - "/usr/sbin/bcc"
+      - "/usr/bin/bcc"
+      - "/sbin/bcc"
+      - "/bin/bcc"
+      - "/usr/games/bcc"
+      - "/usr/local/games/bcc"
+      - "/snap/bin/bcc"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/bcc"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/xlC"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/xlC"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/xlC"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/xlC"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/xlC"
+      - "/usr/local/sbin/xlC"
+      - "/usr/local/bin/xlC"
+      - "/usr/sbin/xlC"
+      - "/usr/bin/xlC"
+      - "/sbin/xlC"
+      - "/bin/xlC"
+      - "/usr/games/xlC"
+      - "/usr/local/games/xlC"
+      - "/snap/bin/xlC"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/xlC"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/icpx"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/icpx"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/icpx"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/icpx"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/icpx"
+      - "/usr/local/sbin/icpx"
+      - "/usr/local/bin/icpx"
+      - "/usr/sbin/icpx"
+      - "/usr/bin/icpx"
+      - "/sbin/icpx"
+      - "/bin/icpx"
+      - "/usr/games/icpx"
+      - "/usr/local/games/icpx"
+      - "/snap/bin/icpx"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/icpx"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/icx"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/icx"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/icx"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/icx"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/icx"
+      - "/usr/local/sbin/icx"
+      - "/usr/local/bin/icx"
+      - "/usr/sbin/icx"
+      - "/usr/bin/icx"
+      - "/sbin/icx"
+      - "/bin/icx"
+      - "/usr/games/icx"
+      - "/usr/local/games/icx"
+      - "/snap/bin/icx"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/icx"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/bin/clang++"
+      - "/home/ph/.local/myiot-toolchain/tools/ninja/clang++"
+      - "/home/ph/.local/myiot-toolchain/tools/node/bin/clang++"
+      - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x/clang++"
+      - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli/clang++"
+      - "/usr/local/sbin/clang++"
+      - "/usr/local/bin/clang++"
+      - "/usr/sbin/clang++"
+      - "/usr/bin/clang++"
+      - "/sbin/clang++"
+      - "/bin/clang++"
+      - "/usr/games/clang++"
+      - "/usr/local/games/clang++"
+      - "/snap/bin/clang++"
+      - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64/clang++"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --c++ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --ec++ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --target=arm-arm-none-eabi;-mcpu=cortex-m3 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c;-I__does_not_exist__ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --c++ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --ec++ 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: --target=arm-arm-none-eabi;-mcpu=cortex-m3 
+      
+      The output was:
+      no such file or directory
+      
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/"
+    found: "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/ph/.local/myiot-toolchain/tools/cmake/bin"
+        - "/home/ph/.local/myiot-toolchain/tools/ninja"
+        - "/home/ph/.local/myiot-toolchain/tools/node/bin"
+        - "/home/ph/.codex/tmp/arg0/codex-arg0eWKV2x"
+        - "/home/ph/.vscode-server/cli/servers/Stable-cfbea10c5ffb233ea9177d34726e6056e89913dc/server/bin/remote-cli"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/sbin"
+        - "/usr/bin"
+        - "/sbin"
+        - "/bin"
+        - "/usr/games"
+        - "/usr/local/games"
+        - "/snap/bin"
+        - "/home/ph/.vscode-server/extensions/openai.chatgpt-26.5325.21211-linux-x64/bin/linux-x86_64"
+      CMAKE_INSTALL_PREFIX: "/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem_ext_prj_install"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/home/ph/.local/myiot-toolchain/tools/cmake/share/cmake-4.3/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:7 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler: CMAKE_CXX_COMPILER-NOTFOUND 
+      Build flags: 
+      Id flags: -c;-I__does_not_exist__ 
+      
+      The output was:
+      no such file or directory
+      
+      
+...

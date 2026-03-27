@@ -1,0 +1,10 @@
+<extensions>
+  <extension point="osp.web.server.requesthandler" path="/" class="MyIoT::WebUI::Launcher::RootRedirectRequestHandlerFactory" library="io.myiot.webui.launcher" allowSpecialization="all" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/favicon.ico" class="MyIoT::WebUI::Launcher::FaviconRedirectRequestHandlerFactory" library="io.myiot.webui.launcher" allowSpecialization="none" hidden="true"/>
+
+  <extension point="osp.web.server.requesthandler" path="/myiot/auth/login" class="MyIoT::WebUI::Launcher::LoginRequestHandlerFactory" library="io.myiot.webui.launcher" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/myiot/auth/logout" class="MyIoT::WebUI::Launcher::LogoutRequestHandlerFactory" library="io.myiot.webui.launcher" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/myiot/auth/session.json" class="MyIoT::WebUI::Launcher::SessionJSONFactory" library="io.myiot.webui.launcher" allowSpecialization="none" hidden="true"/>
+
+  <extension point="osp.web.server.directory" path="/myiot/login" resource="webapp" allowSpecialization="owner" hidden="true"/>
+</extensions>

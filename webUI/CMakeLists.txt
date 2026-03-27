@@ -91,7 +91,7 @@ function(myiot_add_webui_package)
     add_custom_target(${WEBUI_TARGET_NAME}_Bundle ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundles"
         ${bundle_stage_commands}
-        COMMAND $<TARGET_FILE:OSPBundleCreator> "/output-dir=${CMAKE_BINARY_DIR}/bundles" "/osname=${MYIOT_PLATFORM_OSNAME}" "/osarch=${MYIOT_PLATFORM_OSARCH}" "${bundle_spec}"
+        COMMAND $<TARGET_FILE:OSPBundleCreator> "--output-dir=${CMAKE_BINARY_DIR}/bundles" "--osname=${MYIOT_PLATFORM_OSNAME}" "--osarch=${MYIOT_PLATFORM_OSARCH}" "${bundle_spec}"
         DEPENDS
             OSPBundleCreator
             ${WEBUI_TARGET_NAME}_Frontend

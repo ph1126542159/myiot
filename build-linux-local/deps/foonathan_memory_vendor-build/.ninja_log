@@ -1,0 +1,9 @@
+# ninja log v7
+0	9	1774641193428350764	foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-mkdir	21bfa39106a2a98f
+0	9	1774641193428350764	/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-mkdir	21bfa39106a2a98f
+9	1280	1774641194699383927	foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-download	e9c836dba1f834c2
+9	1280	1774641194699383927	/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-download	e9c836dba1f834c2
+1280	1287	1774641194706384110	foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-update	6cd64a0b5227d7d5
+1280	1287	1774641194706384110	/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-update	6cd64a0b5227d7d5
+1287	1294	1774641194714384319	foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-patch	d433f9b028e281f0
+1287	1294	1774641194714384319	/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/foo_mem-ext-prefix/src/foo_mem-ext-stamp/foo_mem-ext-patch	d433f9b028e281f0

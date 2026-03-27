@@ -1,0 +1,7 @@
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/foo_mem-ext.dir
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/edit_cache.dir
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/rebuild_cache.dir
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/list_install_components.dir
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/install.dir
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/install/local.dir
+/home/ph/work/myiot/build-linux-local/deps/foonathan_memory_vendor-build/CMakeFiles/install/strip.dir
