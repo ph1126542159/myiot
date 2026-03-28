@@ -24,6 +24,7 @@
 #include "Poco/Format.h"
 #include "Poco/File.h"
 #include "Poco/Path.h"
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 
@@ -285,5 +286,20 @@ private:
 	std::vector<std::string> _configs;
 };
 
-
-POCO_SERVER_MAIN(MacchinaServer)
+int main(int argc, char** argv)
+{
+	try
+	{
+		int rc = Poco::Util::Application::EXIT_SOFTWARE;
+		{
+			MacchinaServer app;
+			rc = app.run(argc, argv);
+		}
+		std::_Exit(rc);
+	}
+	catch (Poco::Exception& exc)
+	{
+		std::cerr << exc.displayText() << std::endl;
+		return Poco::Util::Application::EXIT_SOFTWARE;
+	}
+}

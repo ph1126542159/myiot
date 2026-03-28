@@ -16,12 +16,6 @@ add_custom_command(TARGET macchina POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/macchina.properties"
         "$<TARGET_FILE_DIR:macchina>/macchina.properties"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/macchina.pem"
-        "$<TARGET_FILE_DIR:macchina>/macchina.pem"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/rootcert.pem"
-        "$<TARGET_FILE_DIR:macchina>/rootcert.pem"
     VERBATIM
 )
 
@@ -68,12 +62,6 @@ install(FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/macchina.properties.install"
     DESTINATION ${CMAKE_INSTALL_BINDIR}
     RENAME macchina.properties
-)
-
-install(FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/macchina.pem"
-    "${CMAKE_CURRENT_SOURCE_DIR}/rootcert.pem"
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(WIN32 AND MYIOT_OPENSSL_RUNTIME_DLLS)
