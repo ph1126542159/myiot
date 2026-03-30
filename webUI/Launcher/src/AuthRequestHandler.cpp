@@ -9,6 +9,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/URI.h"
 
 namespace {
 
@@ -68,6 +69,57 @@ Poco::JSON::Object::Ptr createPayload(bool authenticated, const std::string& use
     return payload;
 }
 
+std::string requestPath(Poco::Net::HTTPServerRequest& request)
+{
+    try
+    {
+        return Poco::URI(request.getURI()).getPathEtc();
+    }
+    catch (...)
+    {
+        return request.getURI();
+    }
+}
+
+std::string normalizeValue(const std::string& value)
+{
+    return value.empty() ? "-" : value;
+}
+
+void logAudit(Poco::OSP::BundleContext::Ptr pContext,
+    Poco::Net::HTTPServerRequest& request,
+    const std::string& action,
+    const std::string& result,
+    const std::string& username,
+    const std::string& detail = std::string(),
+    bool isError = false)
+{
+    std::string message =
+        "WEB-AUDIT action=" + action +
+        " result=" + result +
+        " user=" + normalizeValue(username) +
+        " client=" + request.clientAddress().host().toString() +
+        " endpoint=" + requestPath(request);
+
+    if (!detail.empty())
+    {
+        message += " detail=" + detail;
+    }
+
+    if (isError)
+    {
+        pContext->logger().error(message);
+    }
+    else if (result == "success")
+    {
+        pContext->logger().information(message);
+    }
+    else
+    {
+        pContext->logger().warning(message);
+    }
+}
+
 } // namespace
 
 namespace MyIoT {
@@ -84,6 +136,7 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
 {
     if (request.getMethod() != Poco::Net::HTTPRequest::HTTP_POST)
     {
+        logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "method_not_allowed", "", request.getMethod());
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_METHOD_NOT_ALLOWED);
         sendJSON(response, createPayload(false, "", "请求方式错误，必须使用 POST。", "请求方式错误，必须使用 POST。"));
         return;
@@ -105,6 +158,7 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
                 pSession->erase("username");
                 pSession->set("message", errorMessage);
                 pSession->set("lastError", errorMessage);
+                logAudit(_pContext, request, "login", "invalid_request", username, "missing_username_or_password");
                 sendJSON(response, createPayload(false, "", errorMessage, errorMessage));
                 return;
             }
@@ -116,6 +170,7 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
                 pSession->set("username", username);
                 pSession->set("message", successMessage);
                 pSession->erase("lastError");
+                logAudit(_pContext, request, "login", "success", username, "session_established");
                 sendJSON(response, createPayload(true, username, successMessage, ""));
             }
             else
@@ -124,27 +179,32 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
                 pSession->erase("username");
                 pSession->set("message", errorMessage);
                 pSession->set("lastError", errorMessage);
+                logAudit(_pContext, request, "login", "auth_failed", username, "credential_rejected");
                 sendJSON(response, createPayload(false, "", errorMessage, errorMessage));
             }
         }
         else
         {
             Poco::OSP::Web::WebSessionManager::Ptr pSessionManager = getSessionManager(_pContext);
+            const std::string username = pSession ? pSession->getValue<std::string>("username", "") : "";
             if (pSession)
             {
                 pSessionManager->remove(pSession);
             }
 
+            logAudit(_pContext, request, "logout", "success", username, "session_removed");
             sendJSON(response, createPayload(false, "", "已退出登录，请重新验证身份。", ""));
         }
     }
     catch (const Poco::Exception& exc)
     {
+        logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "backend_error", "", exc.displayText(), true);
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
         sendJSON(response, createPayload(false, "", "认证服务当前不可用。", exc.displayText()));
     }
     catch (const std::exception& exc)
     {
+        logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "backend_error", "", exc.what(), true);
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
         sendJSON(response, createPayload(false, "", "认证服务当前不可用。", exc.what()));
     }

@@ -1,0 +1,12 @@
+{
+  "id": "myiot.jndm123",
+  "name": "JNDM123",
+  "title": "JNDM123 采集",
+  "version": "0.1.0",
+  "status": "active",
+  "category": "hardware",
+  "order": 45,
+  "icon": "mdi-chip",
+  "entryPath": "/myiot/jndm123/index.html",
+  "description": "对 JNDM123 板上的 CDCE937 分频器和 6 片 AD7606 采集通道进行网页化控制与实时可视化。"
+}

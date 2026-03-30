@@ -22,7 +22,12 @@ function(myiot_add_osp_bundle target_name output_name)
         get_filename_component(bundle_spec "${BUNDLE_BUNDLE_SPEC}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
         set(bundle_output_dir "${CMAKE_BINARY_DIR}/bundles")
         set(bundle_stamp "${CMAKE_CURRENT_BINARY_DIR}/${target_name}.bndl.stamp")
-        set(bundle_code_args "--code=$<TARGET_FILE:${target_name}>")
+        file(RELATIVE_PATH bundle_code_rel_dir "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/bin")
+        if(MSVC)
+            set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${target_name}>")
+        else()
+            set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${target_name}>*")
+        endif()
         set(bundle_resource_deps)
 
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bundle")
@@ -30,13 +35,13 @@ function(myiot_add_osp_bundle target_name output_name)
         endif()
 
         if(MSVC)
-            list(APPEND bundle_code_args "--code=$<TARGET_PDB_FILE:${target_name}>")
+            list(APPEND bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${target_name}>")
         endif()
 
         add_custom_command(
             OUTPUT "${bundle_stamp}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${bundle_output_dir}"
-            COMMAND $<TARGET_FILE:OSPBundleCreator>
+            COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND}
                 "--output-dir=${bundle_output_dir}"
                 "--osname=${MYIOT_OSP_BUNDLE_OSNAME}"
                 "--osarch=${MYIOT_OSP_BUNDLE_OSARCH}"

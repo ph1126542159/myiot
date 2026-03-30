@@ -91,7 +91,7 @@ function(myiot_add_webui_package)
     add_custom_target(${WEBUI_TARGET_NAME}_Bundle ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundles"
         ${bundle_stage_commands}
-        COMMAND $<TARGET_FILE:OSPBundleCreator> "--output-dir=${CMAKE_BINARY_DIR}/bundles" "--osname=${MYIOT_PLATFORM_OSNAME}" "--osarch=${MYIOT_PLATFORM_OSARCH}" "${bundle_spec}"
+        COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND} "--output-dir=${CMAKE_BINARY_DIR}/bundles" "--osname=${MYIOT_PLATFORM_OSNAME}" "--osarch=${MYIOT_PLATFORM_OSARCH}" "${bundle_spec}"
         DEPENDS
             OSPBundleCreator
             ${WEBUI_TARGET_NAME}_Frontend
@@ -122,3 +122,4 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Home" "${CMAKE_CURRENT_BINARY_DIR}
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/BundleList" "${CMAKE_CURRENT_BINARY_DIR}/BundleList")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/SystemMonitor" "${CMAKE_CURRENT_BINARY_DIR}/SystemMonitor")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ProcessConsole" "${CMAKE_CURRENT_BINARY_DIR}/ProcessConsole")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/JNDM123" "${CMAKE_CURRENT_BINARY_DIR}/JNDM123")

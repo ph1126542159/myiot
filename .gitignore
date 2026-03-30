@@ -1,4 +1,5 @@
 build*
+!scripts/build-petalinux-jndm123.sh
 
 .vs/
 .vscode/

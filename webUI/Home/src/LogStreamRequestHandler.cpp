@@ -17,10 +17,12 @@
 #include "Poco/String.h"
 #include "Poco/Timestamp.h"
 #include "Poco/URI.h"
+#include "Poco/Util/Application.h"
 #include <algorithm>
 #include <deque>
 #include <fstream>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace {
@@ -125,31 +127,66 @@ int streamOrder(const std::string& streamName)
     return 3;
 }
 
+std::vector<Poco::Path> candidateLogDirectories()
+{
+    std::vector<Poco::Path> directories;
+    std::set<std::string> seen;
+
+    try
+    {
+        const std::string applicationDir = Poco::Util::Application::instance().config().getString("application.dir", "");
+        if (!applicationDir.empty())
+        {
+            Poco::Path path(applicationDir);
+            const std::string normalized = path.toString();
+            if (seen.insert(normalized).second) directories.push_back(path);
+        }
+    }
+    catch (...)
+    {
+    }
+
+    Poco::Path currentPath = Poco::Path::current();
+    const std::string currentNormalized = currentPath.toString();
+    if (seen.insert(currentNormalized).second) directories.push_back(currentPath);
+
+    return directories;
+}
+
 std::map<std::string, std::vector<Poco::Path>> collectProcessLogs()
 {
     std::map<std::string, std::vector<Poco::Path>> processLogs;
-    Poco::Path basePath = Poco::Path::current();
-    Poco::File baseDirectory(basePath);
+    std::set<std::string> seenFiles;
 
-    if (!baseDirectory.exists() || !baseDirectory.isDirectory())
+    for (const auto& basePath: candidateLogDirectories())
     {
-        return processLogs;
-    }
-
-    for (Poco::DirectoryIterator it(basePath); it != Poco::DirectoryIterator(); ++it)
-    {
-        if (!it->isFile())
+        Poco::File baseDirectory(basePath);
+        if (!baseDirectory.exists() || !baseDirectory.isDirectory())
         {
             continue;
         }
 
-        const std::string fileName = it.name();
-        if (fileName.size() < 4 || !hasLogSuffix(fileName))
+        for (Poco::DirectoryIterator it(basePath); it != Poco::DirectoryIterator(); ++it)
         {
-            continue;
-        }
+            if (!it->isFile())
+            {
+                continue;
+            }
 
-        processLogs[detectProcessId(fileName)].push_back(it.path());
+            const std::string fileName = it.name();
+            if (fileName.size() < 4 || !hasLogSuffix(fileName))
+            {
+                continue;
+            }
+
+            const std::string fullPath = it.path().toString();
+            if (!seenFiles.insert(fullPath).second)
+            {
+                continue;
+            }
+
+            processLogs[detectProcessId(fileName)].push_back(it.path());
+        }
     }
 
     for (auto& entry: processLogs)

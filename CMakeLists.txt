@@ -224,6 +224,7 @@ if(MYIOT_ENABLE_FASTDDS_BOOTSTRAP)
 endif()
 
 option(MYIOT_ENABLE_MACCHINA_PLATFORM "Build selected macchina.io platform modules" ON)
+option(MYIOT_ENABLE_WEBUI "Build Web UI bundles" ON)
 option(MYIOT_ENABLE_JS_MODULES "Build JS/V8-related platform modules" OFF)
 option(MYIOT_ENABLE_POCO_BOOTSTRAP "Download and build official Poco when it is not available locally" ON)
 option(MYIOT_ENABLE_HTTPS_BUNDLES "Build HTTPS-related OSP bundles" OFF)
@@ -274,6 +275,22 @@ set(MACCHINA_PLATFORM_DIR
     CACHE PATH "Path to the vendored macchina.io platform source tree" FORCE)
 
 find_package(OpenSSL REQUIRED)
+
+set(MYIOT_OSP_BUNDLE_CREATOR_COMMAND "$<TARGET_FILE:OSPBundleCreator>")
+if(CMAKE_CROSSCOMPILING)
+    if(NOT DEFINED MYIOT_QEMU_ARM OR NOT EXISTS "${MYIOT_QEMU_ARM}")
+        message(FATAL_ERROR
+            "Cross-compiling this project requires a host-side qemu-arm executable. "
+            "Pass MYIOT_QEMU_ARM or use cmake/toolchains/petalinux-jndm123.cmake.")
+    endif()
+
+    set(MYIOT_OSP_BUNDLE_CREATOR_COMMAND
+        "${MYIOT_QEMU_ARM}"
+        "-L"
+        "${CMAKE_SYSROOT}"
+        "$<TARGET_FILE:OSPBundleCreator>"
+    )
+endif()
 
 function(myiot_normalize_imported_target_locations target_name)
     if(NOT TARGET ${target_name})
@@ -531,6 +548,11 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
         message(FATAL_ERROR "macchina.io platform sources not found: ${MACCHINA_PLATFORM_DIR}")
     endif()
 
+    if(CMAKE_CROSSCOMPILING)
+        message(STATUS "Cross-compiling with sysroot: ${CMAKE_SYSROOT}")
+        message(STATUS "Using qemu-arm for host-side bundle packaging: ${MYIOT_QEMU_ARM}")
+    endif()
+
     include("${CMAKE_SOURCE_DIR}/cmake/PocoCompat.cmake")
 
     add_subdirectory("${MACCHINA_PLATFORM_DIR}/CodeGeneration" "${CMAKE_BINARY_DIR}/platform/CodeGeneration")
@@ -623,6 +645,8 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
     )
 endif()
 
-add_subdirectory(webUI)
+if(MYIOT_ENABLE_WEBUI)
+    add_subdirectory(webUI)
+endif()
 add_subdirectory(services)
 add_subdirectory(server)

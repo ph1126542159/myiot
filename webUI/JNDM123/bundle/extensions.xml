@@ -1,0 +1,5 @@
+<extensions>
+  <extension point="osp.web.server.requesthandler" path="/myiot/jndm123/divider.json" class="MyIoT::WebUI::JNDM123::DividerRequestHandlerFactory" library="io.myiot.webui.jndm123" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/myiot/jndm123/acquisition.json" class="MyIoT::WebUI::JNDM123::AcquisitionRequestHandlerFactory" library="io.myiot.webui.jndm123" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.directory" path="/myiot/jndm123" resource="webapp" allowSpecialization="owner" hidden="true"/>
+</extensions>

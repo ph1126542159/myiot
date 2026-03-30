@@ -37,14 +37,17 @@ function(myiot_add_service_bundle)
         file(GLOB_RECURSE bundle_resource_deps CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/bundle/*")
     endif()
 
-    set(bundle_code_args "--code=$<TARGET_FILE:${SVC_TARGET_NAME}>")
+    file(RELATIVE_PATH bundle_code_rel_dir "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/bin")
     if(MSVC)
-        list(APPEND bundle_code_args "--code=$<TARGET_PDB_FILE:${SVC_TARGET_NAME}>")
+        set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>")
+        list(APPEND bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${SVC_TARGET_NAME}>")
+    else()
+        set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>*")
     endif()
 
     add_custom_target(${SVC_TARGET_NAME}_Bundle ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundles"
-        COMMAND $<TARGET_FILE:OSPBundleCreator>
+        COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND}
             "--output-dir=${CMAKE_BINARY_DIR}/bundles"
             "--osname=${MYIOT_PLATFORM_OSNAME}"
             "--osarch=${MYIOT_PLATFORM_OSARCH}"

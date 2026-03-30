@@ -18,6 +18,7 @@
 #include "Poco/OSP/Web/WebSessionManager.h"
 #include "Poco/String.h"
 #include "Poco/Timestamp.h"
+#include "Poco/URI.h"
 #include "Poco/Util/AbstractConfiguration.h"
 #include <algorithm>
 #include <map>
@@ -197,7 +198,20 @@ Poco::JSON::Object::Ptr createBundlePayload(const Poco::OSP::Bundle::Ptr& pBundl
     Poco::OSP::Preferences::Ptr pPreferences;
     if (pPreferencesService)
     {
-        pPreferences = pPreferencesService->preferences(pBundle->symbolicName());
+        try
+        {
+            pPreferences = pPreferencesService->preferences(pBundle->symbolicName());
+        }
+        catch (const Poco::Exception& exc)
+        {
+            pContext->logger().warning(
+                "Unable to load preferences for bundle " + pBundle->symbolicName() + ": " + exc.displayText());
+        }
+        catch (const std::exception& exc)
+        {
+            pContext->logger().warning(
+                "Unable to load preferences for bundle " + pBundle->symbolicName() + ": " + std::string(exc.what()));
+        }
     }
 
     Poco::JSON::Object::Ptr bundle = new Poco::JSON::Object;
@@ -248,6 +262,75 @@ Poco::JSON::Array::Ptr parsePreferenceArray(const std::string& json)
     return parsed.extract<Poco::JSON::Array::Ptr>();
 }
 
+std::string requestPath(Poco::Net::HTTPServerRequest& request)
+{
+    try
+    {
+        return Poco::URI(request.getURI()).getPathEtc();
+    }
+    catch (...)
+    {
+        return request.getURI();
+    }
+}
+
+std::string currentUsername(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
+{
+    try
+    {
+        Poco::OSP::Web::WebSession::Ptr pSession = findSession(pContext, request);
+        return pSession ? pSession->getValue<std::string>("username", "") : "";
+    }
+    catch (...)
+    {
+        return "";
+    }
+}
+
+std::string normalizeValue(const std::string& value)
+{
+    return value.empty() ? "-" : value;
+}
+
+void logAudit(Poco::OSP::BundleContext::Ptr pContext,
+    Poco::Net::HTTPServerRequest& request,
+    const std::string& action,
+    const std::string& result,
+    const std::string& username,
+    const std::string& target = std::string(),
+    const std::string& detail = std::string(),
+    bool isError = false)
+{
+    std::string message =
+        "WEB-AUDIT action=" + action +
+        " result=" + result +
+        " user=" + normalizeValue(username) +
+        " client=" + request.clientAddress().host().toString() +
+        " endpoint=" + requestPath(request);
+
+    if (!target.empty())
+    {
+        message += " target=" + target;
+    }
+    if (!detail.empty())
+    {
+        message += " detail=" + detail;
+    }
+
+    if (isError)
+    {
+        pContext->logger().error(message);
+    }
+    else if (result == "success")
+    {
+        pContext->logger().information(message);
+    }
+    else
+    {
+        pContext->logger().warning(message);
+    }
+}
+
 } // namespace
 
 namespace MyIoT {
@@ -261,144 +344,188 @@ BundleCatalogRequestHandler::BundleCatalogRequestHandler(Poco::OSP::BundleContex
 
 void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
-    if (!isAuthenticated(_pContext, request))
+    try
     {
-        sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
-        return;
-    }
-
-    if (Poco::icompare(request.getMethod(), std::string("POST")) == 0)
-    {
-        Poco::Net::HTMLForm form(request, request.stream());
-        const std::string symbolicName = form.get("symbolicName", "");
-        const std::string action = form.get("action", "");
-        Poco::OSP::Bundle::Ptr pBundle = _pContext->findBundle(symbolicName).cast<Poco::OSP::Bundle>();
-
-        if (!pBundle)
+        if (!isAuthenticated(_pContext, request))
         {
-            sendJSON(response, createMessagePayload(false, "目标包不存在。", Poco::Net::HTTPResponse::HTTP_NOT_FOUND), Poco::Net::HTTPResponse::HTTP_NOT_FOUND);
+            logAudit(_pContext, request, "bundle_catalog", "unauthorized", "");
+            sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
             return;
         }
 
-        if (!isManageable(pBundle, _pContext))
-        {
-            sendJSON(response, createMessagePayload(false, protectedReasonFor(symbolicName), Poco::Net::HTTPResponse::HTTP_FORBIDDEN), Poco::Net::HTTPResponse::HTTP_FORBIDDEN);
-            return;
-        }
+        const std::string username = currentUsername(_pContext, request);
 
-        try
+        if (Poco::icompare(request.getMethod(), std::string("POST")) == 0)
         {
-            if (action == "resolve")
+            Poco::Net::HTMLForm form(request, request.stream());
+            const std::string symbolicName = form.get("symbolicName", "");
+            const std::string action = form.get("action", "");
+            Poco::OSP::Bundle::Ptr pBundle = _pContext->findBundle(symbolicName).cast<Poco::OSP::Bundle>();
+
+            if (!pBundle)
             {
-                pBundle->resolve();
-                sendJSON(response, createMessagePayload(true, "包已解析，可以继续启动。"));
+                logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "target_not_found", username, symbolicName);
+                sendJSON(response, createMessagePayload(false, "目标包不存在。", Poco::Net::HTTPResponse::HTTP_NOT_FOUND), Poco::Net::HTTPResponse::HTTP_NOT_FOUND);
                 return;
             }
 
-            if (action == "start")
+            if (!isManageable(pBundle, _pContext))
             {
-                pBundle->start();
-                sendJSON(response, createMessagePayload(true, "包已启动。"));
+                logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "forbidden", username, symbolicName, "protected_bundle");
+                sendJSON(response, createMessagePayload(false, protectedReasonFor(symbolicName), Poco::Net::HTTPResponse::HTTP_FORBIDDEN), Poco::Net::HTTPResponse::HTTP_FORBIDDEN);
                 return;
             }
 
-            if (action == "stop")
+            try
             {
-                const auto dependents = collectActiveDependents(_pContext, symbolicName);
-                if (!dependents.empty())
+                if (action == "resolve")
                 {
-                    std::string message = "仍有依赖包处于运行状态，不能停用：";
-                    message += Poco::cat(std::string(", "), dependents.begin(), dependents.end());
-                    sendJSON(response, createMessagePayload(false, message, Poco::Net::HTTPResponse::HTTP_CONFLICT), Poco::Net::HTTPResponse::HTTP_CONFLICT);
+                    pBundle->resolve();
+                    logAudit(_pContext, request, "resolve", "success", username, symbolicName);
+                    sendJSON(response, createMessagePayload(true, "包已解析，可以继续启动。"));
                     return;
                 }
 
-                pBundle->stop();
-                sendJSON(response, createMessagePayload(true, "包已停用。"));
-                return;
-            }
-
-            if (action == "savePreferences")
-            {
-                Poco::OSP::PreferencesService::Ptr pPreferencesService = findPreferencesService(_pContext);
-                if (!pPreferencesService)
+                if (action == "start")
                 {
-                    sendJSON(response, createMessagePayload(false, "当前系统未提供 PreferencesService。", Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE), Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE);
+                    pBundle->start();
+                    logAudit(_pContext, request, "start", "success", username, symbolicName);
+                    sendJSON(response, createMessagePayload(true, "包已启动。"));
                     return;
                 }
 
-                Poco::OSP::Preferences::Ptr pPreferences = pPreferencesService->preferences(symbolicName);
-                Poco::JSON::Array::Ptr incoming = parsePreferenceArray(form.get("preferences", "[]"));
-
-                std::set<std::string> newKeys;
-                for (std::size_t i = 0; i < incoming->size(); ++i)
+                if (action == "stop")
                 {
-                    Poco::JSON::Object::Ptr entry = incoming->getObject(i);
-                    if (!entry) continue;
-
-                    const std::string key = Poco::trim(entry->getValue<std::string>("key"));
-                    if (key.empty()) continue;
-
-                    newKeys.insert(key);
-                    pPreferences->setString(key, entry->getValue<std::string>("value"));
-                }
-
-                std::vector<std::string> existingKeys;
-                collectKeys(*pPreferences, existingKeys);
-                for (const auto& existingKey: existingKeys)
-                {
-                    if (newKeys.find(existingKey) == newKeys.end())
+                    const auto dependents = collectActiveDependents(_pContext, symbolicName);
+                    if (!dependents.empty())
                     {
-                        pPreferences->remove(existingKey);
+                        std::string message = "仍有依赖包处于运行状态，不能停用：";
+                        message += Poco::cat(std::string(", "), dependents.begin(), dependents.end());
+                        logAudit(_pContext, request, "stop", "dependency_blocked", username, symbolicName, Poco::cat(std::string(","), dependents.begin(), dependents.end()));
+                        sendJSON(response, createMessagePayload(false, message, Poco::Net::HTTPResponse::HTTP_CONFLICT), Poco::Net::HTTPResponse::HTTP_CONFLICT);
+                        return;
                     }
+
+                    pBundle->stop();
+                    logAudit(_pContext, request, "stop", "success", username, symbolicName);
+                    sendJSON(response, createMessagePayload(true, "包已停用。"));
+                    return;
                 }
 
-                pPreferences->save();
-                sendJSON(response, createMessagePayload(true, "配置参数已保存。"));
+                if (action == "savePreferences")
+                {
+                    Poco::OSP::PreferencesService::Ptr pPreferencesService = findPreferencesService(_pContext);
+                    if (!pPreferencesService)
+                    {
+                        sendJSON(response, createMessagePayload(false, "当前系统未提供 PreferencesService。", Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE), Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE);
+                        return;
+                    }
+
+                    Poco::OSP::Preferences::Ptr pPreferences = pPreferencesService->preferences(symbolicName);
+                    Poco::JSON::Array::Ptr incoming = parsePreferenceArray(form.get("preferences", "[]"));
+
+                    std::set<std::string> newKeys;
+                    for (std::size_t i = 0; i < incoming->size(); ++i)
+                    {
+                        Poco::JSON::Object::Ptr entry = incoming->getObject(i);
+                        if (!entry) continue;
+
+                        const std::string key = Poco::trim(entry->getValue<std::string>("key"));
+                        if (key.empty()) continue;
+
+                        newKeys.insert(key);
+                        pPreferences->setString(key, entry->getValue<std::string>("value"));
+                    }
+
+                    std::vector<std::string> existingKeys;
+                    collectKeys(*pPreferences, existingKeys);
+                    for (const auto& existingKey: existingKeys)
+                    {
+                        if (newKeys.find(existingKey) == newKeys.end())
+                        {
+                            pPreferences->remove(existingKey);
+                        }
+                    }
+
+                    pPreferences->save();
+                    logAudit(_pContext, request, "savePreferences", "success", username, symbolicName, "keys=" + std::to_string(newKeys.size()));
+                    sendJSON(response, createMessagePayload(true, "配置参数已保存。"));
+                    return;
+                }
+
+                logAudit(_pContext, request, "bundle_manage", "unsupported_action", username, symbolicName, action);
+                sendJSON(response, createMessagePayload(false, "不支持的管理动作。", Poco::Net::HTTPResponse::HTTP_BAD_REQUEST), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
                 return;
             }
-
-            sendJSON(response, createMessagePayload(false, "不支持的管理动作。", Poco::Net::HTTPResponse::HTTP_BAD_REQUEST), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
-            return;
+            catch (const Poco::Exception& exc)
+            {
+                logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "backend_error", username, symbolicName, exc.displayText(), true);
+                sendJSON(response, createMessagePayload(false, exc.displayText(), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
         }
-        catch (const Poco::Exception& exc)
+
+        std::vector<Poco::OSP::Bundle::Ptr> bundleVector;
+        _pContext->listBundles(bundleVector);
+        std::sort(bundleVector.begin(), bundleVector.end(), [](const Poco::OSP::Bundle::Ptr& left, const Poco::OSP::Bundle::Ptr& right) {
+            if (left->stateString() != right->stateString()) return left->stateString() < right->stateString();
+            return Poco::icompare(left->symbolicName(), right->symbolicName()) < 0;
+        });
+
+        Poco::JSON::Array::Ptr bundles = new Poco::JSON::Array;
+        std::map<std::string, int> stateTotals;
+        Poco::OSP::PreferencesService::Ptr pPreferencesService = findPreferencesService(_pContext);
+
+        for (const auto& pBundle: bundleVector)
         {
-            sendJSON(response, createMessagePayload(false, exc.displayText(), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
-            return;
+            try
+            {
+                bundles->add(createBundlePayload(pBundle, _pContext, pPreferencesService));
+            }
+            catch (const Poco::Exception& exc)
+            {
+                _pContext->logger().error(
+                    "Unable to build package payload for bundle " + pBundle->symbolicName() + ": " + exc.displayText());
+            }
+            catch (const std::exception& exc)
+            {
+                _pContext->logger().error(
+                    "Unable to build package payload for bundle " + pBundle->symbolicName() + ": " + std::string(exc.what()));
+            }
+
+            stateTotals[pBundle->stateString()] += 1;
         }
+
+        Poco::JSON::Object::Ptr stateSummary = new Poco::JSON::Object;
+        for (const auto& entry: stateTotals)
+        {
+            stateSummary->set(entry.first, entry.second);
+        }
+
+        Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
+        payload->set("authenticated", true);
+        payload->set("message", bundleVector.empty() ? "当前没有发现已加载的系统包。" : "系统包列表同步完成。");
+        payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
+        payload->set("bundleCount", static_cast<int>(bundleVector.size()));
+        payload->set("stateSummary", stateSummary);
+        payload->set("bundles", bundles);
+        logAudit(_pContext, request, "bundle_catalog", "success", username, "", "bundleCount=" + std::to_string(bundleVector.size()));
+        sendJSON(response, payload);
     }
-
-    std::vector<Poco::OSP::Bundle::Ptr> bundleVector;
-    _pContext->listBundles(bundleVector);
-    std::sort(bundleVector.begin(), bundleVector.end(), [](const Poco::OSP::Bundle::Ptr& left, const Poco::OSP::Bundle::Ptr& right) {
-        if (left->stateString() != right->stateString()) return left->stateString() < right->stateString();
-        return Poco::icompare(left->symbolicName(), right->symbolicName()) < 0;
-    });
-
-    Poco::JSON::Array::Ptr bundles = new Poco::JSON::Array;
-    std::map<std::string, int> stateTotals;
-    Poco::OSP::PreferencesService::Ptr pPreferencesService = findPreferencesService(_pContext);
-
-    for (const auto& pBundle: bundleVector)
+    catch (const Poco::Exception& exc)
     {
-        bundles->add(createBundlePayload(pBundle, _pContext, pPreferencesService));
-        stateTotals[pBundle->stateString()] += 1;
+        _pContext->logger().error("Bundle list request failed: " + exc.displayText());
+        sendJSON(response,
+            createMessagePayload(false, "系统包列表读取失败。", Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
+            Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
-
-    Poco::JSON::Object::Ptr stateSummary = new Poco::JSON::Object;
-    for (const auto& entry: stateTotals)
+    catch (const std::exception& exc)
     {
-        stateSummary->set(entry.first, entry.second);
+        _pContext->logger().error("Bundle list request failed: " + std::string(exc.what()));
+        sendJSON(response,
+            createMessagePayload(false, "系统包列表读取失败。", Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
+            Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
-
-    Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
-    payload->set("authenticated", true);
-    payload->set("message", bundleVector.empty() ? "当前没有发现已加载的系统包。" : "系统包列表同步完成。");
-    payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
-    payload->set("bundleCount", static_cast<int>(bundleVector.size()));
-    payload->set("stateSummary", stateSummary);
-    payload->set("bundles", bundles);
-    sendJSON(response, payload);
 }
 
 Poco::Net::HTTPRequestHandler* BundleCatalogRequestHandlerFactory::createRequestHandler(const Poco::Net::HTTPServerRequest&)

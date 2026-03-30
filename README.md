@@ -73,6 +73,46 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel
 ```
 
+### 使用 JNDM123 的 PetaLinux 环境交叉编译
+
+如果目标板使用 `/home/ph/work/proj/JNDM123` 这个 PetaLinux 工程生成的根文件系统和工具链，可以直接使用项目内置的 toolchain 文件和脚本：
+
+```bash
+./scripts/build-petalinux-jndm123.sh
+```
+
+这条命令会自动做几件事：
+
+- 复用 `JNDM123/build/tmp` 里的 ARM 交叉编译器、sysroot 和 OpenSSL 组件。
+- 在交叉编译场景下通过 `qemu-arm` 在主机上执行 `OSPBundleCreator`，保证 `.bndl` 包也能生成。
+- 生成安装目录：`build-petalinux-jndm123/install`
+- 生成部署压缩包：`build-petalinux-jndm123/myiot-petalinux-install.tar.gz`
+
+如果你的 PetaLinux 工程不在默认路径，可以这样指定：
+
+```bash
+MYIOT_PETALINUX_PROJECT=/path/to/your/petalinux/project ./scripts/build-petalinux-jndm123.sh
+```
+
+也可以手动调用 CMake：
+
+```bash
+cmake -S . -B build-petalinux \
+  -G "Unix Makefiles" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/toolchains/petalinux-jndm123.cmake \
+  -DMYIOT_PETALINUX_PROJECT=/home/ph/work/proj/JNDM123
+
+cmake --build build-petalinux --parallel
+cmake --install build-petalinux
+```
+
+说明：
+
+- 当前机器如果没有 `npm`，脚本会自动加上 `-DMYIOT_ENABLE_WEBUI=OFF`，优先保证板端核心服务和 OSP bundle 可以成功交叉编译。
+- 如果后续安装了 `node/npm`，重新执行同一脚本即可连同 Web UI 一起构建。
+- 安装后的目录里会包含 `bin/macchina`、`lib/bundles/*.bndl` 以及运行所需配置，可直接作为板端部署目录使用。
+
 ### 输出目录
 
 项目已经统一配置了输出路径：
