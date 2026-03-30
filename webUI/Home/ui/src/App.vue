@@ -1,20 +1,141 @@
-<script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+﻿<script setup>
+import { computed, onMounted, ref } from 'vue'
 import { featurePackages, formatPackageStatus, getPackageStatusTone } from './core/packageRegistry'
+import { useUiLocale } from './core/locale'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+
+const { isZh, toggleLocale } = useUiLocale()
+
+const zh = {
+  preparing: '正在同步会话并准备工作台...',
+  welcome: (username) => `欢迎回来，${username}。主页工作台已经就绪。`,
+  homeEyebrow: 'MYIOT 首页',
+  homeTitle: '工业控制工作台',
+  homeCopy: '主页负责聚合导航、系统状态和诊断入口。实时日志已拆分为独立窗口，操作其他页面时也能持续观察输出。',
+  packageCount: '个功能包',
+  activeCount: '个已启用',
+  signOut: '退出登录',
+  language: 'EN',
+  catalog: '功能目录',
+  installedModules: '已安装模块',
+  bundleList: '系统包列表',
+  openBundleCatalog: '打开包目录',
+  bundleCatalogDesc: '查看当前 OSP Bundle 的安装与运行状态。',
+  liveLogs: '实时日志',
+  openLogWindow: '打开日志窗口',
+  openLogWindowDesc: '将实时日志窗口独立打开，便于边操作边观察输出。',
+  open: '打开',
+  home: '主页',
+  overviewTitle: '控制台总览',
+  workspace: '工作台',
+  operatorHome: 'MyIoT 操作主页',
+  workspaceCopy: '这个主页把主要包入口集中起来，并把日志预览拆分成独立包。打开一次日志窗口后，就可以在硬件页、监控页或进程控制台之间继续工作。',
+  sessionLink: '会话链路',
+  stable: '稳定',
+  packagesOnline: '在线功能包',
+  accessProtocol: '访问协议',
+  currentUser: '当前用户',
+  controlPlane: '控制面',
+  online: '在线',
+  launchablePackages: '可打开页面数',
+  platform: '平台状态',
+  realtimeTelemetry: '实时遥测',
+  telemetryCopy: '右侧展示当前会话和功能包概况，同时保留日志入口，不再让首页被大块日志区域占满。',
+  modulesReady: '模块就绪',
+  authentication: '鉴权状态',
+  connected: '已连接',
+  entrypoints: '入口注册',
+  registered: '已完成',
+  expandableSlots: '扩展位',
+  startupTrace: '启动轨迹',
+  diagnostics: '诊断入口',
+  dedicatedLogWindow: '独立日志预览窗口',
+  independentWindow: '独立窗口',
+  parallelWithOps: '可与操作页面并行',
+  diagnosticsCopy: '实时日志已经拆分为专用功能包。打开后可与 JNDM123、系统包管理或进程控制台并排查看。',
+  openRealtimeLogPreview: '打开实时日志预览',
+  openRealtimeLogPreviewDesc: '启动独立日志窗口，在另一个页面工作时也能持续观察输出。',
+  processConsole: '进程控制台',
+  openProcessDiagnostics: '打开进程诊断页',
+  openProcessDiagnosticsDesc: '需要交互式排查时，可进入独立的命令式诊断页面。',
+  reviewRuntimeBundles: '查看运行包状态',
+  reviewRuntimeBundlesDesc: '从系统包列表查看功能包版本、状态和入口信息。',
+  trace: [
+    '会话已恢复并校验完成。',
+    '主页工作台初始化完成。',
+    'Bundle 目录已刷新。',
+    '诊断入口已准备就绪。'
+  ]
+}
+
+const en = {
+  preparing: 'Synchronizing the session and preparing the workspace...',
+  welcome: (username) => `Welcome back, ${username}. The home workspace is ready.`,
+  homeEyebrow: 'MYIOT Home',
+  homeTitle: 'Industrial Control Workspace',
+  homeCopy: 'The home package keeps navigation, system status, and diagnostics entry points together. Live logs now run in a dedicated window so operators can keep watching output while using other pages.',
+  packageCount: 'packages',
+  activeCount: 'active',
+  signOut: 'Sign Out',
+  language: '中文',
+  catalog: 'Catalog',
+  installedModules: 'Installed Modules',
+  bundleList: 'Bundle List',
+  openBundleCatalog: 'Open Bundle Catalog',
+  bundleCatalogDesc: 'Review installed OSP bundles and runtime status.',
+  liveLogs: 'Live Logs',
+  openLogWindow: 'Open Log Window',
+  openLogWindowDesc: 'Keep the realtime log viewer open beside operation pages.',
+  open: 'Open',
+  home: 'Home',
+  overviewTitle: 'Control Console Overview',
+  workspace: 'Workspace',
+  operatorHome: 'MyIoT operator home',
+  workspaceCopy: 'This landing page keeps the main packages within reach and moves live log preview to a dedicated package. Open the log window once and keep it visible while you continue working in hardware, monitoring, or process-console pages.',
+  sessionLink: 'Session Link',
+  stable: 'Stable',
+  packagesOnline: 'Packages Online',
+  accessProtocol: 'Access Protocol',
+  currentUser: 'Current User',
+  controlPlane: 'Control Plane',
+  online: 'Online',
+  launchablePackages: 'Launchable Packages',
+  platform: 'Platform',
+  realtimeTelemetry: 'Realtime telemetry',
+  telemetryCopy: 'The right column summarizes session state and available modules. It also keeps the live log entry close so diagnostics remain available without taking over the home page.',
+  modulesReady: 'modules ready',
+  authentication: 'Authentication',
+  connected: 'Connected',
+  entrypoints: 'Entrypoints',
+  registered: 'Registered',
+  expandableSlots: 'Expandable Slots',
+  startupTrace: 'Startup Trace',
+  diagnostics: 'Diagnostics',
+  dedicatedLogWindow: 'Dedicated Log Preview Window',
+  independentWindow: 'Independent window',
+  parallelWithOps: 'Parallel with operations',
+  diagnosticsCopy: 'Live log preview is now a dedicated package. Open it once and place it beside the current operation page so you can keep watching output while adjusting hardware or using diagnostics.',
+  openRealtimeLogPreview: 'Open realtime log preview',
+  openRealtimeLogPreviewDesc: 'Launch the dedicated log window and keep it visible while you work in another package.',
+  processConsole: 'Process Console',
+  openProcessDiagnostics: 'Open process diagnostics',
+  openProcessDiagnosticsDesc: 'Use command-based diagnostics in a dedicated page when you need interactive inspection.',
+  reviewRuntimeBundles: 'Review runtime bundles',
+  reviewRuntimeBundlesDesc: 'Check package versions, status, and available entry points from the system bundle list.',
+  trace: [
+    'Session restored and verified.',
+    'Home workspace initialized.',
+    'Bundle catalog refreshed.',
+    'Diagnostic entry points are ready.'
+  ]
+}
+
+const text = computed(() => (isZh.value ? zh : en))
 
 const banner = ref({
   type: 'info',
-  text: '正在同步会话并准备主页面...'
+  text: text.value.preparing
 })
-const logProcesses = ref([])
-const selectedProcessId = ref('')
-const logsMessage = ref('正在同步后端日志...')
-const logsUpdatedAt = ref('')
-const logsLoading = ref(false)
-const logsError = ref('')
-let logTimer = null
-let logsRequestInFlight = false
 
 const readyPackages = computed(() =>
   featurePackages.filter((featurePackage) => featurePackage.status === 'active').length
@@ -28,6 +149,14 @@ const bundleListPackage = computed(() =>
   featurePackages.find((featurePackage) => featurePackage.id === 'myiot.bundle-list') ?? null
 )
 
+const logViewerPackage = computed(() =>
+  featurePackages.find((featurePackage) => featurePackage.id === 'myiot.log-viewer') ?? null
+)
+
+const processConsolePackage = computed(() =>
+  featurePackages.find((featurePackage) => featurePackage.id === 'myiot.process-console-ui') ?? null
+)
+
 const registryPackages = computed(() =>
   featurePackages.filter((featurePackage) => featurePackage.id !== 'myiot.home')
 )
@@ -37,65 +166,27 @@ const launchablePackages = computed(() =>
 )
 
 const signalItems = computed(() => [
-  { label: '会话链路', value: '稳定', icon: 'mdi-lan-connect', tone: 'primary' },
-  { label: '组件同步', value: `${featurePackages.length} 个就绪`, icon: 'mdi-layers-triple-outline', tone: 'secondary' },
-  { label: '访问协议', value: (sessionState.accessProtocol || 'http').toUpperCase(), icon: 'mdi-shield-check-outline', tone: 'info' }
+  { label: text.value.sessionLink, value: text.value.stable, icon: 'mdi-lan-connect', tone: 'primary' },
+  { label: text.value.packagesOnline, value: `${featurePackages.length}`, icon: 'mdi-layers-triple-outline', tone: 'secondary' },
+  { label: text.value.accessProtocol, value: (sessionState.accessProtocol || 'http').toUpperCase(), icon: 'mdi-shield-check-outline', tone: 'info' }
 ])
 
-const timeline = [
-  { time: '00.8 ms', event: '登录会话已确认' },
-  { time: '01.6 ms', event: '主页面数据已同步' },
-  { time: '02.4 ms', event: '功能包索引已刷新' },
-  { time: '03.1 ms', event: '控制台视图已就绪' }
-]
+const timeline = computed(() => ([
+  { time: '00.8 ms', event: text.value.trace[0] },
+  { time: '01.6 ms', event: text.value.trace[1] },
+  { time: '02.4 ms', event: text.value.trace[2] },
+  { time: '03.1 ms', event: text.value.trace[3] }
+]))
 
-const totalLogLines = computed(() =>
-  logProcesses.value.reduce((total, process) => total + (process.lineCount ?? 0), 0)
-)
-
-const selectedProcess = computed(() =>
-  logProcesses.value.find((process) => process.id === selectedProcessId.value) ?? logProcesses.value[0] ?? null
-)
-
-async function loadLogs() {
-  if (logsRequestInFlight) return
-
-  logsRequestInFlight = true
-  logsLoading.value = true
-
-  try {
-    const response = await fetch(`/myiot/home/logs.json?lines=40&_=${Date.now()}`, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' }
-    })
-
-    if (response.status === 401) {
-      window.location.replace('/myiot/login/index.html')
-      return
-    }
-
-    if (!response.ok) throw new Error(`logs status ${response.status}`)
-
-    const payload = await response.json()
-    logProcesses.value = payload.processes ?? []
-    if (!selectedProcessId.value || !logProcesses.value.some((process) => process.id === selectedProcessId.value)) {
-      selectedProcessId.value = logProcesses.value[0]?.id ?? ''
-    }
-    logsMessage.value = payload.message ?? '后端日志同步正常。'
-    logsUpdatedAt.value = payload.updatedAt ?? ''
-    logsError.value = ''
-    await nextTick()
-    document.querySelectorAll('.log-console').forEach((element) => {
-      element.scrollTop = element.scrollHeight
-    })
-  } catch {
-    logsError.value = '后端日志同步失败，请稍后重试。'
-  } finally {
-    logsLoading.value = false
-    logsRequestInFlight = false
-  }
+async function handleSignOut() {
+  await signOut()
+  window.location.replace('/myiot/login/index.html')
 }
 
+function openLogViewer() {
+  const target = logViewerPackage.value?.entryPath || '/myiot/logs/index.html'
+  window.open(target, '_blank', 'noopener,noreferrer')
+}
 
 onMounted(async () => {
   const payload = await refreshSession()
@@ -106,26 +197,9 @@ onMounted(async () => {
 
   banner.value = {
     type: 'success',
-    text: `欢迎回来，${sessionState.username}。主页面已经完成加载。`
-  }
-
-  await loadLogs()
-  logTimer = window.setInterval(() => {
-    loadLogs()
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  if (logTimer) {
-    window.clearInterval(logTimer)
-    logTimer = null
+    text: text.value.welcome(sessionState.username)
   }
 })
-
-async function handleSignOut() {
-  await signOut()
-  window.location.replace('/myiot/login/index.html')
-}
 </script>
 
 <template>
@@ -145,23 +219,23 @@ async function handleSignOut() {
             </div>
 
             <div>
-              <p class="eyebrow">MYIOT Home</p>
-              <h1>工业控制台主页面</h1>
-              <p class="brand-copy">
-                当前这套科技感页面已经独立为 `Home` 包。它负责登录后的主界面展示，
-                统一承载功能包导航、平台状态和后续扩展入口。
-              </p>
+              <p class="eyebrow">{{ text.homeEyebrow }}</p>
+              <h1>{{ text.homeTitle }}</h1>
+              <p class="brand-copy">{{ text.homeCopy }}</p>
             </div>
           </div>
 
           <div class="header-pills">
+            <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+              {{ text.language }}
+            </v-btn>
             <div class="meta-pill">
               <v-icon icon="mdi-layers-triple-outline" size="18"></v-icon>
-              <span>{{ featurePackages.length }} 个功能包</span>
+              <span>{{ featurePackages.length }} {{ text.packageCount }}</span>
             </div>
             <div class="meta-pill">
               <v-icon icon="mdi-check-decagram-outline" size="18"></v-icon>
-              <span>{{ readyPackages }} 个已启用</span>
+              <span>{{ readyPackages }} {{ text.activeCount }}</span>
             </div>
             <div class="meta-pill">
               <v-icon icon="mdi-account-circle-outline" size="18"></v-icon>
@@ -174,7 +248,7 @@ async function handleSignOut() {
               class="logout-button"
               @click="handleSignOut"
             >
-              退出登录
+              {{ text.signOut }}
             </v-btn>
           </div>
         </header>
@@ -183,20 +257,31 @@ async function handleSignOut() {
           <aside class="registry-rail">
             <div class="panel-head">
               <div>
-                <p class="section-kicker">功能包清单</p>
-                <h2>已发现的模块</h2>
+                <p class="section-kicker">{{ text.catalog }}</p>
+                <h2>{{ text.installedModules }}</h2>
               </div>
             </div>
 
             <div v-if="bundleListPackage" class="rail-action">
-              <p class="section-kicker">功能入口</p>
+              <p class="section-kicker">{{ text.bundleList }}</p>
               <a :href="bundleListPackage.entryPath" class="rail-action-button">
                 <span class="rail-action-copy">
-                  <strong>查看系统包列表</strong>
-                  <small>点击进入运行时 bundle 巡检页面</small>
+                  <strong>{{ text.openBundleCatalog }}</strong>
+                  <small>{{ text.bundleCatalogDesc }}</small>
                 </span>
                 <v-icon :icon="bundleListPackage.icon" size="20"></v-icon>
               </a>
+            </div>
+
+            <div v-if="logViewerPackage" class="rail-action">
+              <p class="section-kicker">{{ text.liveLogs }}</p>
+              <button type="button" class="rail-action-button rail-action-button-inline" @click="openLogViewer">
+                <span class="rail-action-copy">
+                  <strong>{{ text.openLogWindow }}</strong>
+                  <small>{{ text.openLogWindowDesc }}</small>
+                </span>
+                <v-icon :icon="logViewerPackage.icon" size="20"></v-icon>
+              </button>
             </div>
 
             <div class="registry-list">
@@ -231,7 +316,7 @@ async function handleSignOut() {
                   :href="featurePackage.entryPath"
                   class="registry-link"
                 >
-                  打开入口
+                  {{ text.open }}
                 </a>
               </div>
             </div>
@@ -240,8 +325,8 @@ async function handleSignOut() {
           <main class="viewport-panel">
             <div class="panel-head panel-head-inline">
               <div>
-                <p class="section-kicker">主页面</p>
-                <h2>控制台总览</h2>
+                <p class="section-kicker">{{ text.home }}</p>
+                <h2>{{ text.overviewTitle }}</h2>
               </div>
 
               <div class="nav-pills">
@@ -262,16 +347,13 @@ async function handleSignOut() {
               <section class="feature-panel">
                 <div class="feature-frame"></div>
 
-                <p class="section-kicker">系统概览</p>
+                <p class="section-kicker">{{ text.workspace }}</p>
                 <div class="title-line">
-                  <h3>已进入 MyIoT 控制台</h3>
+                  <h3>{{ text.operatorHome }}</h3>
                   <div class="pulse-dot"></div>
                 </div>
 
-                <p class="section-copy">
-                  登录成功后，默认会进入这个 `Home` 包。页面聚合了当前功能包、
-                  平台状态和后续扩展入口，后面再加更多页面包时也可以沿用这个结构。
-                </p>
+                <p class="section-copy">{{ text.workspaceCopy }}</p>
 
                 <v-alert
                   :type="banner.type"
@@ -301,21 +383,21 @@ async function handleSignOut() {
                     <div class="signal-card">
                       <v-icon icon="mdi-account-badge-outline" color="secondary" size="22"></v-icon>
                       <div>
-                        <p>当前账号</p>
+                        <p>{{ text.currentUser }}</p>
                         <strong>{{ sessionState.username }}</strong>
                       </div>
                     </div>
                     <div class="signal-card">
                       <v-icon icon="mdi-door-open" color="primary" size="22"></v-icon>
                       <div>
-                        <p>控制台状态</p>
-                        <strong>在线</strong>
+                        <p>{{ text.controlPlane }}</p>
+                        <strong>{{ text.online }}</strong>
                       </div>
                     </div>
                     <div class="signal-card">
                       <v-icon icon="mdi-view-grid-plus-outline" color="info" size="22"></v-icon>
                       <div>
-                        <p>可进入功能包</p>
+                        <p>{{ text.launchablePackages }}</p>
                         <strong>{{ launchablePackages.length }}</strong>
                       </div>
                     </div>
@@ -354,32 +436,30 @@ async function handleSignOut() {
                 <section class="feature-panel">
                   <div class="feature-frame"></div>
 
-                  <p class="section-kicker">平台状态</p>
+                  <p class="section-kicker">{{ text.platform }}</p>
                   <div class="title-line">
-                    <h3>实时遥测</h3>
+                    <h3>{{ text.realtimeTelemetry }}</h3>
                   </div>
-                  <p class="section-copy">
-                    右侧展示当前会话、入口注册和功能包数量，用来承接后续更多包的运行状态。
-                  </p>
+                  <p class="section-copy">{{ text.telemetryCopy }}</p>
 
                   <div class="telemetry-ring mt-6">
                     <div class="ring-core">
                       <span>{{ featurePackages.length }}</span>
-                      <small>模块已就绪</small>
+                      <small>{{ text.modulesReady }}</small>
                     </div>
                   </div>
 
                   <div class="d-grid ga-3 mt-4">
                     <div class="telemetry-item">
-                      <span>登录鉴权</span>
-                      <strong>已建立</strong>
+                      <span>{{ text.authentication }}</span>
+                      <strong>{{ text.connected }}</strong>
                     </div>
                     <div class="telemetry-item">
-                      <span>入口注册</span>
-                      <strong>已加载</strong>
+                      <span>{{ text.entrypoints }}</span>
+                      <strong>{{ text.registered }}</strong>
                     </div>
                     <div class="telemetry-item">
-                      <span>预留扩展位</span>
+                      <span>{{ text.expandableSlots }}</span>
                       <strong>{{ downstreamPackages.length }}</strong>
                     </div>
                   </div>
@@ -388,7 +468,7 @@ async function handleSignOut() {
                 <section class="feature-panel">
                   <div class="feature-frame"></div>
 
-                  <p class="section-kicker">启动追踪</p>
+                  <p class="section-kicker">{{ text.startupTrace }}</p>
                   <div class="timeline mt-4">
                     <div v-for="entry in timeline" :key="entry.time" class="timeline-item">
                       <span>{{ entry.time }}</span>
@@ -404,117 +484,58 @@ async function handleSignOut() {
 
               <div class="panel-head panel-head-inline">
                 <div>
-                  <p class="section-kicker">后端日志</p>
-                  <h2>实时同步面板</h2>
+                  <p class="section-kicker">{{ text.diagnostics }}</p>
+                  <h2>{{ text.dedicatedLogWindow }}</h2>
                 </div>
-
                 <div class="header-pills">
                   <div class="meta-pill">
-                    <v-icon icon="mdi-text-box-search-outline" size="18"></v-icon>
-                    <span>{{ totalLogLines }} 行缓冲</span>
+                    <v-icon icon="mdi-open-in-new" size="18"></v-icon>
+                    <span>{{ text.independentWindow }}</span>
                   </div>
                   <div class="meta-pill">
-                    <v-icon icon="mdi-view-list-outline" size="18"></v-icon>
-                    <span>{{ logProcesses.length }} 个进程</span>
-                  </div>
-                  <div class="meta-pill" v-if="logsUpdatedAt">
-                    <v-icon icon="mdi-refresh-circle" size="18"></v-icon>
-                    <span>{{ logsUpdatedAt }}</span>
+                    <v-icon icon="mdi-console-network-outline" size="18"></v-icon>
+                    <span>{{ text.parallelWithOps }}</span>
                   </div>
                 </div>
               </div>
 
-              <p class="section-copy">
-                这里实时轮询后端日志接口，展示当前应用目录下最近的服务端日志输出，
-                方便在主页面直接观察运行状态。
-              </p>
+              <p class="section-copy">{{ text.diagnosticsCopy }}</p>
 
-              <v-alert
-                :type="logsError ? 'error' : 'info'"
-                variant="tonal"
-                border="start"
-                class="mt-6"
-              >
-                {{ logsError || logsMessage }}
-              </v-alert>
-
-              <div class="process-log-shell mt-6">
-                <aside class="process-rail">
-                  <button
-                    v-for="process in logProcesses"
-                    :key="process.id"
-                    type="button"
-                    class="process-card"
-                    :class="{ 'process-card-active': process.id === selectedProcessId }"
-                    @click="selectedProcessId = process.id"
-                  >
-                    <div class="process-card-top">
-                      <strong>{{ process.name }}</strong>
-                      <v-chip size="x-small" variant="tonal" color="secondary">
-                        {{ process.fileCount }} 文件
-                      </v-chip>
-                    </div>
-                    <p>{{ process.lineCount }} 行缓冲</p>
-                  </button>
-
-                  <div v-if="!logProcesses.length && !logsLoading" class="log-empty-state">
-                    当前没有可展示的进程日志。
+              <div class="utility-grid mt-6">
+                <button type="button" class="utility-card utility-card-primary" @click="openLogViewer">
+                  <div class="utility-row">
+                    <v-icon icon="mdi-file-document-refresh-outline" size="24"></v-icon>
+                    <span>{{ text.liveLogs }}</span>
                   </div>
-                </aside>
+                  <strong>{{ text.openRealtimeLogPreview }}</strong>
+                  <p>{{ text.openRealtimeLogPreviewDesc }}</p>
+                </button>
 
-                <div class="log-stage">
-                  <div v-if="selectedProcess" class="log-stage-head">
-                    <div>
-                      <strong>{{ selectedProcess.name }}</strong>
-                      <p>当前显示这个进程的日志文件。</p>
-                    </div>
-                    <v-chip size="small" variant="tonal" color="primary">
-                      {{ selectedProcess.lineCount }} 行
-                    </v-chip>
+                <a
+                  v-if="processConsolePackage?.entryPath"
+                  :href="processConsolePackage.entryPath"
+                  class="utility-card"
+                >
+                  <div class="utility-row">
+                    <v-icon icon="mdi-console-network-outline" size="24"></v-icon>
+                    <span>{{ text.processConsole }}</span>
                   </div>
+                  <strong>{{ text.openProcessDiagnostics }}</strong>
+                  <p>{{ text.openProcessDiagnosticsDesc }}</p>
+                </a>
 
-                  <div v-if="selectedProcess" class="log-board">
-                    <div
-                      v-for="file in selectedProcess.files"
-                      :key="file.path"
-                      class="log-file-card"
-                    >
-                      <div class="log-file-head">
-                        <div>
-                          <strong>{{ file.name }}</strong>
-                          <p>{{ file.path }}</p>
-                        </div>
-                        <div class="file-chip-group">
-                          <v-chip size="small" variant="tonal" color="info">
-                            {{ file.stream }}
-                          </v-chip>
-                          <v-chip size="small" variant="tonal" color="secondary">
-                            {{ file.lines?.length ?? 0 }} 行
-                          </v-chip>
-                        </div>
-                      </div>
-
-                      <div class="log-console">
-                        <div
-                          v-for="(line, index) in file.lines"
-                          :key="`${file.path}-${index}`"
-                          class="log-line"
-                        >
-                          <span class="log-source">{{ file.stream }}</span>
-                          <code>{{ line }}</code>
-                        </div>
-
-                        <div v-if="!file.lines?.length" class="log-empty">
-                          当前日志文件还没有内容。
-                        </div>
-                      </div>
-                    </div>
+                <a
+                  v-if="bundleListPackage?.entryPath"
+                  :href="bundleListPackage.entryPath"
+                  class="utility-card"
+                >
+                  <div class="utility-row">
+                    <v-icon icon="mdi-package-variant-closed" size="24"></v-icon>
+                    <span>{{ text.bundleList }}</span>
                   </div>
-
-                  <div v-else-if="!logsLoading" class="log-empty-state">
-                    请选择左侧进程卡片查看日志。
-                  </div>
-                </div>
+                  <strong>{{ text.reviewRuntimeBundles }}</strong>
+                  <p>{{ text.reviewRuntimeBundlesDesc }}</p>
+                </a>
               </div>
             </section>
           </main>
@@ -525,11 +546,6 @@ async function handleSignOut() {
 </template>
 
 <style scoped>
-.log-board {
-  display: grid;
-  gap: 18px;
-}
-
 .rail-action {
   margin-bottom: 18px;
   padding: 18px;
@@ -540,6 +556,7 @@ async function handleSignOut() {
 
 .rail-action-button {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
@@ -551,135 +568,59 @@ async function handleSignOut() {
   box-shadow: inset 0 0 0 1px rgba(58, 216, 255, 0.08);
 }
 
+.rail-action-button-inline {
+  cursor: pointer;
+}
+
 .rail-action-copy {
   display: grid;
   gap: 6px;
+  text-align: left;
 }
 
 .rail-action-copy small {
   color: rgba(210, 232, 255, 0.62);
 }
 
-.process-log-shell {
+.utility-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
-.process-rail {
+.utility-card {
   display: grid;
   gap: 12px;
-  align-content: start;
-}
-
-.process-card {
-  padding: 16px;
-  text-align: left;
-  border: 1px solid rgba(78, 188, 255, 0.12);
-  border-radius: 18px;
-  background: rgba(5, 16, 29, 0.72);
+  padding: 22px;
+  border: 1px solid rgba(78, 188, 255, 0.14);
+  border-radius: 22px;
+  background: rgba(8, 22, 40, 0.72);
   color: #e6f4ff;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(58, 216, 255, 0.06);
+}
+
+.utility-card-primary {
   cursor: pointer;
-  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  background: linear-gradient(135deg, rgba(16, 54, 74, 0.92), rgba(6, 20, 36, 0.86));
+  border-color: rgba(112, 240, 193, 0.24);
 }
 
-.process-card:hover,
-.process-card-active {
-  border-color: rgba(112, 240, 193, 0.32);
-  box-shadow: inset 0 0 0 1px rgba(112, 240, 193, 0.2), 0 0 24px rgba(58, 216, 255, 0.08);
-  transform: translateY(-1px);
-}
-
-.process-card-top,
-.log-stage-head,
-.file-chip-group {
-  display: flex;
+.utility-row {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.process-card p,
-.log-stage-head p {
-  margin: 10px 0 0;
-  color: rgba(210, 232, 255, 0.62);
-}
-
-.log-stage {
-  display: grid;
-  gap: 18px;
-}
-
-.log-stage-head {
-  padding: 16px 18px;
-  border: 1px solid rgba(78, 188, 255, 0.12);
-  border-radius: 18px;
-  background: rgba(5, 16, 29, 0.72);
-}
-
-.log-file-card {
-  padding: 18px;
-  border: 1px solid rgba(78, 188, 255, 0.12);
-  border-radius: 18px;
-  background: rgba(5, 16, 29, 0.72);
-}
-
-.log-file-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.log-file-head p {
-  margin: 8px 0 0;
-  color: rgba(210, 232, 255, 0.56);
-  word-break: break-all;
-}
-
-.log-console {
-  display: grid;
   gap: 10px;
-  max-height: 280px;
-  overflow: auto;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(1, 9, 17, 0.88);
-  border: 1px solid rgba(78, 188, 255, 0.1);
-}
-
-.log-line {
-  display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  font-size: 0.84rem;
-}
-
-.log-source {
   color: #70f0c1;
-  font-weight: 700;
 }
 
-.log-line code {
-  color: #d8ecff;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: Consolas, "Courier New", monospace;
+.utility-card p {
+  margin: 0;
+  color: rgba(210, 232, 255, 0.66);
+  line-height: 1.7;
 }
 
-.log-empty,
-.log-empty-state {
-  color: rgba(210, 232, 255, 0.62);
-}
-
-@media (max-width: 780px) {
-  .process-log-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .log-line {
+@media (max-width: 1100px) {
+  .utility-grid {
     grid-template-columns: 1fr;
   }
 }

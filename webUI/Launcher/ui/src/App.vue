@@ -1,8 +1,49 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useUiLocale } from './core/locale'
 import { authenticate, refreshSession, sessionState } from './core/sessionGateway'
 
+const { isZh } = useUiLocale()
+
 const REMEMBERED_CREDENTIALS_KEY = 'myiot.launcher.rememberedCredentials'
+
+const zh = {
+  enterCredentials: '请输入账号和密码。',
+  autofilled: '已自动填入上次保存的账号密码，请确认后登录。',
+  clearedSaved: '已清除当前浏览器保存的账号密码，请重新输入。',
+  authenticating: '正在验证身份...',
+  loginTitle: '登录系统',
+  loginCopy: '登录成功后进入控制台主页。',
+  savedCredentials: '当前浏览器存在已保存的账号密码',
+  clearSaved: '清除已保存密码',
+  username: '账号',
+  usernamePlaceholder: '请输入账号',
+  password: '密码',
+  passwordPlaceholder: '请输入密码',
+  rememberPassword: '记住密码',
+  browserOnly: '仅保存在当前浏览器',
+  login: '登录'
+}
+
+const en = {
+  enterCredentials: 'Please enter your account name and password.',
+  autofilled: 'Saved credentials were autofilled. Please confirm them before signing in.',
+  clearedSaved: 'Saved credentials in this browser have been cleared.',
+  authenticating: 'Authenticating...',
+  loginTitle: 'Sign In',
+  loginCopy: 'Sign in to continue to the control console home.',
+  savedCredentials: 'Saved credentials exist in this browser',
+  clearSaved: 'Clear Saved Credentials',
+  username: 'Username',
+  usernamePlaceholder: 'Enter username',
+  password: 'Password',
+  passwordPlaceholder: 'Enter password',
+  rememberPassword: 'Remember password',
+  browserOnly: 'Stored only in this browser',
+  login: 'Sign In'
+}
+
+const text = computed(() => (isZh.value ? zh : en))
 
 const username = ref('')
 const password = ref('')
@@ -10,7 +51,7 @@ const rememberPassword = ref(false)
 const loading = ref(false)
 const banner = ref({
   type: 'info',
-  text: '请输入账号和密码。'
+  text: text.value.enterCredentials
 })
 const autoFilledFromStorage = ref(false)
 
@@ -69,7 +110,7 @@ onMounted(async () => {
 
   banner.value = {
     type: 'info',
-    text: autoFilledFromStorage.value ? '已自动填入上次保存的账号密码，请确认后登录。' : '请输入账号和密码。'
+    text: autoFilledFromStorage.value ? text.value.autofilled : text.value.enterCredentials
   }
 })
 
@@ -92,7 +133,7 @@ function clearSavedCredentials() {
   clearRememberedCredentials()
   banner.value = {
     type: 'info',
-    text: '已清除当前浏览器保存的账号密码，请重新输入。'
+    text: text.value.clearedSaved
   }
 }
 
@@ -100,7 +141,7 @@ async function submitLogin() {
   loading.value = true
   banner.value = {
     type: 'info',
-    text: '正在验证身份...'
+    text: text.value.authenticating
   }
 
   const result = await authenticate({
@@ -146,8 +187,8 @@ async function submitLogin() {
             </div>
 
             <p class="eyebrow text-center">MYIOT</p>
-            <h1 class="login-title">登录系统</h1>
-            <p class="login-copy">登录成功后进入主页面。</p>
+            <h1 class="login-title">{{ text.loginTitle }}</h1>
+            <p class="login-copy">{{ text.loginCopy }}</p>
 
             <v-alert
               :type="banner.type"
@@ -159,44 +200,44 @@ async function submitLogin() {
             </v-alert>
 
             <div v-if="hasRememberedCredentials" class="saved-credentials-row">
-              <span>当前浏览器存在已保存的账号密码</span>
+              <span>{{ text.savedCredentials }}</span>
               <v-btn
                 variant="text"
                 color="secondary"
                 size="small"
                 @click="clearSavedCredentials"
               >
-                清除已保存密码
+                {{ text.clearSaved }}
               </v-btn>
             </div>
 
             <v-form class="login-form-simple" @submit.prevent="submitLogin">
-              <label class="field-label">账号</label>
+              <label class="field-label">{{ text.username }}</label>
               <v-text-field
                 v-model="username"
                 prepend-inner-icon="mdi-account-circle-outline"
-                placeholder="请输入账号"
+                :placeholder="text.usernamePlaceholder"
                 autocomplete="username"
               ></v-text-field>
 
-              <label class="field-label mt-4">密码</label>
+              <label class="field-label mt-4">{{ text.password }}</label>
               <v-text-field
                 v-model="password"
                 type="password"
                 prepend-inner-icon="mdi-lock-outline"
-                placeholder="请输入密码"
+                :placeholder="text.passwordPlaceholder"
                 autocomplete="current-password"
               ></v-text-field>
 
               <div class="login-options-row">
                 <v-checkbox
                   v-model="rememberPassword"
-                  label="记住密码"
+                  :label="text.rememberPassword"
                   color="primary"
                   density="comfortable"
                   hide-details
                 ></v-checkbox>
-                <span class="login-option-hint">仅保存在当前浏览器</span>
+                <span class="login-option-hint">{{ text.browserOnly }}</span>
               </div>
 
               <v-btn
@@ -208,7 +249,7 @@ async function submitLogin() {
                 :loading="loading"
                 :disabled="loading"
               >
-                登录
+                {{ text.login }}
               </v-btn>
             </v-form>
           </div>

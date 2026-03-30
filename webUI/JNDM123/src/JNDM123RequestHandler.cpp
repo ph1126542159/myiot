@@ -1,4 +1,4 @@
-#include "JNDM123RequestHandler.h"
+﻿#include "JNDM123RequestHandler.h"
 
 #include "Poco/AutoPtr.h"
 #include "Poco/DateTimeFormat.h"
@@ -63,6 +63,7 @@ constexpr std::size_t kHistoryLimit = 240;
 constexpr std::size_t kMaxPendingFrames = 4096;
 constexpr double kReferenceClockHz = 25000000.0;
 constexpr Poco::Int64 kPreviewLeaseUs = 2 * 1000 * 1000;
+constexpr Poco::Int64 kPreviewPublishIntervalUs = 1 * 1000 * 1000;
 
 #if defined(__linux__)
 constexpr std::uint32_t kFifoCtrlBase = 0x43C00000UL;
@@ -397,8 +398,10 @@ private:
     Poco::FastMutex _stateMutex;
     Poco::NotificationQueue _queue;
     std::array<std::deque<std::int16_t>, kFrameColumns> _history;
+    std::array<std::deque<std::int16_t>, kFrameColumns> _publishedHistory;
     std::array<std::int16_t, kFrameColumns> _latestSamples{};
     bool _hasLatestFrame = false;
+    Poco::Int64 _lastPreviewPublishedAtUs = 0;
     bool _udpEnabled = true;
     std::string _udpHost = "255.255.255.255";
     Poco::UInt16 _udpPort = 19048;
@@ -407,6 +410,7 @@ private:
     std::string _statusMessage = "JNDM123 runtime ready.";
     std::string _lastError;
     std::string _lastFrameAt;
+    std::string _lastPreviewPublishedAt;
     std::string _lastBroadcastAt;
 
 #if defined(__linux__)
@@ -497,9 +501,15 @@ void JNDM123Runtime::clearWaveformHistoryLocked()
     {
         history.clear();
     }
+    for (auto& history: _publishedHistory)
+    {
+        history.clear();
+    }
     _hasLatestFrame = false;
     _latestSamples.fill(0);
     _lastFrameAt.clear();
+    _lastPreviewPublishedAt.clear();
+    _lastPreviewPublishedAtUs = 0;
 }
 
 bool JNDM123Runtime::enqueueFrame(FramePacket packet)
@@ -696,6 +706,7 @@ Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
     std::string message;
     std::string lastError;
     std::string lastFrameAt;
+    std::string lastPreviewPublishedAt;
     std::string lastBroadcastAt;
     std::string udpHost;
     Poco::UInt16 udpPort = 0;
@@ -711,13 +722,14 @@ Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
             : _statusMessage;
         lastError = _lastError;
         lastFrameAt = _lastFrameAt;
+        lastPreviewPublishedAt = _lastPreviewPublishedAt;
         lastBroadcastAt = _lastBroadcastAt;
         udpHost = _udpHost;
         udpPort = _udpPort;
         udpEnabled = _udpEnabled;
         if (includeWaveform)
         {
-            historyCopy = _history;
+            historyCopy = _publishedHistory;
         }
     }
 
@@ -735,6 +747,7 @@ Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
     payload->set("recoveries", static_cast<Poco::UInt64>(_recoveries.load()));
     payload->set("lastFrameSequence", static_cast<Poco::UInt64>(_lastFrameSequence.load()));
     payload->set("lastFrameAt", lastFrameAt);
+    payload->set("waveformUpdatedAt", lastPreviewPublishedAt);
     payload->set("lastError", lastError);
     payload->set("includeWaveform", includeWaveform);
 
@@ -884,6 +897,7 @@ void JNDM123Runtime::dispatcherLoop()
         unpackFrame(packet.words, samples);
 
         const bool keepWaveform = previewLeaseActive();
+        const Poco::Int64 capturedAtUs = packet.capturedAt.epochMicroseconds();
 
         {
             Poco::FastMutex::ScopedLock lock(_stateMutex);
@@ -895,6 +909,13 @@ void JNDM123Runtime::dispatcherLoop()
             if (keepWaveform)
             {
                 appendHistoryLocked(samples);
+                if (_lastPreviewPublishedAtUs == 0 ||
+                    (capturedAtUs - _lastPreviewPublishedAtUs) >= kPreviewPublishIntervalUs)
+                {
+                    _publishedHistory = _history;
+                    _lastPreviewPublishedAtUs = capturedAtUs;
+                    _lastPreviewPublishedAt = isoTimestamp(packet.capturedAt);
+                }
             }
         }
 

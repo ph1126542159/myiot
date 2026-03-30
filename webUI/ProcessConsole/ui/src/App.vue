@@ -1,11 +1,110 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { featurePackages } from './core/packageRegistry'
+import { useUiLocale } from './core/locale'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+
+const { isZh } = useUiLocale()
+
+const zh = {
+  connecting: '正在连接终端服务...',
+  busy: '命令执行中...',
+  waiting: '等待输入命令',
+  terminalReady: (username) => `欢迎回来，${username}。终端页面已经就绪。`,
+  terminalHealthy: '终端连接正常。',
+  requestFailed: '控制台请求失败',
+  requestFailedLines: ['当前命令没有执行成功，请检查服务状态后重试。'],
+  requestFailedBanner: '终端服务请求失败，请稍后重试。',
+  title: '终端交互页面',
+  copy: '这里是独立打开的进程终端页面。它直接连接当前应用的诊断服务，适合持续输入命令、查看返回结果和做运行时排查。',
+  signOut: '退出登录',
+  terminalStatus: '终端状态',
+  currentWindow: '当前进程交互窗口',
+  prompt: '终端提示符',
+  connection: '连接状态',
+  online: '在线',
+  recentStatus: '最近状态',
+  examples: {
+    help: '帮助',
+    summary: '概要',
+    threads: '线程',
+    modules: '模块',
+    stack: '堆栈',
+    functions: '函数',
+    clear: '清屏'
+  },
+  hint: '支持方向键浏览历史命令，按 Tab 快速补全，输入 clear 可清屏。',
+  inputLabel: '输入命令',
+  inputPlaceholder: '例如：help、summary、threads 10',
+  execute: '执行',
+  commandHelp: '命令说明',
+  accessInfo: '访问说明',
+  pagePath: '页面地址',
+  serviceEndpoint: '服务接口',
+  currentUser: '当前账号',
+  introLines: ['当前页面已经连接到进程诊断终端。你可以直接输入命令，或点击下方快捷指令开始。'],
+  commandDescriptions: {
+    help: '查看当前终端可用命令。',
+    summary: '查看当前进程摘要信息。',
+    threads: '查看线程列表，适合做线程排查。',
+    modules: '查看进程已加载模块。',
+    stack: '查看当前请求线程调用栈。',
+    functions: '快速查看当前调用栈函数名。'
+  }
+}
+
+const en = {
+  connecting: 'Connecting to the process console service...',
+  busy: 'Command is running...',
+  waiting: 'Waiting for a command',
+  terminalReady: (username) => `Welcome back, ${username}. The process console is ready.`,
+  terminalHealthy: 'Terminal connection is healthy.',
+  requestFailed: 'Console request failed',
+  requestFailedLines: ['The command did not complete successfully. Please check the service status and try again.'],
+  requestFailedBanner: 'The process console request failed. Please retry later.',
+  title: 'Process Console',
+  copy: 'This is the dedicated process console page. It talks directly to the in-process diagnostic service and is useful for interactive commands, immediate responses, and runtime inspection.',
+  signOut: 'Sign Out',
+  terminalStatus: 'Terminal Status',
+  currentWindow: 'Current process interaction window',
+  prompt: 'Prompt',
+  connection: 'Connection',
+  online: 'Online',
+  recentStatus: 'Recent status',
+  examples: {
+    help: 'Help',
+    summary: 'Summary',
+    threads: 'Threads',
+    modules: 'Modules',
+    stack: 'Stack',
+    functions: 'Functions',
+    clear: 'Clear'
+  },
+  hint: 'Use the arrow keys to browse history, press Tab for quick completion, and enter clear to reset the transcript.',
+  inputLabel: 'Enter command',
+  inputPlaceholder: 'Examples: help, summary, threads 10',
+  execute: 'Run',
+  commandHelp: 'Command Help',
+  accessInfo: 'Access Info',
+  pagePath: 'Page Path',
+  serviceEndpoint: 'Service Endpoint',
+  currentUser: 'Current User',
+  introLines: ['This page is connected to the process diagnostics console. Enter commands directly or start with one of the shortcuts below.'],
+  commandDescriptions: {
+    help: 'Show the commands available in the console.',
+    summary: 'Display a summary of the current process.',
+    threads: 'Inspect the thread list for debugging.',
+    modules: 'Show loaded modules for the process.',
+    stack: 'Capture the current request-thread stack.',
+    functions: 'Quickly list function names from the current stack.'
+  }
+}
+
+const text = computed(() => (isZh.value ? zh : en))
 
 const banner = ref({
   type: 'info',
-  text: '正在连接终端服务...'
+  text: text.value.connecting
 })
 const consoleCommand = ref('')
 const consoleBusy = ref(false)
@@ -15,27 +114,27 @@ const consoleInput = ref(null)
 const consoleHistory = ref([])
 const consoleHistoryIndex = ref(-1)
 
-const consolePresetCommands = [
-  { label: '帮助', command: 'help' },
-  { label: '概要', command: 'summary' },
-  { label: '线程', command: 'threads 10' },
-  { label: '模块', command: 'modules 12' },
-  { label: '堆栈', command: 'stack 12' },
-  { label: '函数', command: 'functions 12' },
-  { label: '清屏', command: 'clear' }
-]
+const consolePresetCommands = computed(() => [
+  { label: text.value.examples.help, command: 'help' },
+  { label: text.value.examples.summary, command: 'summary' },
+  { label: text.value.examples.threads, command: 'threads 10' },
+  { label: text.value.examples.modules, command: 'modules 12' },
+  { label: text.value.examples.stack, command: 'stack 12' },
+  { label: text.value.examples.functions, command: 'functions 12' },
+  { label: text.value.examples.clear, command: 'clear' }
+])
 
 const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
   (sessionState.deviceIp
     ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : '未识别')
+    : 'unknown')
 )
 
 const statusText = computed(() => {
-  if (consoleBusy.value) return '命令执行中...'
-  if (consoleLastUpdatedAt.value) return `最近更新：${consoleLastUpdatedAt.value}`
-  return '等待输入命令'
+  if (consoleBusy.value) return text.value.busy
+  if (consoleLastUpdatedAt.value) return consoleLastUpdatedAt.value
+  return text.value.waiting
 })
 
 const launchablePackages = computed(() =>
@@ -45,9 +144,9 @@ const launchablePackages = computed(() =>
 const normalizedConsoleCommand = computed(() => consoleCommand.value.trim().toLowerCase())
 
 const consoleSuggestions = computed(() => {
-  if (!normalizedConsoleCommand.value) return consolePresetCommands
+  if (!normalizedConsoleCommand.value) return consolePresetCommands.value
 
-  return consolePresetCommands
+  return consolePresetCommands.value
     .filter((item) => item.command.toLowerCase().startsWith(normalizedConsoleCommand.value))
     .slice(0, 6)
 })
@@ -135,17 +234,17 @@ async function executeConsoleCommand(command, options = {}) {
     consoleLastUpdatedAt.value = payload.updatedAt ?? ''
     banner.value = {
       type: payload.ok ? 'success' : 'warning',
-      text: payload.message ?? '终端连接正常。'
+      text: payload.message ?? text.value.terminalHealthy
     }
   } catch {
     appendConsoleBlock({
       kind: 'error',
-      title: '控制台请求失败',
-      lines: ['当前命令没有执行成功，请检查服务状态后重试。']
+      title: text.value.requestFailed,
+      lines: text.value.requestFailedLines
     })
     banner.value = {
       type: 'error',
-      text: '终端服务请求失败，请稍后重试。'
+      text: text.value.requestFailedBanner
     }
   } finally {
     consoleBusy.value = false
@@ -208,13 +307,13 @@ onMounted(async () => {
 
   banner.value = {
     type: 'success',
-    text: `欢迎回来，${sessionState.username}。终端页面已经就绪。`
+    text: text.value.terminalReady(sessionState.username)
   }
 
   appendConsoleBlock({
     kind: 'response',
     title: 'MyIoT Process Console',
-    lines: ['当前页面已经连接到进程诊断终端。你可以直接输入命令，或点击下方快捷指令开始。']
+    lines: text.value.introLines
   })
   await executeConsoleCommand('help', { remember: false })
 })
@@ -243,11 +342,8 @@ async function handleSignOut() {
 
             <div>
               <p class="eyebrow">MYIOT Process Console</p>
-              <h1>终端交互页面</h1>
-              <p class="brand-copy">
-                这里是独立打开的进程终端页面。它直接连接当前应用的诊断服务，
-                适合持续输入命令、查看返回结果和做运行时排查。
-              </p>
+              <h1>{{ text.title }}</h1>
+              <p class="brand-copy">{{ text.copy }}</p>
             </div>
           </div>
 
@@ -273,7 +369,7 @@ async function handleSignOut() {
               class="logout-button"
               @click="handleSignOut"
             >
-              退出登录
+              {{ text.signOut }}
             </v-btn>
           </div>
         </header>
@@ -284,8 +380,8 @@ async function handleSignOut() {
 
             <div class="panel-head panel-head-inline">
               <div>
-                <p class="section-kicker">终端状态</p>
-                <h2>当前进程交互窗口</h2>
+                <p class="section-kicker">{{ text.terminalStatus }}</p>
+                <h2>{{ text.currentWindow }}</h2>
               </div>
               <div class="meta-pill">
                 <v-icon icon="mdi-lan-connect" size="18"></v-icon>
@@ -304,15 +400,15 @@ async function handleSignOut() {
 
             <div class="console-status-bar mt-4">
               <div class="status-card">
-                <span>终端提示符</span>
+                <span>{{ text.prompt }}</span>
                 <strong>process-console&gt;</strong>
               </div>
               <div class="status-card">
-                <span>连接状态</span>
-                <strong>{{ consoleBusy ? '执行中' : '在线' }}</strong>
+                <span>{{ text.connection }}</span>
+                <strong>{{ consoleBusy ? text.busy : text.online }}</strong>
               </div>
               <div class="status-card">
-                <span>最近状态</span>
+                <span>{{ text.recentStatus }}</span>
                 <strong>{{ statusText }}</strong>
               </div>
             </div>
@@ -349,20 +445,18 @@ async function handleSignOut() {
                   {{ item.label }}
                 </button>
               </div>
-              <p class="console-hint">
-                支持方向键浏览历史命令，按 <kbd>Tab</kbd> 快速补全，输入 <code>clear</code> 可清屏。
-              </p>
+              <p class="console-hint">{{ text.hint }}</p>
             </div>
 
             <form class="console-command-bar mt-4" @submit.prevent="handleConsoleSubmit">
               <v-text-field
                 ref="consoleInput"
                 v-model="consoleCommand"
-                label="输入命令"
+                :label="text.inputLabel"
                 variant="outlined"
                 density="comfortable"
                 hide-details
-                placeholder="例如：help、summary、threads 10"
+                :placeholder="text.inputPlaceholder"
                 class="console-command-input"
                 :disabled="consoleBusy"
                 @keydown="handleConsoleInputKeydown"
@@ -374,7 +468,7 @@ async function handleSignOut() {
                 :loading="consoleBusy"
                 :disabled="!consoleCommand.trim()"
               >
-                执行
+                {{ text.execute }}
               </v-btn>
             </form>
 
@@ -396,31 +490,31 @@ async function handleSignOut() {
             <section class="feature-panel">
               <div class="feature-frame"></div>
 
-              <p class="section-kicker">命令说明</p>
+              <p class="section-kicker">{{ text.commandHelp }}</p>
               <div class="command-help-list">
                 <div class="help-card">
                   <strong>help</strong>
-                  <p>查看当前终端可用命令。</p>
+                  <p>{{ text.commandDescriptions.help }}</p>
                 </div>
                 <div class="help-card">
                   <strong>summary</strong>
-                  <p>查看当前进程摘要信息。</p>
+                  <p>{{ text.commandDescriptions.summary }}</p>
                 </div>
                 <div class="help-card">
                   <strong>threads [limit]</strong>
-                  <p>查看线程列表，适合做线程排查。</p>
+                  <p>{{ text.commandDescriptions.threads }}</p>
                 </div>
                 <div class="help-card">
                   <strong>modules [limit]</strong>
-                  <p>查看进程已加载模块。</p>
+                  <p>{{ text.commandDescriptions.modules }}</p>
                 </div>
                 <div class="help-card">
                   <strong>stack [limit]</strong>
-                  <p>查看当前请求线程调用栈。</p>
+                  <p>{{ text.commandDescriptions.stack }}</p>
                 </div>
                 <div class="help-card">
                   <strong>functions [limit]</strong>
-                  <p>快速查看当前调用栈函数名。</p>
+                  <p>{{ text.commandDescriptions.functions }}</p>
                 </div>
               </div>
             </section>
@@ -428,18 +522,18 @@ async function handleSignOut() {
             <section class="feature-panel">
               <div class="feature-frame"></div>
 
-              <p class="section-kicker">访问说明</p>
+              <p class="section-kicker">{{ text.accessInfo }}</p>
               <div class="status-card-list">
                 <div class="status-card">
-                  <span>页面地址</span>
+                  <span>{{ text.pagePath }}</span>
                   <strong>/myiot/console/index.html</strong>
                 </div>
                 <div class="status-card">
-                  <span>服务接口</span>
+                  <span>{{ text.serviceEndpoint }}</span>
                   <strong>/myiot/services/process-console/exec</strong>
                 </div>
                 <div class="status-card">
-                  <span>当前账号</span>
+                  <span>{{ text.currentUser }}</span>
                   <strong>{{ sessionState.username }}</strong>
                 </div>
               </div>
@@ -720,14 +814,6 @@ async function handleSignOut() {
 .console-hint {
   margin: 0;
   line-height: 1.7;
-}
-
-.console-hint kbd {
-  padding: 2px 6px;
-  border-radius: 6px;
-  border: 1px solid rgba(78, 188, 255, 0.16);
-  background: rgba(8, 20, 35, 0.88);
-  color: #e6f4ff;
 }
 
 .mt-4 {

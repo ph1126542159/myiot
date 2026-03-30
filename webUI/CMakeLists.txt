@@ -1,4 +1,4 @@
-find_program(MYIOT_NPM_EXECUTABLE npm REQUIRED)
+﻿find_program(MYIOT_NPM_EXECUTABLE npm REQUIRED)
 
 set(MYIOT_WEBUI_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -119,6 +119,7 @@ endfunction()
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Launcher" "${CMAKE_CURRENT_BINARY_DIR}/Launcher")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Home" "${CMAKE_CURRENT_BINARY_DIR}/Home")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/LogViewer" "${CMAKE_CURRENT_BINARY_DIR}/LogViewer")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/BundleList" "${CMAKE_CURRENT_BINARY_DIR}/BundleList")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/SystemMonitor" "${CMAKE_CURRENT_BINARY_DIR}/SystemMonitor")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ProcessConsole" "${CMAKE_CURRENT_BINARY_DIR}/ProcessConsole")

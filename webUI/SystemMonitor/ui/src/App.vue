@@ -1,11 +1,110 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { featurePackages, formatPackageStatus, getPackageStatusTone } from './core/packageRegistry'
+import { useUiLocale } from './core/locale'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+
+const { isZh } = useUiLocale()
+
+const zh = {
+  syncing: '正在同步系统监控数据...',
+  synced: '系统监控指标同步正常。',
+  failed: '系统监控数据同步失败，请稍后重试。',
+  unavailable: '暂不可用',
+  title: '系统资源实时监控',
+  copy: '这里集中显示当前系统的磁盘、内存、线程、进程、IO、网络和 CPU 变化趋势。页面以 1 秒节奏轮询后端指标接口，并在浏览器内维持最近 60 个采样点。',
+  backHome: '返回主页',
+  bundleList: '系统包列表',
+  signOut: '退出登录',
+  runtime: '运行态',
+  overview: '监控入口概览',
+  samplePoints: '个采样点',
+  cpu: 'CPU',
+  cpuTemp: 'CPU 温度',
+  memory: '内存',
+  processes: '进程',
+  threads: '线程',
+  totalCpu: '系统总占用',
+  tempSource: 'WMI 热区采样',
+  tempUnavailable: '当前设备暂未提供温度传感器',
+  processCount: '当前系统进程总数',
+  threadCount: '当前系统线程总数',
+  charts: '曲线视图',
+  chartTitle: '实时资源走势',
+  cpuCurve: 'CPU 曲线',
+  memoryCurve: '内存曲线',
+  processCurve: '进程数',
+  threadCurve: '线程数',
+  networkThroughput: '网络吞吐',
+  diskIo: '磁盘 IO',
+  totalUsage: '总使用率',
+  activeProcessTotal: '系统活跃进程总量',
+  activeThreadTotal: '系统线程总量',
+  cpuTempHelper: '摄氏度',
+  noCharts: '当前还没有可展示的监控曲线。',
+  disks: '磁盘视图',
+  diskUsage: '卷使用情况',
+  available: '可用',
+  used: '已用',
+  total: '总量',
+  noDisks: '当前没有可展示的磁盘信息。',
+  webuiPackages: 'WebUI 包',
+  packageEntries: '当前已注册的页面入口',
+  openPage: '打开页面'
+}
+
+const en = {
+  syncing: 'Synchronizing system monitor data...',
+  synced: 'System monitoring metrics are synchronized.',
+  failed: 'Failed to synchronize monitor data. Please retry later.',
+  unavailable: 'Unavailable',
+  title: 'Realtime System Resource Monitor',
+  copy: 'This page brings together disk, memory, thread, process, IO, network, and CPU trends. It polls the backend metrics endpoint once per second and keeps the latest 60 samples in the browser.',
+  backHome: 'Back to Home',
+  bundleList: 'Bundle List',
+  signOut: 'Sign Out',
+  runtime: 'Runtime',
+  overview: 'Monitor Overview',
+  samplePoints: 'sample points',
+  cpu: 'CPU',
+  cpuTemp: 'CPU Temperature',
+  memory: 'Memory',
+  processes: 'Processes',
+  threads: 'Threads',
+  totalCpu: 'Total system usage',
+  tempSource: 'WMI thermal sampling',
+  tempUnavailable: 'No temperature sensor is currently available',
+  processCount: 'Total process count',
+  threadCount: 'Total thread count',
+  charts: 'Charts',
+  chartTitle: 'Realtime Resource Trends',
+  cpuCurve: 'CPU Curve',
+  memoryCurve: 'Memory Curve',
+  processCurve: 'Process Count',
+  threadCurve: 'Thread Count',
+  networkThroughput: 'Network Throughput',
+  diskIo: 'Disk IO',
+  totalUsage: 'Total usage',
+  activeProcessTotal: 'Total active processes',
+  activeThreadTotal: 'Total active threads',
+  cpuTempHelper: 'Celsius',
+  noCharts: 'No monitoring curves are available yet.',
+  disks: 'Disks',
+  diskUsage: 'Volume Usage',
+  available: 'available',
+  used: 'used',
+  total: 'total',
+  noDisks: 'No disk information is available right now.',
+  webuiPackages: 'WebUI Packages',
+  packageEntries: 'Registered page entry points',
+  openPage: 'Open Page'
+}
+
+const text = computed(() => (isZh.value ? zh : en))
 
 const banner = ref({
   type: 'info',
-  text: '正在同步系统监控数据...'
+  text: text.value.syncing
 })
 const latestMetrics = ref(null)
 const metricsUpdatedAt = ref('')
@@ -29,12 +128,12 @@ function formatPercent(value) {
 
 function formatTemperature(value) {
   const numeric = Number(value)
-  if (!Number.isFinite(numeric)) return '暂不可用'
+  if (!Number.isFinite(numeric)) return text.value.unavailable
   return `${numeric.toFixed(1)}°C`
 }
 
 function formatCount(value) {
-  return new Intl.NumberFormat('zh-CN').format(Math.round(toNumber(value)))
+  return new Intl.NumberFormat(isZh.value ? 'zh-CN' : 'en-US').format(Math.round(toNumber(value)))
 }
 
 function formatBytes(value) {
@@ -105,7 +204,7 @@ const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
   (sessionState.deviceIp
     ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : '未识别')
+    : 'unknown')
 )
 
 const diskCards = computed(() =>
@@ -126,33 +225,33 @@ const overviewCards = computed(() => {
   return [
     {
       key: 'cpu',
-      title: 'CPU',
+      title: text.value.cpu,
       value: formatPercent(metrics.cpu?.usagePercent),
-      subtitle: '系统总占用'
+      subtitle: text.value.totalCpu
     },
     {
       key: 'temperature',
-      title: 'CPU 温度',
+      title: text.value.cpuTemp,
       value: formatTemperature(metrics.cpu?.temperatureCelsius),
-      subtitle: metrics.cpu?.temperatureAvailable ? 'WMI 热区采样' : '当前设备暂未提供温度传感器'
+      subtitle: metrics.cpu?.temperatureAvailable ? text.value.tempSource : text.value.tempUnavailable
     },
     {
       key: 'memory',
-      title: '内存',
+      title: text.value.memory,
       value: formatBytes(metrics.memory?.usedBytes),
-      subtitle: `${formatPercent(metrics.memory?.usagePercent)} / 总内存 ${formatBytes(metrics.memory?.totalBytes)}`
+      subtitle: `${formatPercent(metrics.memory?.usagePercent)} / ${formatBytes(metrics.memory?.totalBytes)}`
     },
     {
       key: 'processes',
-      title: '进程',
+      title: text.value.processes,
       value: formatCount(metrics.counts?.processes),
-      subtitle: '当前系统进程总数'
+      subtitle: text.value.processCount
     },
     {
       key: 'threads',
-      title: '线程',
+      title: text.value.threads,
       value: formatCount(metrics.counts?.threads),
-      subtitle: '当前系统线程总数'
+      subtitle: text.value.threadCount
     }
   ]
 })
@@ -175,16 +274,16 @@ const chartSeries = computed(() => {
   return [
     {
       key: 'cpu',
-      title: 'CPU 曲线',
+      title: text.value.cpuCurve,
       accent: 'chart-primary',
       currentValue: formatPercent(metrics.cpu?.usagePercent),
-      helper: '总使用率',
+      helper: text.value.totalUsage,
       values: cpuValues,
       maxValue: 100
     },
     {
       key: 'memory',
-      title: '内存曲线',
+      title: text.value.memoryCurve,
       accent: 'chart-secondary',
       currentValue: formatPercent(metrics.memory?.usagePercent),
       helper: `${formatBytes(metrics.memory?.usedBytes)} / ${formatBytes(metrics.memory?.totalBytes)}`,
@@ -193,46 +292,46 @@ const chartSeries = computed(() => {
     },
     {
       key: 'temperature',
-      title: 'CPU 温度',
+      title: text.value.cpuTemp,
       accent: 'chart-danger',
       currentValue: formatTemperature(metrics.cpu?.temperatureCelsius),
-      helper: metrics.cpu?.temperatureAvailable ? '摄氏度' : '当前设备暂未提供温度',
+      helper: metrics.cpu?.temperatureAvailable ? text.value.cpuTempHelper : text.value.tempUnavailable,
       values: samples.map((entry) => Number.isFinite(entry.cpuTemperatureCelsius) ? entry.cpuTemperatureCelsius : 0),
       maxValue: metricMax(cpuTemperatureValues, 70, 1.08)
     },
     {
       key: 'processes',
-      title: '进程数',
+      title: text.value.processCurve,
       accent: 'chart-info',
       currentValue: formatCount(metrics.counts?.processes),
-      helper: '系统活跃进程总量',
+      helper: text.value.activeProcessTotal,
       values: processValues,
       maxValue: metricMax(processValues, 16)
     },
     {
       key: 'threads',
-      title: '线程数',
+      title: text.value.threadCurve,
       accent: 'chart-warning',
       currentValue: formatCount(metrics.counts?.threads),
-      helper: '系统线程总量',
+      helper: text.value.activeThreadTotal,
       values: threadValues,
       maxValue: metricMax(threadValues, 64)
     },
     {
       key: 'network',
-      title: '网络吞吐',
+      title: text.value.networkThroughput,
       accent: 'chart-primary',
       currentValue: formatRate(metrics.network?.totalBytesPerSec),
-      helper: `收 ${formatRate(metrics.network?.receiveBytesPerSec)} / 发 ${formatRate(metrics.network?.sendBytesPerSec)}`,
+      helper: `${formatRate(metrics.network?.receiveBytesPerSec)} / ${formatRate(metrics.network?.sendBytesPerSec)}`,
       values: networkValues,
       maxValue: metricMax(networkValues, 1024 * 64)
     },
     {
       key: 'io',
-      title: '磁盘 IO',
+      title: text.value.diskIo,
       accent: 'chart-secondary',
       currentValue: formatRate(metrics.io?.totalBytesPerSec),
-      helper: `读 ${formatRate(metrics.io?.readBytesPerSec)} / 写 ${formatRate(metrics.io?.writeBytesPerSec)}`,
+      helper: `${formatRate(metrics.io?.readBytesPerSec)} / ${formatRate(metrics.io?.writeBytesPerSec)}`,
       values: ioValues,
       maxValue: metricMax(ioValues, 1024 * 64)
     }
@@ -270,11 +369,11 @@ async function loadMetrics() {
 
     banner.value = {
       type: 'success',
-      text: payload.message ?? '系统监控指标同步正常。'
+      text: payload.message ?? text.value.synced
     }
     errorText.value = ''
   } catch {
-    errorText.value = '系统监控数据同步失败，请稍后重试。'
+    errorText.value = text.value.failed
     banner.value = {
       type: 'error',
       text: errorText.value
@@ -329,22 +428,19 @@ async function handleSignOut() {
 
             <div>
               <p class="eyebrow">MYIOT System Monitor</p>
-              <h1>系统资源实时监控</h1>
-              <p class="brand-copy">
-                这里集中显示当前系统的磁盘、内存、线程、进程、IO、网络和 CPU 变化趋势。
-                页面以 1 秒节奏轮询后端指标接口，并在浏览器内维持最近 60 个采样点。
-              </p>
+              <h1>{{ text.title }}</h1>
+              <p class="brand-copy">{{ text.copy }}</p>
             </div>
           </div>
 
           <div class="header-pills">
             <a href="/myiot/home/index.html" class="meta-pill">
               <v-icon icon="mdi-view-dashboard-outline" size="18"></v-icon>
-              <span>返回主页面</span>
+              <span>{{ text.backHome }}</span>
             </a>
             <a href="/myiot/packages/index.html" class="meta-pill">
               <v-icon icon="mdi-package-variant-closed" size="18"></v-icon>
-              <span>系统包列表</span>
+              <span>{{ text.bundleList }}</span>
             </a>
             <div class="meta-pill">
               <v-icon icon="mdi-account-circle-outline" size="18"></v-icon>
@@ -355,7 +451,7 @@ async function handleSignOut() {
               <span>{{ metricsUpdatedAt }}</span>
             </div>
             <v-btn variant="tonal" color="secondary" size="small" @click="handleSignOut">
-              退出登录
+              {{ text.signOut }}
             </v-btn>
           </div>
         </header>
@@ -366,8 +462,8 @@ async function handleSignOut() {
 
             <div class="panel-head panel-head-inline">
               <div>
-                <p class="section-kicker">运行态</p>
-                <h2>监控入口概览</h2>
+                <p class="section-kicker">{{ text.runtime }}</p>
+                <h2>{{ text.overview }}</h2>
               </div>
 
               <div class="header-pills">
@@ -381,7 +477,7 @@ async function handleSignOut() {
                 </div>
                 <div class="meta-pill">
                   <v-icon icon="mdi-chart-line" size="18"></v-icon>
-                  <span>{{ historyPoints.length }} 个采样点</span>
+                  <span>{{ historyPoints.length }} {{ text.samplePoints }}</span>
                 </div>
               </div>
             </div>
@@ -404,8 +500,8 @@ async function handleSignOut() {
 
             <div class="panel-head">
               <div>
-                <p class="section-kicker">曲线视图</p>
-                <h2>实时资源走势</h2>
+                <p class="section-kicker">{{ text.charts }}</p>
+                <h2>{{ text.chartTitle }}</h2>
               </div>
             </div>
 
@@ -447,7 +543,7 @@ async function handleSignOut() {
             </div>
 
             <div v-else-if="!loading" class="empty-state">
-              当前还没有可展示的监控曲线。
+              {{ text.noCharts }}
             </div>
           </section>
 
@@ -456,8 +552,8 @@ async function handleSignOut() {
 
             <div class="panel-head">
               <div>
-                <p class="section-kicker">磁盘视图</p>
-                <h2>卷使用情况</h2>
+                <p class="section-kicker">{{ text.disks }}</p>
+                <h2>{{ text.diskUsage }}</h2>
               </div>
             </div>
 
@@ -469,7 +565,7 @@ async function handleSignOut() {
                     <p>{{ disk.usageText }}</p>
                   </div>
                   <v-chip size="small" variant="tonal" color="secondary">
-                    {{ disk.freeText }} 可用
+                    {{ disk.freeText }} {{ text.available }}
                   </v-chip>
                 </div>
 
@@ -482,14 +578,14 @@ async function handleSignOut() {
                 ></v-progress-linear>
 
                 <div class="disk-meta-row">
-                  <span>已用 {{ disk.usedText }}</span>
-                  <span>总量 {{ disk.totalText }}</span>
+                  <span>{{ text.used }} {{ disk.usedText }}</span>
+                  <span>{{ text.total }} {{ disk.totalText }}</span>
                 </div>
               </article>
             </div>
 
             <div v-else-if="!loading" class="empty-state">
-              当前没有可展示的磁盘信息。
+              {{ text.noDisks }}
             </div>
           </section>
 
@@ -498,8 +594,8 @@ async function handleSignOut() {
 
             <div class="panel-head">
               <div>
-                <p class="section-kicker">WebUI 包</p>
-                <h2>当前已注册的页面入口</h2>
+                <p class="section-kicker">{{ text.webuiPackages }}</p>
+                <h2>{{ text.packageEntries }}</h2>
               </div>
             </div>
 
@@ -528,7 +624,7 @@ async function handleSignOut() {
                 <div class="package-meta">
                   <span>{{ featurePackage.category }}</span>
                   <span>v{{ featurePackage.version }}</span>
-                  <a :href="featurePackage.entryPath">打开页面</a>
+                  <a :href="featurePackage.entryPath">{{ text.openPage }}</a>
                 </div>
               </article>
             </div>

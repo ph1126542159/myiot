@@ -1,11 +1,106 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { featurePackages, formatPackageStatus, getPackageStatusTone } from './core/packageRegistry'
+import { useUiLocale } from './core/locale'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+
+const { isZh } = useUiLocale()
+
+const zh = {
+  syncing: '正在同步系统包列表...',
+  syncDone: '系统包列表同步完成。',
+  syncFailed: '系统包列表同步失败，请稍后重试。',
+  manageFailed: '管理请求失败，请稍后重试。',
+  manageDone: '操作已完成。',
+  signOut: '退出登录',
+  backHome: '返回主页',
+  title: '包管理与配置控制台',
+  copy: '这里统一查看当前系统已加载的 bundle，并对非核心包执行解析、激活、停用和配置参数编辑。核心包保持只读展示。',
+  totalBundles: '已加载包总数',
+  manageable: '可管理包',
+  readonly: '核心只读包',
+  activeBundles: '活跃状态包',
+  summary: '运行时摘要',
+  stateOverview: '状态概览',
+  bundleList: '系统包清单',
+  bundleActions: '管理动作与配置参数',
+  resolvable: '解析',
+  start: '激活',
+  stop: '停用',
+  expandConfig: '展开配置',
+  collapseConfig: '隐藏配置',
+  configurable: '可管理',
+  readonlyTag: '核心只读',
+  vendorFallback: '未标注',
+  extensionBundle: '扩展包',
+  regularBundle: '普通包',
+  activeDependents: '依赖当前包的运行中模块：',
+  preferences: '配置参数',
+  preferencesDesc: '这里编辑 bundle 偏好参数。核心包只读展示，普通包可以保存。',
+  items: '项',
+  unsaved: '未保存',
+  synced: '已同步',
+  key: '参数名',
+  value: '参数值',
+  remove: '删除',
+  addPreference: '新增参数',
+  savePreferences: '保存配置',
+  noBundles: '当前没有可展示的系统包信息。',
+  webuiPackages: '前端功能包',
+  registeredPages: '已注册的 WebUI 页面包',
+  openPage: '打开页面'
+}
+
+const en = {
+  syncing: 'Synchronizing the system bundle catalog...',
+  syncDone: 'The system bundle catalog has been synchronized.',
+  syncFailed: 'Failed to synchronize the system bundle catalog. Please retry later.',
+  manageFailed: 'The management request failed. Please retry later.',
+  manageDone: 'The operation has completed.',
+  signOut: 'Sign Out',
+  backHome: 'Back to Home',
+  title: 'Bundle Management and Configuration Console',
+  copy: 'Review all loaded bundles here, and manage non-core bundles by resolving, starting, stopping, and editing preferences. Core bundles remain read-only.',
+  totalBundles: 'Loaded Bundles',
+  manageable: 'Manageable Bundles',
+  readonly: 'Core Read-Only Bundles',
+  activeBundles: 'Active Bundles',
+  summary: 'Runtime Summary',
+  stateOverview: 'State Overview',
+  bundleList: 'System Bundle Catalog',
+  bundleActions: 'Management Actions and Preferences',
+  resolvable: 'Resolve',
+  start: 'Start',
+  stop: 'Stop',
+  expandConfig: 'Expand Config',
+  collapseConfig: 'Hide Config',
+  configurable: 'Manageable',
+  readonlyTag: 'Core Read-Only',
+  vendorFallback: 'Unspecified',
+  extensionBundle: 'Extension Bundle',
+  regularBundle: 'Regular Bundle',
+  activeDependents: 'Running modules depending on this bundle:',
+  preferences: 'Preferences',
+  preferencesDesc: 'Edit bundle preference entries here. Core bundles are read-only, while regular bundles can be saved.',
+  items: 'items',
+  unsaved: 'Unsaved',
+  synced: 'Synced',
+  key: 'Key',
+  value: 'Value',
+  remove: 'Remove',
+  addPreference: 'Add Preference',
+  savePreferences: 'Save Preferences',
+  noBundles: 'No system bundle information is available right now.',
+  webuiPackages: 'WebUI Packages',
+  registeredPages: 'Registered WebUI Pages',
+  openPage: 'Open Page'
+}
+
+const text = computed(() => (isZh.value ? zh : en))
 
 const banner = ref({
   type: 'info',
-  text: '正在同步系统包列表...'
+  text: text.value.syncing
 })
 const bundlePayload = ref([])
 const bundleUpdatedAt = ref('')
@@ -169,10 +264,10 @@ async function loadBundles() {
     errorText.value = ''
     banner.value = {
       type: 'success',
-      text: payload.message ?? '系统包列表同步完成。'
+      text: payload.message ?? text.value.syncDone
     }
   } catch {
-    errorText.value = '系统包列表同步失败，请稍后重试。'
+    errorText.value = text.value.syncFailed
     banner.value = {
       type: 'error',
       text: errorText.value
@@ -206,7 +301,7 @@ async function postBundleAction(symbolicName, action, extraFields = {}) {
 
     const payload = await response.json().catch(() => ({
       ok: false,
-      message: `管理请求失败，状态码 ${response.status}`
+      message: `Request failed with status ${response.status}`
     }))
 
     if (response.status === 401) {
@@ -217,24 +312,24 @@ async function postBundleAction(symbolicName, action, extraFields = {}) {
     if (!response.ok || payload.ok === false) {
       banner.value = {
         type: 'error',
-        text: payload.message ?? '管理请求失败。'
+        text: payload.message ?? text.value.manageFailed
       }
-      errorText.value = payload.message ?? '管理请求失败。'
+      errorText.value = payload.message ?? text.value.manageFailed
       return false
     }
 
     errorText.value = ''
     banner.value = {
       type: 'success',
-      text: payload.message ?? '操作已完成。'
+      text: payload.message ?? text.value.manageDone
     }
     return true
   } catch {
     banner.value = {
       type: 'error',
-      text: '管理请求失败，请稍后重试。'
+      text: text.value.manageFailed
     }
-    errorText.value = '管理请求失败，请稍后重试。'
+    errorText.value = text.value.manageFailed
     return false
   } finally {
     setBusy(symbolicName, false)
@@ -313,18 +408,15 @@ async function handleSignOut() {
 
             <div>
               <p class="eyebrow">MYIOT Bundle Catalog</p>
-              <h1>包管理与配置控制台</h1>
-              <p class="brand-copy">
-                这里统一查看当前系统已加载的 bundle，并对非核心包执行解析、激活、停用和配置参数编辑。
-                系统核心包会保留只读视图，不进入控制范围。
-              </p>
+              <h1>{{ text.title }}</h1>
+              <p class="brand-copy">{{ text.copy }}</p>
             </div>
           </div>
 
           <div class="header-pills">
             <a href="/myiot/home/index.html" class="meta-pill">
               <v-icon icon="mdi-view-dashboard-outline" size="18"></v-icon>
-              <span>返回主页面</span>
+              <span>{{ text.backHome }}</span>
             </a>
             <div class="meta-pill">
               <v-icon icon="mdi-account-circle-outline" size="18"></v-icon>
@@ -335,7 +427,7 @@ async function handleSignOut() {
               <span>{{ bundleUpdatedAt }}</span>
             </div>
             <v-btn variant="tonal" color="secondary" size="small" @click="handleSignOut">
-              退出登录
+              {{ text.signOut }}
             </v-btn>
           </div>
         </header>
@@ -343,19 +435,19 @@ async function handleSignOut() {
         <main class="viewport-panel">
           <div class="bundle-stats-grid">
             <div class="bundle-stat-card">
-              <p>已加载包总数</p>
+              <p>{{ text.totalBundles }}</p>
               <strong>{{ bundleCount }}</strong>
             </div>
             <div class="bundle-stat-card">
-              <p>可管理包</p>
+              <p>{{ text.manageable }}</p>
               <strong>{{ manageableBundles }}</strong>
             </div>
             <div class="bundle-stat-card">
-              <p>核心只读包</p>
+              <p>{{ text.readonly }}</p>
               <strong>{{ protectedBundles }}</strong>
             </div>
             <div class="bundle-stat-card">
-              <p>活跃状态包</p>
+              <p>{{ text.activeBundles }}</p>
               <strong>{{ activeBundles }}</strong>
             </div>
           </div>
@@ -365,8 +457,8 @@ async function handleSignOut() {
 
             <div class="panel-head panel-head-inline">
               <div>
-                <p class="section-kicker">运行时摘要</p>
-                <h2>状态概览</h2>
+                <p class="section-kicker">{{ text.summary }}</p>
+                <h2>{{ text.stateOverview }}</h2>
               </div>
 
               <div class="bundle-summary-row">
@@ -387,8 +479,8 @@ async function handleSignOut() {
 
             <div class="panel-head">
               <div>
-                <p class="section-kicker">系统包清单</p>
-                <h2>管理动作与配置参数</h2>
+                <p class="section-kicker">{{ text.bundleList }}</p>
+                <h2>{{ text.bundleActions }}</h2>
               </div>
             </div>
 
@@ -416,7 +508,7 @@ async function handleSignOut() {
                       variant="tonal"
                       :color="bundle.manageable ? 'secondary' : 'warning'"
                     >
-                      {{ bundle.manageable ? '可管理' : '核心只读' }}
+                      {{ bundle.manageable ? text.configurable : text.readonlyTag }}
                     </v-chip>
                   </div>
                 </div>
@@ -425,11 +517,11 @@ async function handleSignOut() {
                   <span>ID {{ bundle.id }}</span>
                   <span>v{{ bundle.version }}</span>
                   <span>RunLevel {{ bundle.runLevel || 'default' }}</span>
-                  <span>{{ bundle.extensionBundle ? '扩展包' : '普通包' }}</span>
+                  <span>{{ bundle.extensionBundle ? text.extensionBundle : text.regularBundle }}</span>
                 </div>
 
                 <p class="bundle-copy">
-                  供应商：{{ bundle.vendor || '未标注' }}
+                  Vendor: {{ bundle.vendor || text.vendorFallback }}
                 </p>
 
                 <div class="bundle-path">{{ bundle.path }}</div>
@@ -439,7 +531,7 @@ async function handleSignOut() {
                 </div>
 
                 <div v-if="bundle.activeDependents?.length" class="bundle-note bundle-note-warning">
-                  依赖当前包的运行中模块：{{ bundle.activeDependents.join('，') }}
+                  {{ text.activeDependents }} {{ bundle.activeDependents.join(', ') }}
                 </div>
 
                 <div class="bundle-action-row">
@@ -450,7 +542,7 @@ async function handleSignOut() {
                     :disabled="!bundle.canResolve || isBusy(bundle.symbolicName)"
                     @click="handleBundleCommand(bundle, 'resolve')"
                   >
-                    解析
+                    {{ text.resolvable }}
                   </v-btn>
                   <v-btn
                     size="small"
@@ -459,7 +551,7 @@ async function handleSignOut() {
                     :disabled="!bundle.canStart || isBusy(bundle.symbolicName)"
                     @click="handleBundleCommand(bundle, 'start')"
                   >
-                    激活
+                    {{ text.start }}
                   </v-btn>
                   <v-btn
                     size="small"
@@ -468,7 +560,7 @@ async function handleSignOut() {
                     :disabled="!bundle.canStop || isBusy(bundle.symbolicName)"
                     @click="handleBundleCommand(bundle, 'stop')"
                   >
-                    停用
+                    {{ text.stop }}
                   </v-btn>
                   <v-btn
                     size="small"
@@ -476,26 +568,26 @@ async function handleSignOut() {
                     color="secondary"
                     @click="toggleBundle(bundle.symbolicName)"
                   >
-                    {{ isExpanded(bundle.symbolicName) ? '隐藏配置' : '展开配置' }}
+                    {{ isExpanded(bundle.symbolicName) ? text.collapseConfig : text.expandConfig }}
                   </v-btn>
                 </div>
 
                 <div v-if="isExpanded(bundle.symbolicName)" class="bundle-config-panel">
                   <div class="bundle-config-head">
                     <div>
-                      <strong>配置参数</strong>
-                      <p>这里编辑 bundle 偏好参数。核心包只读展示，普通包可以保存。</p>
+                      <strong>{{ text.preferences }}</strong>
+                      <p>{{ text.preferencesDesc }}</p>
                     </div>
                     <div class="bundle-chip-row">
                       <v-chip size="small" variant="tonal" color="info">
-                        {{ preferenceRows(bundle.symbolicName).length }} 项
+                        {{ preferenceRows(bundle.symbolicName).length }} {{ text.items }}
                       </v-chip>
                       <v-chip
                         size="small"
                         variant="tonal"
                         :color="dirtyDrafts[bundle.symbolicName] ? 'warning' : 'success'"
                       >
-                        {{ dirtyDrafts[bundle.symbolicName] ? '未保存' : '已同步' }}
+                        {{ dirtyDrafts[bundle.symbolicName] ? text.unsaved : text.synced }}
                       </v-chip>
                     </div>
                   </div>
@@ -507,13 +599,13 @@ async function handleSignOut() {
                       class="bundle-config-row"
                     >
                       <v-text-field
-                        label="参数名"
+                        :label="text.key"
                         :model-value="entry.key"
                         :disabled="!bundle.configurable"
                         @update:model-value="updatePreference(bundle.symbolicName, index, 'key', $event)"
                       />
                       <v-text-field
-                        label="参数值"
+                        :label="text.value"
                         :model-value="entry.value"
                         :disabled="!bundle.configurable"
                         @update:model-value="updatePreference(bundle.symbolicName, index, 'value', $event)"
@@ -525,7 +617,7 @@ async function handleSignOut() {
                         :disabled="!bundle.configurable"
                         @click="removePreference(bundle.symbolicName, index)"
                       >
-                        删除
+                        {{ text.remove }}
                       </v-btn>
                     </div>
                   </div>
@@ -538,7 +630,7 @@ async function handleSignOut() {
                       :disabled="!bundle.configurable"
                       @click="addPreference(bundle.symbolicName)"
                     >
-                      新增参数
+                      {{ text.addPreference }}
                     </v-btn>
                     <v-btn
                       size="small"
@@ -547,7 +639,7 @@ async function handleSignOut() {
                       :disabled="!bundle.configurable || isBusy(bundle.symbolicName)"
                       @click="handleSavePreferences(bundle)"
                     >
-                      保存配置
+                      {{ text.savePreferences }}
                     </v-btn>
                   </div>
                 </div>
@@ -555,7 +647,7 @@ async function handleSignOut() {
             </div>
 
             <div v-else-if="!loading" class="bundle-empty-state">
-              当前没有可展示的系统包信息。
+              {{ text.noBundles }}
             </div>
           </section>
 
@@ -564,8 +656,8 @@ async function handleSignOut() {
 
             <div class="panel-head">
               <div>
-                <p class="section-kicker">前端功能包</p>
-                <h2>已注册的 WebUI 页面包</h2>
+                <p class="section-kicker">{{ text.webuiPackages }}</p>
+                <h2>{{ text.registeredPages }}</h2>
               </div>
             </div>
 
@@ -597,7 +689,7 @@ async function handleSignOut() {
                 <div class="bundle-card-meta">
                   <span>{{ featurePackage.category }}</span>
                   <span>v{{ featurePackage.version }}</span>
-                  <a :href="featurePackage.entryPath">打开页面</a>
+                  <a :href="featurePackage.entryPath">{{ text.openPage }}</a>
                 </div>
               </article>
             </div>

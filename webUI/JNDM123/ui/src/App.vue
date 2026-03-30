@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { featurePackages } from './core/packageRegistry'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
@@ -331,7 +331,7 @@ function resetPolling() {
 
   pollTimer = window.setInterval(() => {
     loadAcquisitionSnapshot()
-  }, previewEnabled.value ? 280 : 1200)
+  }, previewEnabled.value ? 1000 : 1200)
 }
 
 function handleVisibilityChange() {
@@ -509,7 +509,8 @@ onBeforeUnmount(() => {
                   <h2>AD7606 Capture Runtime</h2>
                   <p class="panel-copy">
                     The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves
-                    waveform packaging and UDP broadcasting to the consumer side.
+                    waveform caching and UDP broadcasting to the consumer side. Browser preview snapshots are
+                    published from cache once per second, while UDP stays on the full dequeue path.
                   </p>
                 </div>
 
@@ -571,6 +572,7 @@ onBeforeUnmount(() => {
                   <p class="panel-copy">
                     Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is
                     not active, the backend stops packaging waveform history for the browser but keeps UDP broadcast alive.
+                    When preview is active, cached waveform data is refreshed to the browser once per second.
                   </p>
                 </div>
 

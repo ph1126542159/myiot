@@ -1,9 +1,9 @@
-import { reactive } from 'vue'
+﻿import { reactive } from 'vue'
 
 export const sessionState = reactive({
   authenticated: false,
   username: '',
-  message: '登录网关已就绪，请先完成身份验证。',
+  message: 'Session gateway is ready. Please authenticate first.',
   lastError: '',
   deviceIp: '',
   devicePort: '',
@@ -40,8 +40,8 @@ async function fallbackAuthenticate(credentials) {
     applySession({
       authenticated: false,
       username: '',
-      message: '请输入用户名和密码后再登录。',
-      lastError: '请输入用户名和密码后再登录。'
+      message: 'Please enter both username and password before signing in.',
+      lastError: 'Please enter both username and password before signing in.'
     })
     return { ok: false, message: sessionState.lastError }
   }
@@ -49,7 +49,7 @@ async function fallbackAuthenticate(credentials) {
   applySession({
     authenticated: true,
     username,
-    message: `账号 ${username} 验证通过，登录会话已建立。`,
+    message: `Account ${username} authenticated successfully.`,
     lastError: ''
   })
   return { ok: true, message: sessionState.message }
@@ -108,7 +108,7 @@ export async function signOut() {
     applySession({
       authenticated: false,
       username: '',
-      message: '已退出登录，请重新验证身份。',
+      message: 'Signed out. Please authenticate again.',
       lastError: ''
     })
     return { ...sessionState }

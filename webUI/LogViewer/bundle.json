@@ -1,0 +1,12 @@
+{
+  "id": "myiot.log-viewer",
+  "name": "Logs",
+  "title": "Realtime Logs",
+  "version": "0.1.0",
+  "status": "active",
+  "category": "diagnostics",
+  "order": 36,
+  "icon": "mdi-file-document-refresh-outline",
+  "entryPath": "/myiot/logs/index.html",
+  "description": "Open a dedicated realtime log preview window so logs can stay visible while operating other packages."
+}
