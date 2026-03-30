@@ -17,6 +17,7 @@ public:
 
     void stop(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        stopJNDM123Runtime();
         pContext->logger().information("MyIoT WebUI JNDM123 bundle stopped.");
     }
 };

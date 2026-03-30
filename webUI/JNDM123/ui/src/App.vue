@@ -1,11 +1,11 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { featurePackages } from './core/packageRegistry'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
 const channelPalette = ['#38d6ff', '#8cf2b2', '#f7a94a', '#ff6e88', '#7ab8ff', '#ffd166', '#d48bff', '#8df4ff']
 const channelOptions = [
-  { title: '全部', value: 'all' },
+  { title: 'All', value: 'all' },
   { title: 'CH1', value: '0' },
   { title: 'CH2', value: '1' },
   { title: 'CH3', value: '2' },
@@ -15,27 +15,22 @@ const channelOptions = [
   { title: 'CH7', value: '6' },
   { title: 'CH8', value: '7' },
 ]
-const dividerOptions = [
-  { title: '1 分频', value: 1 },
-  { title: '2 分频', value: 2 },
-  { title: '3 分频', value: 3 },
-  { title: '4 分频', value: 4 },
-  { title: '5 分频', value: 5 },
-  { title: '10 分频', value: 10 },
-]
+const dividerOptions = [1, 2, 3, 4, 5, 10].map((value) => ({ title: `${value}`, value }))
 
 const banner = ref({
   type: 'info',
-  text: '正在连接 JNDM123 硬件控制台...'
+  text: 'Connecting to JNDM123 control service...'
 })
 const devicePath = ref('/dev/i2c-0')
 const dividerBusy = ref(false)
-const dividerStatus = ref(null)
 const acquisitionBusy = ref(false)
-const acquisitionState = ref(null)
+const udpBusy = ref(false)
 const pollInFlight = ref(false)
+const dividerStatus = ref({ outputs: [] })
+const acquisitionState = ref({ chips: [], udp: { enabled: true, host: '255.255.255.255', port: 19048 } })
 const selectedOutputIndex = ref(0)
 const selectedDivider = ref(1)
+const activeView = ref('preview')
 const channelSelection = reactive({
   0: 'all',
   1: 'all',
@@ -44,18 +39,26 @@ const channelSelection = reactive({
   4: 'all',
   5: 'all'
 })
+const udpForm = reactive({
+  enabled: true,
+  host: '255.255.255.255',
+  port: 19048
+})
+
 let pollTimer = null
 
 const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
   (sessionState.deviceIp
     ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : '未识别')
+    : 'unknown')
 )
 
 const outputs = computed(() => dividerStatus.value?.outputs ?? [])
 const chips = computed(() => acquisitionState.value?.chips ?? [])
 const acquisitionRunning = computed(() => Boolean(acquisitionState.value?.running))
+const previewEnabled = computed(() => activeView.value === 'preview' && document.visibilityState === 'visible')
+const selectedOutput = computed(() => outputs.value.find((entry) => entry.index === selectedOutputIndex.value) ?? null)
 
 const launchablePackages = computed(() =>
   featurePackages.filter((featurePackage) => featurePackage.entryPath)
@@ -63,31 +66,31 @@ const launchablePackages = computed(() =>
 
 const acquisitionMetrics = computed(() => [
   {
-    label: '采集状态',
-    value: acquisitionRunning.value ? '运行中' : '已停止',
-    helper: acquisitionState.value?.message ?? '等待采集指令'
+    label: 'Capture',
+    value: acquisitionRunning.value ? 'Running' : 'Stopped',
+    helper: acquisitionState.value?.message ?? 'Waiting for operator action'
   },
   {
-    label: '累计帧数',
+    label: 'Frames',
     value: formatInteger(acquisitionState.value?.totalFrames),
-    helper: acquisitionState.value?.updatedAt ? `最近帧：${formatDateTime(acquisitionState.value.updatedAt)}` : '尚无数据'
+    helper: acquisitionState.value?.lastFrameAt ? `Last frame ${formatDateTime(acquisitionState.value.lastFrameAt)}` : 'No frames yet'
   },
   {
-    label: '恢复次数',
+    label: 'Recoveries',
     value: formatInteger(acquisitionState.value?.recoveries),
-    helper: acquisitionState.value?.lastError || '当前没有恢复告警'
+    helper: acquisitionState.value?.lastError || 'No recovery warning'
   },
   {
-    label: '显示窗口',
-    value: `${acquisitionState.value?.historyLimit ?? 0} 点`,
-    helper: '每通道保留最近采样点'
+    label: 'Queue',
+    value: formatInteger(acquisitionState.value?.queueDepth),
+    helper: acquisitionState.value?.previewActive ? 'Preview cache active' : 'Preview cache paused'
   }
 ])
 
 function formatInteger(value) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return '0'
-  return new Intl.NumberFormat('zh-CN').format(Math.round(numeric))
+  return new Intl.NumberFormat('en-US').format(Math.round(numeric))
 }
 
 function formatFrequency(value) {
@@ -99,16 +102,23 @@ function formatFrequency(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return '未更新'
+  if (!value) return 'not updated'
   return new Date(value).toLocaleString('zh-CN', { hour12: false })
 }
 
 function syncSelectedDivider() {
-  const current = outputs.value.find((entry) => entry.index === selectedOutputIndex.value)
-  if (!current) return
-  if (dividerOptions.some((option) => option.value === current.divider)) {
+  const current = selectedOutput.value
+  if (current && dividerOptions.some((option) => option.value === current.divider)) {
     selectedDivider.value = current.divider
   }
+}
+
+function syncUdpForm() {
+  const udp = acquisitionState.value?.udp
+  if (!udp) return
+  udpForm.enabled = Boolean(udp.enabled)
+  udpForm.host = udp.host || '255.255.255.255'
+  udpForm.port = Number(udp.port) || 19048
 }
 
 async function requestJson(url, options = {}) {
@@ -147,7 +157,7 @@ async function loadDividerStatus() {
   } catch (error) {
     banner.value = {
       type: 'error',
-      text: error.message || '分频状态读取失败。'
+      text: error.message || 'Unable to read divider status.'
     }
   }
 }
@@ -157,12 +167,14 @@ async function loadAcquisitionSnapshot() {
   pollInFlight.value = true
 
   try {
-    const payload = await requestJson('/myiot/jndm123/acquisition.json')
+    const query = previewEnabled.value ? '?includeWaveform=1' : ''
+    const payload = await requestJson(`/myiot/jndm123/acquisition.json${query}`)
     acquisitionState.value = payload
+    syncUdpForm()
   } catch (error) {
     banner.value = {
       type: 'warning',
-      text: error.message || '采集状态同步失败。'
+      text: error.message || 'Unable to synchronize acquisition state.'
     }
   } finally {
     pollInFlight.value = false
@@ -173,7 +185,7 @@ async function applyDivider() {
   dividerBusy.value = true
   banner.value = {
     type: 'info',
-    text: `正在对 Y${selectedOutputIndex.value + 1} 应用 ${selectedDivider.value} 分频...`
+    text: `Applying divider ${selectedDivider.value} to ${selectedOutput.value?.name || `Y${selectedOutputIndex.value + 1}`}...`
   }
 
   try {
@@ -185,57 +197,86 @@ async function applyDivider() {
       method: 'POST',
       body
     })
+
     dividerStatus.value = payload
     syncSelectedDivider()
     await loadAcquisitionSnapshot()
+
     banner.value = {
       type: 'success',
-      text: payload.message || '分频设置完成。'
+      text: payload.message || 'Divider update complete.'
     }
   } catch (error) {
     banner.value = {
       type: 'error',
-      text: error.message || '分频设置失败。'
+      text: error.message || 'Divider update failed.'
     }
   } finally {
     dividerBusy.value = false
   }
 }
 
-async function setAcquisition(action, silent = false) {
+async function setAcquisition(action) {
   acquisitionBusy.value = true
-
-  if (!silent) {
-    banner.value = {
-      type: 'info',
-      text: action === 'start' ? '正在启动 AD7606 采集...' : '正在停止 AD7606 采集...'
-    }
+  banner.value = {
+    type: 'info',
+    text: action === 'start' ? 'Starting AD7606 capture...' : 'Stopping AD7606 capture...'
   }
 
   try {
     const body = new URLSearchParams()
     body.set('action', action)
+    if (previewEnabled.value) body.set('includeWaveform', '1')
     const payload = await requestJson('/myiot/jndm123/acquisition.json', {
       method: 'POST',
       body
     })
     acquisitionState.value = payload
-
-    if (!silent) {
-      banner.value = {
-        type: 'success',
-        text: payload.message || (action === 'start' ? '采集已启动。' : '采集已停止。')
-      }
+    syncUdpForm()
+    banner.value = {
+      type: 'success',
+      text: payload.message || (action === 'start' ? 'Capture started.' : 'Capture stopped.')
     }
   } catch (error) {
-    if (!silent) {
-      banner.value = {
-        type: 'error',
-        text: error.message || '采集控制失败。'
-      }
+    banner.value = {
+      type: 'error',
+      text: error.message || 'Capture control failed.'
     }
   } finally {
     acquisitionBusy.value = false
+  }
+}
+
+async function saveUdpConfig() {
+  udpBusy.value = true
+  banner.value = {
+    type: 'info',
+    text: 'Saving UDP broadcast configuration...'
+  }
+
+  try {
+    const body = new URLSearchParams()
+    body.set('udpEnabled', udpForm.enabled ? '1' : '0')
+    body.set('udpHost', udpForm.host)
+    body.set('udpPort', String(udpForm.port))
+    if (previewEnabled.value) body.set('includeWaveform', '1')
+    const payload = await requestJson('/myiot/jndm123/acquisition.json', {
+      method: 'POST',
+      body
+    })
+    acquisitionState.value = payload
+    syncUdpForm()
+    banner.value = {
+      type: 'success',
+      text: payload.message || 'UDP configuration saved.'
+    }
+  } catch (error) {
+    banner.value = {
+      type: 'error',
+      text: error.message || 'Unable to save UDP configuration.'
+    }
+  } finally {
+    udpBusy.value = false
   }
 }
 
@@ -277,14 +318,36 @@ function linePoints(samples, minValue, maxValue) {
 }
 
 function latestChannelValue(series) {
-  if (!series.samples?.length) return '--'
-  return String(series.samples[series.samples.length - 1])
+  if (series.samples?.length) return String(series.samples[series.samples.length - 1])
+  if (series.hasValue) return String(series.value)
+  return '--'
+}
+
+function resetPolling() {
+  if (pollTimer) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+
+  pollTimer = window.setInterval(() => {
+    loadAcquisitionSnapshot()
+  }, previewEnabled.value ? 280 : 1200)
+}
+
+function handleVisibilityChange() {
+  resetPolling()
+  loadAcquisitionSnapshot()
 }
 
 async function handleSignOut() {
   await signOut()
   window.location.replace('/myiot/login/index.html')
 }
+
+watch(activeView, () => {
+  resetPolling()
+  loadAcquisitionSnapshot()
+})
 
 onMounted(async () => {
   const payload = await refreshSession()
@@ -295,20 +358,13 @@ onMounted(async () => {
 
   banner.value = {
     type: 'success',
-    text: `欢迎回来，${sessionState.username}。JNDM123 控制台正在同步板级状态。`
+    text: `Welcome ${sessionState.username}. JNDM123 hardware state is synchronizing.`
   }
 
   await loadDividerStatus()
   await loadAcquisitionSnapshot()
-
-  if (!acquisitionRunning.value) {
-    await setAcquisition('start', true)
-    await loadAcquisitionSnapshot()
-  }
-
-  pollTimer = window.setInterval(() => {
-    loadAcquisitionSnapshot()
-  }, 600)
+  resetPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onBeforeUnmount(() => {
@@ -316,6 +372,7 @@ onBeforeUnmount(() => {
     window.clearInterval(pollTimer)
     pollTimer = null
   }
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -332,10 +389,10 @@ onBeforeUnmount(() => {
             <div class="brand-mark"></div>
             <div>
               <p class="eyebrow">JNDM123 Lab</p>
-              <h1>分频与 6 路 AD7606 联机控制台</h1>
+              <h1>Clock Divider and 6x AD7606 Capture</h1>
               <p class="brand-copy">
-                当前页面把 CDCE937 分频设置和 6 片 AD7606 的实时采集合在一个操作面板里。分频动作会在后端临时暂停采集，
-                完成后再恢复，避免在切频过程中读到混杂数据。
+                Divider updates follow the local CDCE937 I2C test flow. FIFO capture follows the packet-mode
+                implementation from `work.c`, removes console/file output, and feeds the UI plus UDP broadcast.
               </p>
             </div>
           </div>
@@ -353,7 +410,7 @@ onBeforeUnmount(() => {
             </div>
 
             <v-btn color="secondary" variant="tonal" size="small" @click="handleSignOut">
-              退出登录
+              Sign Out
             </v-btn>
           </div>
         </header>
@@ -364,9 +421,10 @@ onBeforeUnmount(() => {
               <div class="panel-head">
                 <div>
                   <p class="eyebrow">Clock</p>
-                  <h2>CDCE937 分频设置</h2>
+                  <h2>CDCE937 Divider Control</h2>
                   <p class="panel-copy">
-                    参考 `cdce937_i2c_test.c` 的 `set-div/status` 逻辑，直接对目标输出设置允许的分频值，并回读当前实际结果。
+                    Press execute to apply the selected divider. The backend pauses acquisition, writes the divider,
+                    reads the actual result back, and restarts capture when needed.
                   </p>
                 </div>
               </div>
@@ -378,58 +436,56 @@ onBeforeUnmount(() => {
               <div class="control-grid">
                 <v-text-field
                   v-model="devicePath"
-                  label="I2C 设备"
+                  label="I2C Device"
                   prepend-inner-icon="mdi-expansion-card-variant"
                   placeholder="/dev/i2c-0"
                 />
 
                 <v-select
                   v-model="selectedOutputIndex"
-                  :items="outputs.map((output) => ({ title: `${output.name} · Pin ${output.pin}`, value: output.index }))"
-                  label="目标输出"
+                  :items="outputs.map((output) => ({ title: `${output.name} / Pin ${output.pin}`, value: output.index }))"
+                  label="Output"
                   prepend-inner-icon="mdi-vector-polyline"
                 />
 
                 <v-select
                   v-model="selectedDivider"
                   :items="dividerOptions"
-                  label="目标分频"
+                  label="Divider"
                   prepend-inner-icon="mdi-tune-variant"
                 />
 
                 <div class="panel-actions">
-                  <v-btn
-                    color="primary"
-                    block
-                    :loading="dividerBusy"
-                    :disabled="dividerBusy || !outputs.length"
-                    @click="applyDivider"
-                  >
-                    执行分频
+                  <v-btn color="primary" block :loading="dividerBusy" :disabled="dividerBusy || !outputs.length" @click="applyDivider">
+                    Execute
                   </v-btn>
                   <v-btn variant="outlined" color="secondary" block :disabled="dividerBusy" @click="loadDividerStatus">
-                    回读状态
+                    Refresh
                   </v-btn>
                 </div>
               </div>
 
               <div class="status-grid mt-5">
-                <div class="metric-card">
-                  <div class="meta-copy">器件信息</div>
-                  <div class="metric-value">{{ dividerStatus?.deviceType || '未识别' }}</div>
-                  <div class="meta-copy small">
-                    地址 {{ dividerStatus?.address || '--' }} · 输入 {{ dividerStatus?.inputClock || '--' }}
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="meta-copy">EEPROM / 电源状态</div>
-                  <div class="metric-value">
-                    Busy {{ dividerStatus?.eepBusy ? '1' : '0' }} · Lock {{ dividerStatus?.eepLock ? '1' : '0' }}
-                  </div>
-                  <div class="meta-copy small">
-                    PowerDown {{ dividerStatus?.powerDown ? '1' : '0' }} · Rev {{ dividerStatus?.revisionId ?? '--' }}
-                  </div>
-                </div>
+                <article class="metric-card">
+                  <div class="meta-copy">Device</div>
+                  <div class="metric-value">{{ dividerStatus?.deviceType || '--' }}</div>
+                  <div class="meta-copy small">{{ dividerStatus?.address || '--' }} / {{ dividerStatus?.inputClock || '--' }}</div>
+                </article>
+                <article class="metric-card">
+                  <div class="meta-copy">Selected Output</div>
+                  <div class="metric-value">{{ selectedOutput?.divider ?? '--' }} / {{ formatFrequency(selectedOutput?.frequencyHz) }}</div>
+                  <div class="meta-copy small">{{ selectedOutput?.name || '--' }} / {{ selectedOutput?.pdiv || '--' }}</div>
+                </article>
+                <article class="metric-card">
+                  <div class="meta-copy">EEPROM / Lock</div>
+                  <div class="metric-value">Busy {{ dividerStatus?.eepBusy ? '1' : '0' }} / Lock {{ dividerStatus?.eepLock ? '1' : '0' }}</div>
+                  <div class="meta-copy small">Revision {{ dividerStatus?.revisionId ?? '--' }}</div>
+                </article>
+                <article class="metric-card">
+                  <div class="meta-copy">Power</div>
+                  <div class="metric-value">{{ dividerStatus?.powerDown ? 'Down' : 'Active' }}</div>
+                  <div class="meta-copy small">Actual readback is shown in every output card below.</div>
+                </article>
               </div>
 
               <div class="outputs-grid">
@@ -440,8 +496,8 @@ onBeforeUnmount(() => {
                   :class="{ active: output.index === selectedOutputIndex }"
                 >
                   <div class="meta-copy">{{ output.name }} / {{ output.pdiv }}</div>
-                  <div class="output-line">{{ output.divider || '--' }} 分频</div>
-                  <div class="meta-copy small">Pin {{ output.pin }} · {{ formatFrequency(output.frequencyHz) }}</div>
+                  <div class="output-line">{{ output.divider || '--' }}</div>
+                  <div class="meta-copy small">Pin {{ output.pin }} / {{ formatFrequency(output.frequencyHz) }}</div>
                 </article>
               </div>
             </section>
@@ -450,18 +506,19 @@ onBeforeUnmount(() => {
               <div class="panel-head">
                 <div>
                   <p class="eyebrow">Acquisition</p>
-                  <h2>AD7606 采集状态</h2>
+                  <h2>AD7606 Capture Runtime</h2>
                   <p class="panel-copy">
-                    采集线程按 `work.c` 的 AXI FIFO packet 读取路径实现，只保留最近历史样本，不做终端打印，也不落地文件。
+                    The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves
+                    waveform packaging and UDP broadcasting to the consumer side.
                   </p>
                 </div>
 
                 <div class="panel-actions">
                   <v-btn color="primary" :loading="acquisitionBusy" :disabled="acquisitionBusy || acquisitionRunning" @click="setAcquisition('start')">
-                    启动采集
+                    Start
                   </v-btn>
                   <v-btn color="warning" variant="outlined" :loading="acquisitionBusy" :disabled="acquisitionBusy || !acquisitionRunning" @click="setAcquisition('stop')">
-                    停止采集
+                    Stop
                   </v-btn>
                 </div>
               </div>
@@ -474,6 +531,35 @@ onBeforeUnmount(() => {
                 </article>
               </div>
             </section>
+
+            <section class="lab-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Broadcast</p>
+                  <h2>UDP External Interface</h2>
+                  <p class="panel-copy">
+                    Every dequeued frame can be broadcast as a packed 48-channel UDP payload even when preview rendering
+                    is paused on the front end.
+                  </p>
+                </div>
+              </div>
+
+              <div class="config-grid">
+                <v-switch v-model="udpForm.enabled" color="primary" inset label="Enable UDP Broadcast" />
+                <v-text-field v-model="udpForm.host" label="UDP Host" prepend-inner-icon="mdi-access-point-network" />
+                <v-text-field v-model="udpForm.port" type="number" label="UDP Port" prepend-inner-icon="mdi-connection" />
+                <div class="panel-actions">
+                  <v-btn color="primary" block :loading="udpBusy" @click="saveUdpConfig">
+                    Save UDP
+                  </v-btn>
+                </div>
+              </div>
+
+              <div class="legend-row">
+                <span class="legend-chip">Last UDP: {{ acquisitionState?.udp?.lastBroadcastAt ? formatDateTime(acquisitionState.udp.lastBroadcastAt) : 'none' }}</span>
+                <span class="legend-chip">Target: {{ acquisitionState?.udp?.host || udpForm.host }}:{{ acquisitionState?.udp?.port || udpForm.port }}</span>
+              </div>
+            </section>
           </div>
 
           <div class="right-stack">
@@ -481,25 +567,35 @@ onBeforeUnmount(() => {
               <div class="panel-head">
                 <div>
                   <p class="eyebrow">Waveforms</p>
-                  <h2>6 片 AD7606 实时曲线</h2>
+                  <h2>6 Independent Charts</h2>
                   <p class="panel-copy">
-                    每张 chart 对应一片芯片，可切换显示 `全部` 或单独 `CH1~CH8`。当前实现按 48 列样本顺序映射为 6 片 × 8 通道。
+                    Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is
+                    not active, the backend stops packaging waveform history for the browser but keeps UDP broadcast alive.
                   </p>
+                </div>
+
+                <div class="view-toggle">
+                  <v-btn :variant="activeView === 'preview' ? 'flat' : 'outlined'" color="primary" @click="activeView = 'preview'">
+                    Preview
+                  </v-btn>
+                  <v-btn :variant="activeView === 'overview' ? 'flat' : 'outlined'" color="secondary" @click="activeView = 'overview'">
+                    Overview
+                  </v-btn>
                 </div>
               </div>
 
-              <div class="charts-grid">
+              <div v-if="activeView === 'preview'" class="charts-grid">
                 <article v-for="chip in chips" :key="chip.index" class="chart-card">
                   <div class="chart-head">
                     <div class="chart-title">
                       <strong>{{ chip.name }}</strong>
-                      <span>{{ visibleSeries(chip).length }} 条曲线 · 最近 {{ chip.channels?.[0]?.samples?.length ?? 0 }} 点</span>
+                      <span>{{ visibleSeries(chip).length }} visible lines / {{ chip.channels?.[0]?.samples?.length ?? 0 }} points</span>
                     </div>
 
                     <v-select
                       v-model="channelSelection[chip.index]"
                       :items="channelOptions"
-                      label="显示通道"
+                      label="Channels"
                       style="max-width: 160px"
                     />
                   </div>
@@ -520,13 +616,24 @@ onBeforeUnmount(() => {
                   </div>
 
                   <div v-else class="chart-placeholder">
-                    当前芯片还没有可显示的数据，可能采集尚未启动，或最近窗口还未累积到有效样本。
+                    No waveform data yet. Start capture or keep the preview page active until the history window fills.
                   </div>
 
                   <div class="legend-row">
                     <span v-for="series in visibleSeries(chip)" :key="series.index" class="legend-chip">
                       <span class="legend-swatch" :style="{ background: series.color }"></span>
-                      {{ series.name }} · {{ latestChannelValue(series) }}
+                      {{ series.name }} / {{ latestChannelValue(series) }}
+                    </span>
+                  </div>
+                </article>
+              </div>
+
+              <div v-else class="detail-grid">
+                <article v-for="chip in chips" :key="chip.index" class="metric-card">
+                  <div class="meta-copy">{{ chip.name }}</div>
+                  <div class="value-grid">
+                    <span v-for="channel in chip.channels" :key="channel.index" class="value-cell">
+                      {{ channel.name }} {{ channel.hasValue ? channel.value : '--' }}
                     </span>
                   </div>
                 </article>
@@ -537,7 +644,7 @@ onBeforeUnmount(() => {
               <div class="panel-head">
                 <div>
                   <p class="eyebrow">Navigation</p>
-                  <h2>其它功能包</h2>
+                  <h2>Other Packages</h2>
                 </div>
               </div>
 

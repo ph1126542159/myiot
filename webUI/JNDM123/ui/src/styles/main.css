@@ -247,7 +247,9 @@ a {
 .status-grid,
 .outputs-grid,
 .metrics-grid,
-.charts-grid {
+.charts-grid,
+.config-grid,
+.detail-grid {
   display: grid;
   gap: 16px;
 }
@@ -264,6 +266,10 @@ a {
 .outputs-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 18px;
+}
+
+.config-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .output-card,
@@ -303,8 +309,18 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .chart-card {
   padding: 18px;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .chart-head {
@@ -353,6 +369,22 @@ a {
 
 .legend-row {
   margin-top: 14px;
+}
+
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.value-cell {
+  border: 1px solid rgba(74, 206, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(7, 18, 28, 0.76);
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  color: var(--lab-text-muted);
 }
 
 .legend-chip {
@@ -405,7 +437,13 @@ a {
   .control-grid,
   .status-grid,
   .outputs-grid,
-  .metrics-grid {
+  .metrics-grid,
+  .config-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .value-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
