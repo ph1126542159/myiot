@@ -1,16 +1,20 @@
 ﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { featurePackages, formatPackageStatus, getPackageStatusTone } from './core/packageRegistry'
+import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
+import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
 const { isZh } = useUiLocale()
+const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
   syncing: '正在同步系统监控数据...',
   synced: '系统监控指标同步正常。',
   failed: '系统监控数据同步失败，请稍后重试。',
+  brandEyebrow: 'MYIOT 系统监控',
   unavailable: '暂不可用',
+  unknown: '未知',
   title: '系统资源实时监控',
   copy: '这里集中显示当前系统的磁盘、内存、线程、进程、IO、网络和 CPU 变化趋势。页面以 1 秒节奏轮询后端指标接口，并在浏览器内维持最近 60 个采样点。',
   backHome: '返回主页',
@@ -57,7 +61,9 @@ const en = {
   syncing: 'Synchronizing system monitor data...',
   synced: 'System monitoring metrics are synchronized.',
   failed: 'Failed to synchronize monitor data. Please retry later.',
+  brandEyebrow: 'MYIOT System Monitor',
   unavailable: 'Unavailable',
+  unknown: 'unknown',
   title: 'Realtime System Resource Monitor',
   copy: 'This page brings together disk, memory, thread, process, IO, network, and CPU trends. It polls the backend metrics endpoint once per second and keeps the latest 60 samples in the browser.',
   backHome: 'Back to Home',
@@ -101,6 +107,10 @@ const en = {
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+const featurePackages = computed(() =>
+  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
+)
+const formatPackageStatus = (status) => formatLocalizedPackageStatus(status, locale.value)
 
 const banner = ref({
   type: 'info',
@@ -204,7 +214,7 @@ const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
   (sessionState.deviceIp
     ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : 'unknown')
+    : text.value.unknown)
 )
 
 const diskCards = computed(() =>
@@ -427,7 +437,7 @@ async function handleSignOut() {
             </div>
 
             <div>
-              <p class="eyebrow">MYIOT System Monitor</p>
+              <p class="eyebrow">{{ text.brandEyebrow }}</p>
               <h1>{{ text.title }}</h1>
               <p class="brand-copy">{{ text.copy }}</p>
             </div>

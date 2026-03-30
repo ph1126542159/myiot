@@ -1,10 +1,12 @@
 ﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { featurePackages, formatPackageStatus, getPackageStatusTone } from './core/packageRegistry'
+import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
+import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
 const { isZh } = useUiLocale()
+const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
   syncing: '正在同步系统包列表...',
@@ -12,6 +14,7 @@ const zh = {
   syncFailed: '系统包列表同步失败，请稍后重试。',
   manageFailed: '管理请求失败，请稍后重试。',
   manageDone: '操作已完成。',
+  brandEyebrow: 'MYIOT 包目录',
   signOut: '退出登录',
   backHome: '返回主页',
   title: '包管理与配置控制台',
@@ -48,7 +51,10 @@ const zh = {
   noBundles: '当前没有可展示的系统包信息。',
   webuiPackages: '前端功能包',
   registeredPages: '已注册的 WebUI 页面包',
-  openPage: '打开页面'
+  openPage: '打开页面',
+  runLevel: '运行级别',
+  defaultRunLevel: '默认',
+  vendor: '提供方'
 }
 
 const en = {
@@ -57,6 +63,7 @@ const en = {
   syncFailed: 'Failed to synchronize the system bundle catalog. Please retry later.',
   manageFailed: 'The management request failed. Please retry later.',
   manageDone: 'The operation has completed.',
+  brandEyebrow: 'MYIOT Bundle Catalog',
   signOut: 'Sign Out',
   backHome: 'Back to Home',
   title: 'Bundle Management and Configuration Console',
@@ -93,10 +100,17 @@ const en = {
   noBundles: 'No system bundle information is available right now.',
   webuiPackages: 'WebUI Packages',
   registeredPages: 'Registered WebUI Pages',
-  openPage: 'Open Page'
+  openPage: 'Open Page',
+  runLevel: 'RunLevel',
+  defaultRunLevel: 'default',
+  vendor: 'Vendor'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+const featurePackages = computed(() =>
+  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
+)
+const formatPackageStatus = (status) => formatLocalizedPackageStatus(status, locale.value)
 
 const banner = ref({
   type: 'info',
@@ -407,7 +421,7 @@ async function handleSignOut() {
             </div>
 
             <div>
-              <p class="eyebrow">MYIOT Bundle Catalog</p>
+              <p class="eyebrow">{{ text.brandEyebrow }}</p>
               <h1>{{ text.title }}</h1>
               <p class="brand-copy">{{ text.copy }}</p>
             </div>
@@ -516,12 +530,12 @@ async function handleSignOut() {
                 <div class="bundle-card-meta">
                   <span>ID {{ bundle.id }}</span>
                   <span>v{{ bundle.version }}</span>
-                  <span>RunLevel {{ bundle.runLevel || 'default' }}</span>
+                  <span>{{ text.runLevel }} {{ bundle.runLevel || text.defaultRunLevel }}</span>
                   <span>{{ bundle.extensionBundle ? text.extensionBundle : text.regularBundle }}</span>
                 </div>
 
                 <p class="bundle-copy">
-                  Vendor: {{ bundle.vendor || text.vendorFallback }}
+                  {{ text.vendor }}: {{ bundle.vendor || text.vendorFallback }}
                 </p>
 
                 <div class="bundle-path">{{ bundle.path }}</div>

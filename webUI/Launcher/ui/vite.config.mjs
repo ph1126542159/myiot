@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
@@ -12,6 +12,11 @@ export default defineConfig({
     vue(),
     vuetify({ autoImport: true }),
   ],
+  resolve: {
+    alias: {
+      '@myiot-shared': fileURLToPath(new URL('../../shared', import.meta.url)),
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5175,

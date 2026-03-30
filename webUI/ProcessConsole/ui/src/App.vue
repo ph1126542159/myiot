@@ -1,10 +1,12 @@
 ﻿<script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { featurePackages } from './core/packageRegistry'
+import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
+import { localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
 const { isZh } = useUiLocale()
+const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
   connecting: '正在连接终端服务...',
@@ -15,6 +17,7 @@ const zh = {
   requestFailed: '控制台请求失败',
   requestFailedLines: ['当前命令没有执行成功，请检查服务状态后重试。'],
   requestFailedBanner: '终端服务请求失败，请稍后重试。',
+  brandEyebrow: 'MYIOT 终端控制台',
   title: '终端交互页面',
   copy: '这里是独立打开的进程终端页面。它直接连接当前应用的诊断服务，适合持续输入命令、查看返回结果和做运行时排查。',
   signOut: '退出登录',
@@ -42,6 +45,7 @@ const zh = {
   pagePath: '页面地址',
   serviceEndpoint: '服务接口',
   currentUser: '当前账号',
+  unknown: '未知',
   introLines: ['当前页面已经连接到进程诊断终端。你可以直接输入命令，或点击下方快捷指令开始。'],
   commandDescriptions: {
     help: '查看当前终端可用命令。',
@@ -62,6 +66,7 @@ const en = {
   requestFailed: 'Console request failed',
   requestFailedLines: ['The command did not complete successfully. Please check the service status and try again.'],
   requestFailedBanner: 'The process console request failed. Please retry later.',
+  brandEyebrow: 'MYIOT Process Console',
   title: 'Process Console',
   copy: 'This is the dedicated process console page. It talks directly to the in-process diagnostic service and is useful for interactive commands, immediate responses, and runtime inspection.',
   signOut: 'Sign Out',
@@ -89,6 +94,7 @@ const en = {
   pagePath: 'Page Path',
   serviceEndpoint: 'Service Endpoint',
   currentUser: 'Current User',
+  unknown: 'unknown',
   introLines: ['This page is connected to the process diagnostics console. Enter commands directly or start with one of the shortcuts below.'],
   commandDescriptions: {
     help: 'Show the commands available in the console.',
@@ -101,6 +107,9 @@ const en = {
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+const featurePackages = computed(() =>
+  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
+)
 
 const banner = ref({
   type: 'info',
@@ -128,7 +137,7 @@ const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
   (sessionState.deviceIp
     ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : 'unknown')
+    : text.value.unknown)
 )
 
 const statusText = computed(() => {
@@ -138,7 +147,7 @@ const statusText = computed(() => {
 })
 
 const launchablePackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.entryPath)
+  featurePackages.value.filter((featurePackage) => featurePackage.entryPath)
 )
 
 const normalizedConsoleCommand = computed(() => consoleCommand.value.trim().toLowerCase())
@@ -341,7 +350,7 @@ async function handleSignOut() {
             </div>
 
             <div>
-              <p class="eyebrow">MYIOT Process Console</p>
+              <p class="eyebrow">{{ text.brandEyebrow }}</p>
               <h1>{{ text.title }}</h1>
               <p class="brand-copy">{{ text.copy }}</p>
             </div>

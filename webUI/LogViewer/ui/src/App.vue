@@ -1,15 +1,18 @@
 ﻿<script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { featurePackages } from './core/packageRegistry'
+import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
+import { localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
 const { isZh } = useUiLocale()
+const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
   connecting: '正在连接实时日志服务...',
   synced: '实时日志预览连接正常。',
   failed: '实时日志同步失败，请稍后重试。',
+  brandEyebrow: 'MYIOT 实时日志',
   title: '独立后端日志窗口',
   copy: '保持这个页面与操作页面并排打开，可以在修改硬件参数、查看系统包或执行诊断命令时持续观察后端输出。',
   signOut: '退出登录',
@@ -41,6 +44,7 @@ const en = {
   connecting: 'Connecting to the realtime log service...',
   synced: 'Realtime log preview is healthy.',
   failed: 'Realtime log synchronization failed. Please retry shortly.',
+  brandEyebrow: 'MYIOT Realtime Logs',
   title: 'Dedicated Backend Log Window',
   copy: 'Keep this page open beside operation pages to watch backend logs continuously while making hardware changes, checking packages, or using the process console.',
   signOut: 'Sign Out',
@@ -69,6 +73,9 @@ const en = {
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+const featurePackages = computed(() =>
+  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
+)
 
 const banner = ref({
   type: 'info',
@@ -84,7 +91,7 @@ let logTimer = null
 let logsRequestInFlight = false
 
 const launchablePackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.entryPath)
+  featurePackages.value.filter((featurePackage) => featurePackage.entryPath)
 )
 
 const totalLogLines = computed(() =>
@@ -194,7 +201,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div>
-              <p class="eyebrow">MYIOT Realtime Logs</p>
+              <p class="eyebrow">{{ text.brandEyebrow }}</p>
               <h1>{{ text.title }}</h1>
               <p class="brand-copy">{{ text.copy }}</p>
             </div>

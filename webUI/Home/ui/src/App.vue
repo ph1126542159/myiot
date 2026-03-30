@@ -1,10 +1,12 @@
 ﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
-import { featurePackages, formatPackageStatus, getPackageStatusTone } from './core/packageRegistry'
+import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
+import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
 const { isZh, toggleLocale } = useUiLocale()
+const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
   preparing: '正在同步会话并准备工作台...',
@@ -131,6 +133,10 @@ const en = {
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+const featurePackages = computed(() =>
+  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
+)
+const formatPackageStatus = (status) => formatLocalizedPackageStatus(status, locale.value)
 
 const banner = ref({
   type: 'info',
@@ -138,36 +144,36 @@ const banner = ref({
 })
 
 const readyPackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.status === 'active').length
+  featurePackages.value.filter((featurePackage) => featurePackage.status === 'active').length
 )
 
 const downstreamPackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.id !== 'myiot.home')
+  featurePackages.value.filter((featurePackage) => featurePackage.id !== 'myiot.home')
 )
 
 const bundleListPackage = computed(() =>
-  featurePackages.find((featurePackage) => featurePackage.id === 'myiot.bundle-list') ?? null
+  featurePackages.value.find((featurePackage) => featurePackage.id === 'myiot.bundle-list') ?? null
 )
 
 const logViewerPackage = computed(() =>
-  featurePackages.find((featurePackage) => featurePackage.id === 'myiot.log-viewer') ?? null
+  featurePackages.value.find((featurePackage) => featurePackage.id === 'myiot.log-viewer') ?? null
 )
 
 const processConsolePackage = computed(() =>
-  featurePackages.find((featurePackage) => featurePackage.id === 'myiot.process-console-ui') ?? null
+  featurePackages.value.find((featurePackage) => featurePackage.id === 'myiot.process-console-ui') ?? null
 )
 
 const registryPackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.id !== 'myiot.home')
+  featurePackages.value.filter((featurePackage) => featurePackage.id !== 'myiot.home')
 )
 
 const launchablePackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.entryPath)
+  featurePackages.value.filter((featurePackage) => featurePackage.entryPath)
 )
 
 const signalItems = computed(() => [
   { label: text.value.sessionLink, value: text.value.stable, icon: 'mdi-lan-connect', tone: 'primary' },
-  { label: text.value.packagesOnline, value: `${featurePackages.length}`, icon: 'mdi-layers-triple-outline', tone: 'secondary' },
+  { label: text.value.packagesOnline, value: `${featurePackages.value.length}`, icon: 'mdi-layers-triple-outline', tone: 'secondary' },
   { label: text.value.accessProtocol, value: (sessionState.accessProtocol || 'http').toUpperCase(), icon: 'mdi-shield-check-outline', tone: 'info' }
 ])
 

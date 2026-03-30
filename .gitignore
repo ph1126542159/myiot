@@ -20,3 +20,4 @@ webUI/*/ui/dist/
 
 Thumbs.db
 .DS_Store
+.codex

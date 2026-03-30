@@ -1,11 +1,194 @@
 ﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { featurePackages } from './core/packageRegistry'
+import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
+import { useUiLocale } from './core/locale'
+import { localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 
+const { isZh, toggleLocale } = useUiLocale()
+const locale = computed(() => (isZh.value ? 'zh' : 'en'))
+
+const zh = {
+  connecting: '正在连接 JNDM123 控制服务...',
+  unknown: '未知',
+  signOut: '退出登录',
+  language: 'EN',
+  labEyebrow: 'JNDM123 实验台',
+  labTitle: '时钟分频与 6 路 AD7606 采集',
+  labCopy: '分频器调整遵循本地 CDCE937 I2C 测试流程。FIFO 采集沿用 `work.c` 的 packet-mode 实现，去掉控制台/文件输出后，统一喂给页面预览和 UDP 广播。',
+  clockEyebrow: '时钟',
+  clockTitle: 'CDCE937 分频控制',
+  clockCopy: '点击执行后，后端会暂停采集、写入分频值、回读实际结果，并在需要时恢复采集。',
+  i2cDevice: 'I2C 设备',
+  output: '输出',
+  divider: '分频值',
+  execute: '执行',
+  refresh: '刷新',
+  device: '设备',
+  selectedOutput: '当前输出',
+  eepromLock: 'EEPROM / 锁定',
+  busy: '忙',
+  lock: '锁定',
+  revision: '版本',
+  pin: '引脚',
+  power: '电源',
+  active: '活动',
+  down: '关闭',
+  actualReadback: '下方每个输出卡片都会展示实际回读结果。',
+  acquisitionEyebrow: '采集',
+  acquisitionTitle: 'AD7606 采集运行态',
+  acquisitionCopy: '读取线程只负责搬运整帧数据进入 `Poco::NotificationQueue`，波形缓存和 UDP 广播都交给消费侧处理。浏览器预览每秒刷新一次缓存快照，UDP 则持续走完整出队链路。',
+  start: '启动',
+  stop: '停止',
+  broadcastEyebrow: '广播',
+  broadcastTitle: 'UDP 外部接口',
+  broadcastCopy: '即使前端暂停波形预览，每一帧完整 48 通道数据仍可按打包格式持续广播到 UDP。',
+  enableUdp: '启用 UDP 广播',
+  udpHost: 'UDP 主机',
+  udpPort: 'UDP 端口',
+  saveUdp: '保存 UDP 配置',
+  lastUdp: '最近 UDP',
+  none: '无',
+  target: '目标',
+  waveformsEyebrow: '波形',
+  waveformsTitle: '6 组独立图表',
+  waveformsCopy: '每张图对应一个 AD7606 芯片。可选择“全部”或单独 `CH1~CH8`。预览关闭时，后端会停止为浏览器打包历史波形，但仍保留 UDP 广播；预览开启时，缓存波形每秒刷新一次。',
+  preview: '预览',
+  overview: '概览',
+  channels: '通道',
+  noWaveform: '暂无波形数据。请先启动采集，或保持当前预览页面激活直到历史窗口填满。',
+  visibleLines: (lines, points) => `${lines} 条可见曲线 / ${points} 个采样点`,
+  navigationEyebrow: '导航',
+  navigationTitle: '其他功能包',
+  all: '全部',
+  capture: '采集',
+  running: '运行中',
+  stopped: '已停止',
+  waitingForOperatorAction: '等待操作指令',
+  frames: '帧数',
+  lastFrame: (value) => `最近一帧 ${value}`,
+  noFramesYet: '还没有帧数据',
+  recoveries: '恢复次数',
+  noRecoveryWarning: '暂无恢复告警',
+  queue: '队列',
+  previewCacheActive: '预览缓存已启用',
+  previewCachePaused: '预览缓存已暂停',
+  hz: 'Hz',
+  khz: 'kHz',
+  mhz: 'MHz',
+  notUpdated: '未更新',
+  unauthorized: '未授权',
+  unableReadDividerStatus: '无法读取分频器状态。',
+  unableSyncAcquisitionState: '无法同步采集状态。',
+  applyingDivider: (divider, output) => `正在把分频值 ${divider} 应用到 ${output}...`,
+  dividerUpdateComplete: '分频更新完成。',
+  dividerUpdateFailed: '分频更新失败。',
+  startingCapture: '正在启动 AD7606 采集...',
+  stoppingCapture: '正在停止 AD7606 采集...',
+  captureStarted: '采集已启动。',
+  captureStopped: '采集已停止。',
+  captureControlFailed: '采集控制失败。',
+  savingUdpConfig: '正在保存 UDP 广播配置...',
+  udpConfigSaved: 'UDP 配置已保存。',
+  unableSaveUdpConfig: '无法保存 UDP 配置。',
+  welcome: (username) => `欢迎 ${username}，正在同步 JNDM123 硬件状态。`
+}
+
+const en = {
+  connecting: 'Connecting to JNDM123 control service...',
+  unknown: 'unknown',
+  signOut: 'Sign Out',
+  language: '中文',
+  labEyebrow: 'JNDM123 Lab',
+  labTitle: 'Clock Divider and 6x AD7606 Capture',
+  labCopy: 'Divider updates follow the local CDCE937 I2C test flow. FIFO capture follows the packet-mode implementation from `work.c`, removes console/file output, and feeds the UI plus UDP broadcast.',
+  clockEyebrow: 'Clock',
+  clockTitle: 'CDCE937 Divider Control',
+  clockCopy: 'Press execute to apply the selected divider. The backend pauses acquisition, writes the divider, reads the actual result back, and restarts capture when needed.',
+  i2cDevice: 'I2C Device',
+  output: 'Output',
+  divider: 'Divider',
+  execute: 'Execute',
+  refresh: 'Refresh',
+  device: 'Device',
+  selectedOutput: 'Selected Output',
+  eepromLock: 'EEPROM / Lock',
+  busy: 'Busy',
+  lock: 'Lock',
+  revision: 'Revision',
+  pin: 'Pin',
+  power: 'Power',
+  active: 'Active',
+  down: 'Down',
+  actualReadback: 'Actual readback is shown in every output card below.',
+  acquisitionEyebrow: 'Acquisition',
+  acquisitionTitle: 'AD7606 Capture Runtime',
+  acquisitionCopy: 'The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves waveform caching and UDP broadcasting to the consumer side. Browser preview snapshots are published from cache once per second, while UDP stays on the full dequeue path.',
+  start: 'Start',
+  stop: 'Stop',
+  broadcastEyebrow: 'Broadcast',
+  broadcastTitle: 'UDP External Interface',
+  broadcastCopy: 'Every dequeued frame can be broadcast as a packed 48-channel UDP payload even when preview rendering is paused on the front end.',
+  enableUdp: 'Enable UDP Broadcast',
+  udpHost: 'UDP Host',
+  udpPort: 'UDP Port',
+  saveUdp: 'Save UDP',
+  lastUdp: 'Last UDP',
+  none: 'none',
+  target: 'Target',
+  waveformsEyebrow: 'Waveforms',
+  waveformsTitle: '6 Independent Charts',
+  waveformsCopy: 'Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is not active, the backend stops packaging waveform history for the browser but keeps UDP broadcast alive. When preview is active, cached waveform data is refreshed to the browser once per second.',
+  preview: 'Preview',
+  overview: 'Overview',
+  channels: 'Channels',
+  noWaveform: 'No waveform data yet. Start capture or keep the preview page active until the history window fills.',
+  visibleLines: (lines, points) => `${lines} visible lines / ${points} points`,
+  navigationEyebrow: 'Navigation',
+  navigationTitle: 'Other Packages',
+  all: 'All',
+  capture: 'Capture',
+  running: 'Running',
+  stopped: 'Stopped',
+  waitingForOperatorAction: 'Waiting for operator action',
+  frames: 'Frames',
+  lastFrame: (value) => `Last frame ${value}`,
+  noFramesYet: 'No frames yet',
+  recoveries: 'Recoveries',
+  noRecoveryWarning: 'No recovery warning',
+  queue: 'Queue',
+  previewCacheActive: 'Preview cache active',
+  previewCachePaused: 'Preview cache paused',
+  hz: 'Hz',
+  khz: 'kHz',
+  mhz: 'MHz',
+  notUpdated: 'not updated',
+  unauthorized: 'unauthorized',
+  unableReadDividerStatus: 'Unable to read divider status.',
+  unableSyncAcquisitionState: 'Unable to synchronize acquisition state.',
+  applyingDivider: (divider, output) => `Applying divider ${divider} to ${output}...`,
+  dividerUpdateComplete: 'Divider update complete.',
+  dividerUpdateFailed: 'Divider update failed.',
+  startingCapture: 'Starting AD7606 capture...',
+  stoppingCapture: 'Stopping AD7606 capture...',
+  captureStarted: 'Capture started.',
+  captureStopped: 'Capture stopped.',
+  captureControlFailed: 'Capture control failed.',
+  savingUdpConfig: 'Saving UDP broadcast configuration...',
+  udpConfigSaved: 'UDP configuration saved.',
+  unableSaveUdpConfig: 'Unable to save UDP configuration.',
+  welcome: (username) => `Welcome ${username}. JNDM123 hardware state is synchronizing.`
+}
+
+const text = computed(() => (isZh.value ? zh : en))
+const uiLocale = computed(() => (isZh.value ? 'zh-CN' : 'en-US'))
+const featurePackages = computed(() =>
+  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
+)
+
 const channelPalette = ['#38d6ff', '#8cf2b2', '#f7a94a', '#ff6e88', '#7ab8ff', '#ffd166', '#d48bff', '#8df4ff']
-const channelOptions = [
-  { title: 'All', value: 'all' },
+const channelOptions = computed(() => [
+  { title: text.value.all, value: 'all' },
   { title: 'CH1', value: '0' },
   { title: 'CH2', value: '1' },
   { title: 'CH3', value: '2' },
@@ -14,12 +197,12 @@ const channelOptions = [
   { title: 'CH6', value: '5' },
   { title: 'CH7', value: '6' },
   { title: 'CH8', value: '7' },
-]
+])
 const dividerOptions = [1, 2, 3, 4, 5, 10].map((value) => ({ title: `${value}`, value }))
 
 const banner = ref({
   type: 'info',
-  text: 'Connecting to JNDM123 control service...'
+  text: text.value.connecting
 })
 const devicePath = ref('/dev/i2c-0')
 const dividerBusy = ref(false)
@@ -51,7 +234,7 @@ const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
   (sessionState.deviceIp
     ? `${sessionState.deviceIp}${sessionState.devicePort ? `:${sessionState.devicePort}` : ''}`
-    : 'unknown')
+    : text.value.unknown)
 )
 
 const outputs = computed(() => dividerStatus.value?.outputs ?? [])
@@ -59,51 +242,57 @@ const chips = computed(() => acquisitionState.value?.chips ?? [])
 const acquisitionRunning = computed(() => Boolean(acquisitionState.value?.running))
 const previewEnabled = computed(() => activeView.value === 'preview' && document.visibilityState === 'visible')
 const selectedOutput = computed(() => outputs.value.find((entry) => entry.index === selectedOutputIndex.value) ?? null)
+const outputOptions = computed(() =>
+  outputs.value.map((output) => ({
+    title: `${output.name} / ${text.value.pin} ${output.pin}`,
+    value: output.index
+  }))
+)
 
 const launchablePackages = computed(() =>
-  featurePackages.filter((featurePackage) => featurePackage.entryPath)
+  featurePackages.value.filter((featurePackage) => featurePackage.entryPath)
 )
 
 const acquisitionMetrics = computed(() => [
   {
-    label: 'Capture',
-    value: acquisitionRunning.value ? 'Running' : 'Stopped',
-    helper: acquisitionState.value?.message ?? 'Waiting for operator action'
+    label: text.value.capture,
+    value: acquisitionRunning.value ? text.value.running : text.value.stopped,
+    helper: acquisitionState.value?.message ?? text.value.waitingForOperatorAction
   },
   {
-    label: 'Frames',
+    label: text.value.frames,
     value: formatInteger(acquisitionState.value?.totalFrames),
-    helper: acquisitionState.value?.lastFrameAt ? `Last frame ${formatDateTime(acquisitionState.value.lastFrameAt)}` : 'No frames yet'
+    helper: acquisitionState.value?.lastFrameAt ? text.value.lastFrame(formatDateTime(acquisitionState.value.lastFrameAt)) : text.value.noFramesYet
   },
   {
-    label: 'Recoveries',
+    label: text.value.recoveries,
     value: formatInteger(acquisitionState.value?.recoveries),
-    helper: acquisitionState.value?.lastError || 'No recovery warning'
+    helper: acquisitionState.value?.lastError || text.value.noRecoveryWarning
   },
   {
-    label: 'Queue',
+    label: text.value.queue,
     value: formatInteger(acquisitionState.value?.queueDepth),
-    helper: acquisitionState.value?.previewActive ? 'Preview cache active' : 'Preview cache paused'
+    helper: acquisitionState.value?.previewActive ? text.value.previewCacheActive : text.value.previewCachePaused
   }
 ])
 
 function formatInteger(value) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return '0'
-  return new Intl.NumberFormat('en-US').format(Math.round(numeric))
+  return new Intl.NumberFormat(uiLocale.value).format(Math.round(numeric))
 }
 
 function formatFrequency(value) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric) || numeric <= 0) return '--'
-  if (numeric >= 1000000) return `${(numeric / 1000000).toFixed(3)} MHz`
-  if (numeric >= 1000) return `${(numeric / 1000).toFixed(2)} kHz`
-  return `${numeric.toFixed(0)} Hz`
+  if (numeric >= 1000000) return `${(numeric / 1000000).toFixed(3)} ${text.value.mhz}`
+  if (numeric >= 1000) return `${(numeric / 1000).toFixed(2)} ${text.value.khz}`
+  return `${numeric.toFixed(0)} ${text.value.hz}`
 }
 
 function formatDateTime(value) {
-  if (!value) return 'not updated'
-  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+  if (!value) return text.value.notUpdated
+  return new Date(value).toLocaleString(uiLocale.value, { hour12: false })
 }
 
 function syncSelectedDivider() {
@@ -157,7 +346,7 @@ async function loadDividerStatus() {
   } catch (error) {
     banner.value = {
       type: 'error',
-      text: error.message || 'Unable to read divider status.'
+      text: error.message || text.value.unableReadDividerStatus
     }
   }
 }
@@ -174,7 +363,7 @@ async function loadAcquisitionSnapshot() {
   } catch (error) {
     banner.value = {
       type: 'warning',
-      text: error.message || 'Unable to synchronize acquisition state.'
+      text: error.message || text.value.unableSyncAcquisitionState
     }
   } finally {
     pollInFlight.value = false
@@ -185,7 +374,7 @@ async function applyDivider() {
   dividerBusy.value = true
   banner.value = {
     type: 'info',
-    text: `Applying divider ${selectedDivider.value} to ${selectedOutput.value?.name || `Y${selectedOutputIndex.value + 1}`}...`
+    text: text.value.applyingDivider(selectedDivider.value, selectedOutput.value?.name || `Y${selectedOutputIndex.value + 1}`)
   }
 
   try {
@@ -204,12 +393,12 @@ async function applyDivider() {
 
     banner.value = {
       type: 'success',
-      text: payload.message || 'Divider update complete.'
+      text: payload.message || text.value.dividerUpdateComplete
     }
   } catch (error) {
     banner.value = {
       type: 'error',
-      text: error.message || 'Divider update failed.'
+      text: error.message || text.value.dividerUpdateFailed
     }
   } finally {
     dividerBusy.value = false
@@ -220,7 +409,7 @@ async function setAcquisition(action) {
   acquisitionBusy.value = true
   banner.value = {
     type: 'info',
-    text: action === 'start' ? 'Starting AD7606 capture...' : 'Stopping AD7606 capture...'
+    text: action === 'start' ? text.value.startingCapture : text.value.stoppingCapture
   }
 
   try {
@@ -235,12 +424,12 @@ async function setAcquisition(action) {
     syncUdpForm()
     banner.value = {
       type: 'success',
-      text: payload.message || (action === 'start' ? 'Capture started.' : 'Capture stopped.')
+      text: payload.message || (action === 'start' ? text.value.captureStarted : text.value.captureStopped)
     }
   } catch (error) {
     banner.value = {
       type: 'error',
-      text: error.message || 'Capture control failed.'
+      text: error.message || text.value.captureControlFailed
     }
   } finally {
     acquisitionBusy.value = false
@@ -251,7 +440,7 @@ async function saveUdpConfig() {
   udpBusy.value = true
   banner.value = {
     type: 'info',
-    text: 'Saving UDP broadcast configuration...'
+    text: text.value.savingUdpConfig
   }
 
   try {
@@ -268,12 +457,12 @@ async function saveUdpConfig() {
     syncUdpForm()
     banner.value = {
       type: 'success',
-      text: payload.message || 'UDP configuration saved.'
+      text: payload.message || text.value.udpConfigSaved
     }
   } catch (error) {
     banner.value = {
       type: 'error',
-      text: error.message || 'Unable to save UDP configuration.'
+      text: error.message || text.value.unableSaveUdpConfig
     }
   } finally {
     udpBusy.value = false
@@ -358,7 +547,7 @@ onMounted(async () => {
 
   banner.value = {
     type: 'success',
-    text: `Welcome ${sessionState.username}. JNDM123 hardware state is synchronizing.`
+    text: text.value.welcome(sessionState.username)
   }
 
   await loadDividerStatus()
@@ -388,17 +577,17 @@ onBeforeUnmount(() => {
           <div class="brand-block">
             <div class="brand-mark"></div>
             <div>
-              <p class="eyebrow">JNDM123 Lab</p>
-              <h1>Clock Divider and 6x AD7606 Capture</h1>
-              <p class="brand-copy">
-                Divider updates follow the local CDCE937 I2C test flow. FIFO capture follows the packet-mode
-                implementation from `work.c`, removes console/file output, and feeds the UI plus UDP broadcast.
-              </p>
+              <p class="eyebrow">{{ text.labEyebrow }}</p>
+              <h1>{{ text.labTitle }}</h1>
+              <p class="brand-copy">{{ text.labCopy }}</p>
             </div>
           </div>
 
           <div class="header-actions">
             <div class="header-pills">
+              <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+                {{ text.language }}
+              </v-btn>
               <div class="meta-pill">
                 <v-icon icon="mdi-lan-connect" size="18"></v-icon>
                 <span>{{ currentDeviceAddress }}</span>
@@ -410,7 +599,7 @@ onBeforeUnmount(() => {
             </div>
 
             <v-btn color="secondary" variant="tonal" size="small" @click="handleSignOut">
-              Sign Out
+              {{ text.signOut }}
             </v-btn>
           </div>
         </header>
@@ -420,12 +609,9 @@ onBeforeUnmount(() => {
             <section class="lab-panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Clock</p>
-                  <h2>CDCE937 Divider Control</h2>
-                  <p class="panel-copy">
-                    Press execute to apply the selected divider. The backend pauses acquisition, writes the divider,
-                    reads the actual result back, and restarts capture when needed.
-                  </p>
+                  <p class="eyebrow">{{ text.clockEyebrow }}</p>
+                  <h2>{{ text.clockTitle }}</h2>
+                  <p class="panel-copy">{{ text.clockCopy }}</p>
                 </div>
               </div>
 
@@ -436,55 +622,55 @@ onBeforeUnmount(() => {
               <div class="control-grid">
                 <v-text-field
                   v-model="devicePath"
-                  label="I2C Device"
+                  :label="text.i2cDevice"
                   prepend-inner-icon="mdi-expansion-card-variant"
                   placeholder="/dev/i2c-0"
                 />
 
                 <v-select
                   v-model="selectedOutputIndex"
-                  :items="outputs.map((output) => ({ title: `${output.name} / Pin ${output.pin}`, value: output.index }))"
-                  label="Output"
+                  :items="outputOptions"
+                  :label="text.output"
                   prepend-inner-icon="mdi-vector-polyline"
                 />
 
                 <v-select
                   v-model="selectedDivider"
                   :items="dividerOptions"
-                  label="Divider"
+                  :label="text.divider"
                   prepend-inner-icon="mdi-tune-variant"
                 />
 
                 <div class="panel-actions">
                   <v-btn color="primary" block :loading="dividerBusy" :disabled="dividerBusy || !outputs.length" @click="applyDivider">
-                    Execute
+                    {{ text.execute }}
                   </v-btn>
                   <v-btn variant="outlined" color="secondary" block :disabled="dividerBusy" @click="loadDividerStatus">
-                    Refresh
+                    {{ text.refresh }}
                   </v-btn>
                 </div>
               </div>
 
               <div class="status-grid mt-5">
                 <article class="metric-card">
-                  <div class="meta-copy">Device</div>
+                  <div class="meta-copy">{{ text.device }}</div>
                   <div class="metric-value">{{ dividerStatus?.deviceType || '--' }}</div>
                   <div class="meta-copy small">{{ dividerStatus?.address || '--' }} / {{ dividerStatus?.inputClock || '--' }}</div>
                 </article>
                 <article class="metric-card">
-                  <div class="meta-copy">Selected Output</div>
+                  <div class="meta-copy">{{ text.selectedOutput }}</div>
                   <div class="metric-value">{{ selectedOutput?.divider ?? '--' }} / {{ formatFrequency(selectedOutput?.frequencyHz) }}</div>
                   <div class="meta-copy small">{{ selectedOutput?.name || '--' }} / {{ selectedOutput?.pdiv || '--' }}</div>
                 </article>
                 <article class="metric-card">
-                  <div class="meta-copy">EEPROM / Lock</div>
-                  <div class="metric-value">Busy {{ dividerStatus?.eepBusy ? '1' : '0' }} / Lock {{ dividerStatus?.eepLock ? '1' : '0' }}</div>
-                  <div class="meta-copy small">Revision {{ dividerStatus?.revisionId ?? '--' }}</div>
+                  <div class="meta-copy">{{ text.eepromLock }}</div>
+                  <div class="metric-value">{{ text.busy }} {{ dividerStatus?.eepBusy ? '1' : '0' }} / {{ text.lock }} {{ dividerStatus?.eepLock ? '1' : '0' }}</div>
+                  <div class="meta-copy small">{{ text.revision }} {{ dividerStatus?.revisionId ?? '--' }}</div>
                 </article>
                 <article class="metric-card">
-                  <div class="meta-copy">Power</div>
-                  <div class="metric-value">{{ dividerStatus?.powerDown ? 'Down' : 'Active' }}</div>
-                  <div class="meta-copy small">Actual readback is shown in every output card below.</div>
+                  <div class="meta-copy">{{ text.power }}</div>
+                  <div class="metric-value">{{ dividerStatus?.powerDown ? text.down : text.active }}</div>
+                  <div class="meta-copy small">{{ text.actualReadback }}</div>
                 </article>
               </div>
 
@@ -497,7 +683,7 @@ onBeforeUnmount(() => {
                 >
                   <div class="meta-copy">{{ output.name }} / {{ output.pdiv }}</div>
                   <div class="output-line">{{ output.divider || '--' }}</div>
-                  <div class="meta-copy small">Pin {{ output.pin }} / {{ formatFrequency(output.frequencyHz) }}</div>
+                  <div class="meta-copy small">{{ text.pin }} {{ output.pin }} / {{ formatFrequency(output.frequencyHz) }}</div>
                 </article>
               </div>
             </section>
@@ -505,21 +691,17 @@ onBeforeUnmount(() => {
             <section class="lab-panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Acquisition</p>
-                  <h2>AD7606 Capture Runtime</h2>
-                  <p class="panel-copy">
-                    The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves
-                    waveform caching and UDP broadcasting to the consumer side. Browser preview snapshots are
-                    published from cache once per second, while UDP stays on the full dequeue path.
-                  </p>
+                  <p class="eyebrow">{{ text.acquisitionEyebrow }}</p>
+                  <h2>{{ text.acquisitionTitle }}</h2>
+                  <p class="panel-copy">{{ text.acquisitionCopy }}</p>
                 </div>
 
                 <div class="panel-actions">
                   <v-btn color="primary" :loading="acquisitionBusy" :disabled="acquisitionBusy || acquisitionRunning" @click="setAcquisition('start')">
-                    Start
+                    {{ text.start }}
                   </v-btn>
                   <v-btn color="warning" variant="outlined" :loading="acquisitionBusy" :disabled="acquisitionBusy || !acquisitionRunning" @click="setAcquisition('stop')">
-                    Stop
+                    {{ text.stop }}
                   </v-btn>
                 </div>
               </div>
@@ -536,29 +718,26 @@ onBeforeUnmount(() => {
             <section class="lab-panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Broadcast</p>
-                  <h2>UDP External Interface</h2>
-                  <p class="panel-copy">
-                    Every dequeued frame can be broadcast as a packed 48-channel UDP payload even when preview rendering
-                    is paused on the front end.
-                  </p>
+                  <p class="eyebrow">{{ text.broadcastEyebrow }}</p>
+                  <h2>{{ text.broadcastTitle }}</h2>
+                  <p class="panel-copy">{{ text.broadcastCopy }}</p>
                 </div>
               </div>
 
               <div class="config-grid">
-                <v-switch v-model="udpForm.enabled" color="primary" inset label="Enable UDP Broadcast" />
-                <v-text-field v-model="udpForm.host" label="UDP Host" prepend-inner-icon="mdi-access-point-network" />
-                <v-text-field v-model="udpForm.port" type="number" label="UDP Port" prepend-inner-icon="mdi-connection" />
+                <v-switch v-model="udpForm.enabled" color="primary" inset :label="text.enableUdp" />
+                <v-text-field v-model="udpForm.host" :label="text.udpHost" prepend-inner-icon="mdi-access-point-network" />
+                <v-text-field v-model="udpForm.port" type="number" :label="text.udpPort" prepend-inner-icon="mdi-connection" />
                 <div class="panel-actions">
                   <v-btn color="primary" block :loading="udpBusy" @click="saveUdpConfig">
-                    Save UDP
+                    {{ text.saveUdp }}
                   </v-btn>
                 </div>
               </div>
 
               <div class="legend-row">
-                <span class="legend-chip">Last UDP: {{ acquisitionState?.udp?.lastBroadcastAt ? formatDateTime(acquisitionState.udp.lastBroadcastAt) : 'none' }}</span>
-                <span class="legend-chip">Target: {{ acquisitionState?.udp?.host || udpForm.host }}:{{ acquisitionState?.udp?.port || udpForm.port }}</span>
+                <span class="legend-chip">{{ text.lastUdp }}: {{ acquisitionState?.udp?.lastBroadcastAt ? formatDateTime(acquisitionState.udp.lastBroadcastAt) : text.none }}</span>
+                <span class="legend-chip">{{ text.target }}: {{ acquisitionState?.udp?.host || udpForm.host }}:{{ acquisitionState?.udp?.port || udpForm.port }}</span>
               </div>
             </section>
           </div>
@@ -567,21 +746,17 @@ onBeforeUnmount(() => {
             <section class="lab-panel chart-panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Waveforms</p>
-                  <h2>6 Independent Charts</h2>
-                  <p class="panel-copy">
-                    Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is
-                    not active, the backend stops packaging waveform history for the browser but keeps UDP broadcast alive.
-                    When preview is active, cached waveform data is refreshed to the browser once per second.
-                  </p>
+                  <p class="eyebrow">{{ text.waveformsEyebrow }}</p>
+                  <h2>{{ text.waveformsTitle }}</h2>
+                  <p class="panel-copy">{{ text.waveformsCopy }}</p>
                 </div>
 
                 <div class="view-toggle">
                   <v-btn :variant="activeView === 'preview' ? 'flat' : 'outlined'" color="primary" @click="activeView = 'preview'">
-                    Preview
+                    {{ text.preview }}
                   </v-btn>
                   <v-btn :variant="activeView === 'overview' ? 'flat' : 'outlined'" color="secondary" @click="activeView = 'overview'">
-                    Overview
+                    {{ text.overview }}
                   </v-btn>
                 </div>
               </div>
@@ -591,13 +766,13 @@ onBeforeUnmount(() => {
                   <div class="chart-head">
                     <div class="chart-title">
                       <strong>{{ chip.name }}</strong>
-                      <span>{{ visibleSeries(chip).length }} visible lines / {{ chip.channels?.[0]?.samples?.length ?? 0 }} points</span>
+                      <span>{{ text.visibleLines(visibleSeries(chip).length, chip.channels?.[0]?.samples?.length ?? 0) }}</span>
                     </div>
 
                     <v-select
                       v-model="channelSelection[chip.index]"
                       :items="channelOptions"
-                      label="Channels"
+                      :label="text.channels"
                       style="max-width: 160px"
                     />
                   </div>
@@ -618,7 +793,7 @@ onBeforeUnmount(() => {
                   </div>
 
                   <div v-else class="chart-placeholder">
-                    No waveform data yet. Start capture or keep the preview page active until the history window fills.
+                    {{ text.noWaveform }}
                   </div>
 
                   <div class="legend-row">
@@ -645,8 +820,8 @@ onBeforeUnmount(() => {
             <section class="lab-panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Navigation</p>
-                  <h2>Other Packages</h2>
+                  <p class="eyebrow">{{ text.navigationEyebrow }}</p>
+                  <h2>{{ text.navigationTitle }}</h2>
                 </div>
               </div>
 
