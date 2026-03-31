@@ -1,11 +1,12 @@
 ﻿<script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+import { createUiLocaleHeaders } from './core/requestLocale.js'
 
-const { isZh } = useUiLocale()
+const { isZh, toggleLocale } = useUiLocale()
 const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
@@ -54,7 +55,9 @@ const zh = {
   openPage: '打开页面',
   runLevel: '运行级别',
   defaultRunLevel: '默认',
-  vendor: '提供方'
+  vendor: '提供方',
+  language: 'EN',
+  documentTitle: 'MyIoT 系统包列表'
 }
 
 const en = {
@@ -103,10 +106,18 @@ const en = {
   openPage: 'Open Page',
   runLevel: 'RunLevel',
   defaultRunLevel: 'default',
-  vendor: 'Vendor'
+  vendor: 'Vendor',
+  language: '中文',
+  documentTitle: 'MyIoT System Bundle List'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.title = text.value.documentTitle
+  }
+})
 const featurePackages = computed(() =>
   rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
 )
@@ -130,7 +141,10 @@ let refreshTimer = null
 let requestInFlight = false
 
 const stateChips = computed(() =>
-  Object.entries(stateSummary.value).map(([label, total]) => ({ label, total }))
+  Object.entries(stateSummary.value).map(([status, total]) => ({
+    label: formatPackageStatus(status),
+    total
+  }))
 )
 
 const activeBundles = computed(() =>
@@ -258,7 +272,7 @@ async function loadBundles() {
   try {
     const response = await fetch(`/myiot/packages/data.json?_=${Date.now()}`, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' }
+      headers: createUiLocaleHeaders({ Accept: 'application/json' })
     })
 
     if (response.status === 401) {
@@ -306,10 +320,10 @@ async function postBundleAction(symbolicName, action, extraFields = {}) {
     const response = await fetch('/myiot/packages/manage.json', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: {
+      headers: createUiLocaleHeaders({
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json'
-      },
+      }),
       body
     })
 
@@ -428,6 +442,9 @@ async function handleSignOut() {
           </div>
 
           <div class="header-pills">
+            <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+              {{ text.language }}
+            </v-btn>
             <a href="/myiot/home/index.html" class="meta-pill">
               <v-icon icon="mdi-view-dashboard-outline" size="18"></v-icon>
               <span>{{ text.backHome }}</span>

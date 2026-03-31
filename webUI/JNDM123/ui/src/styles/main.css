@@ -249,7 +249,8 @@ a {
 .metrics-grid,
 .charts-grid,
 .config-grid,
-.detail-grid {
+.detail-grid,
+.udp-rate-grid {
   display: grid;
   gap: 16px;
 }
@@ -270,6 +271,10 @@ a {
 
 .config-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.udp-rate-grid {
+  margin-top: 16px;
 }
 
 .output-card,
@@ -349,6 +354,10 @@ a {
   overflow: hidden;
 }
 
+.compact-chart-surface {
+  min-height: 172px;
+}
+
 .chart-surface::before {
   content: "";
   position: absolute;
@@ -367,8 +376,83 @@ a {
   height: 220px;
 }
 
+.compact-chart-svg {
+  height: 172px;
+}
+
+.chart-guide-line {
+  stroke: rgba(234, 247, 255, 0.18);
+  stroke-width: 1;
+  stroke-dasharray: 2.5 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-boundary-line {
+  stroke: rgba(234, 247, 255, 0.18);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-boundary-line-strong {
+  stroke: rgba(234, 247, 255, 0.3);
+}
+
+.chart-axis {
+  position: absolute;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(4, 16, 24, 0.78);
+  border: 1px solid rgba(74, 206, 255, 0.12);
+  color: rgba(234, 247, 255, 0.78);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.chart-axis-y-top {
+  top: 10px;
+  right: 10px;
+}
+
+.chart-axis-y-bottom {
+  bottom: 40px;
+  right: 10px;
+}
+
+.chart-axis-x-left {
+  left: 10px;
+  bottom: 10px;
+  max-width: calc(50% - 18px);
+}
+
+.chart-axis-x-right {
+  right: 10px;
+  bottom: 10px;
+  max-width: calc(50% - 18px);
+  text-align: right;
+}
+
+.compact-chart-card {
+  padding: 16px;
+}
+
+.compact-chart-head {
+  margin-bottom: 12px;
+}
+
+.compact-chart-placeholder {
+  min-height: 172px;
+}
+
 .legend-row {
   margin-top: 14px;
+}
+
+.udp-metrics-grid {
+  margin-top: 16px;
 }
 
 .value-grid {
@@ -441,6 +525,19 @@ a {
   .config-grid,
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .chart-axis-y-bottom {
+    bottom: 46px;
+  }
+
+  .chart-axis-x-left {
+    max-width: calc(50% - 16px);
+  }
+
+  .chart-axis-x-right {
+    max-width: calc(50% - 16px);
+    text-align: right;
   }
 
   .value-grid {

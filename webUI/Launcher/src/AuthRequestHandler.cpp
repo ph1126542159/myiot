@@ -9,9 +9,32 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/String.h"
 #include "Poco/URI.h"
 
 namespace {
+
+std::string normalizeLocale(std::string value)
+{
+    Poco::toLowerInPlace(value);
+    return Poco::startsWith(value, std::string("en")) ? "en" : "zh";
+}
+
+std::string requestLocale(Poco::Net::HTTPServerRequest& request)
+{
+    const std::string explicitLocale = request.get("X-MyIoT-Locale", "");
+    if (!explicitLocale.empty()) return normalizeLocale(explicitLocale);
+
+    const std::string acceptLanguage = request.get("Accept-Language", "");
+    if (!acceptLanguage.empty()) return normalizeLocale(acceptLanguage);
+
+    return "zh";
+}
+
+std::string localized(Poco::Net::HTTPServerRequest& request, const std::string& zh, const std::string& en)
+{
+    return requestLocale(request) == "en" ? en : zh;
+}
 
 Poco::OSP::Web::WebSessionManager::Ptr getSessionManager(Poco::OSP::BundleContext::Ptr pContext)
 {
@@ -138,7 +161,8 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
     {
         logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "method_not_allowed", "", request.getMethod());
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_METHOD_NOT_ALLOWED);
-        sendJSON(response, createPayload(false, "", "请求方式错误，必须使用 POST。", "请求方式错误，必须使用 POST。"));
+        const std::string message = localized(request, "请求方式错误，必须使用 POST。", "Invalid request method. POST is required.");
+        sendJSON(response, createPayload(false, "", message, message));
         return;
     }
 
@@ -154,7 +178,7 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
 
             if (username.empty() || password.empty())
             {
-                const std::string errorMessage = "请输入用户名和密码后再登录。";
+                const std::string errorMessage = localized(request, "请输入用户名和密码后再登录。", "Please enter both username and password before signing in.");
                 pSession->erase("username");
                 pSession->set("message", errorMessage);
                 pSession->set("lastError", errorMessage);
@@ -166,7 +190,9 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
             Poco::OSP::Auth::AuthService::Ptr pAuthService = getAuthService(_pContext);
             if (pAuthService->authenticate(username, password))
             {
-                const std::string successMessage = "账号 " + username + " 验证通过，登录会话已建立。";
+                const std::string successMessage = requestLocale(request) == "en"
+                    ? "Account " + username + " authenticated successfully."
+                    : "账号 " + username + " 验证通过，登录会话已建立。";
                 pSession->set("username", username);
                 pSession->set("message", successMessage);
                 pSession->erase("lastError");
@@ -175,7 +201,7 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
             }
             else
             {
-                const std::string errorMessage = "用户名或密码错误，或该账号已被禁用。";
+                const std::string errorMessage = localized(request, "用户名或密码错误，或该账号已被禁用。", "Incorrect username or password, or the account has been disabled.");
                 pSession->erase("username");
                 pSession->set("message", errorMessage);
                 pSession->set("lastError", errorMessage);
@@ -193,20 +219,20 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
             }
 
             logAudit(_pContext, request, "logout", "success", username, "session_removed");
-            sendJSON(response, createPayload(false, "", "已退出登录，请重新验证身份。", ""));
+            sendJSON(response, createPayload(false, "", localized(request, "已退出登录，请重新验证身份。", "Signed out. Please authenticate again."), ""));
         }
     }
     catch (const Poco::Exception& exc)
     {
         logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "backend_error", "", exc.displayText(), true);
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
-        sendJSON(response, createPayload(false, "", "认证服务当前不可用。", exc.displayText()));
+        sendJSON(response, createPayload(false, "", localized(request, "认证服务当前不可用。", "The authentication service is currently unavailable."), exc.displayText()));
     }
     catch (const std::exception& exc)
     {
         logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "backend_error", "", exc.what(), true);
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
-        sendJSON(response, createPayload(false, "", "认证服务当前不可用。", exc.what()));
+        sendJSON(response, createPayload(false, "", localized(request, "认证服务当前不可用。", "The authentication service is currently unavailable."), exc.what()));
     }
 }
 

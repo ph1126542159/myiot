@@ -27,6 +27,29 @@
 
 namespace {
 
+std::string normalizeLocale(std::string value)
+{
+    Poco::toLowerInPlace(value);
+    return Poco::startsWith(value, std::string("en")) ? "en" : "zh";
+}
+
+std::string localized(Poco::Net::HTTPServerRequest& request, const std::string& zh, const std::string& en)
+{
+    const std::string explicitLocale = request.get("X-MyIoT-Locale", "");
+    if (!explicitLocale.empty())
+    {
+        return normalizeLocale(explicitLocale) == "en" ? en : zh;
+    }
+
+    const std::string acceptLanguage = request.get("Accept-Language", "");
+    if (!acceptLanguage.empty())
+    {
+        return normalizeLocale(acceptLanguage) == "en" ? en : zh;
+    }
+
+    return zh;
+}
+
 Poco::OSP::Web::WebSession::Ptr findSession(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
 {
     Poco::OSP::Web::WebSessionManager::Ptr pSessionManager =
@@ -94,11 +117,11 @@ bool isProtectedBundleSymbolicName(const std::string& symbolicName)
     return false;
 }
 
-std::string protectedReasonFor(const std::string& symbolicName)
+std::string protectedReasonFor(Poco::Net::HTTPServerRequest& request, const std::string& symbolicName)
 {
-    if (symbolicName == "io.myiot.webui.launcher") return "登录入口包为访问链路核心组件，已设为只读。";
-    if (symbolicName == "io.myiot.webui.packages") return "当前包列表页本身承担管理职责，不能在这里停用自己。";
-    return "系统核心包不在控制范围内，仅展示状态和配置。";
+    if (symbolicName == "io.myiot.webui.launcher") return localized(request, "登录入口包为访问链路核心组件，已设为只读。", "The login entry bundle is a core access component and remains read-only.");
+    if (symbolicName == "io.myiot.webui.packages") return localized(request, "当前包列表页本身承担管理职责，不能在这里停用自己。", "The current bundle catalog page manages the system and cannot stop itself.");
+    return localized(request, "系统核心包不在控制范围内，仅展示状态和配置。", "Core system bundles are outside the management scope and remain view-only.");
 }
 
 Poco::OSP::PreferencesService::Ptr findPreferencesService(Poco::OSP::BundleContext::Ptr pContext)
@@ -182,16 +205,16 @@ bool isManageable(const Poco::OSP::Bundle::Ptr& pBundle, Poco::OSP::BundleContex
     return pBundle->symbolicName() != pContext->thisBundle()->symbolicName() && !isProtectedBundleSymbolicName(pBundle->symbolicName());
 }
 
-Poco::JSON::Object::Ptr createUnauthorizedPayload()
+Poco::JSON::Object::Ptr createUnauthorizedPayload(Poco::Net::HTTPServerRequest& request)
 {
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("authenticated", false);
-    payload->set("message", "未登录，无法读取系统包列表。");
+    payload->set("message", localized(request, "未登录，无法读取系统包列表。", "You are not signed in, so the system bundle catalog cannot be read."));
     payload->set("bundles", Poco::JSON::Array::Ptr(new Poco::JSON::Array));
     return payload;
 }
 
-Poco::JSON::Object::Ptr createBundlePayload(const Poco::OSP::Bundle::Ptr& pBundle, Poco::OSP::BundleContext::Ptr pContext, Poco::OSP::PreferencesService::Ptr pPreferencesService)
+Poco::JSON::Object::Ptr createBundlePayload(Poco::Net::HTTPServerRequest& request, const Poco::OSP::Bundle::Ptr& pBundle, Poco::OSP::BundleContext::Ptr pContext, Poco::OSP::PreferencesService::Ptr pPreferencesService)
 {
     const bool manageable = isManageable(pBundle, pContext);
     const auto dependents = collectActiveDependents(pContext, pBundle->symbolicName());
@@ -226,7 +249,7 @@ Poco::JSON::Object::Ptr createBundlePayload(const Poco::OSP::Bundle::Ptr& pBundl
     bundle->set("extensionBundle", pBundle->isExtensionBundle());
     bundle->set("manageable", manageable);
     bundle->set("configurable", manageable);
-    bundle->set("manageReason", manageable ? std::string() : protectedReasonFor(pBundle->symbolicName()));
+    bundle->set("manageReason", manageable ? std::string() : protectedReasonFor(request, pBundle->symbolicName()));
     bundle->set("canResolve", manageable && pBundle->state() == Poco::OSP::Bundle::BUNDLE_INSTALLED);
     bundle->set("canStart", manageable && pBundle->state() == Poco::OSP::Bundle::BUNDLE_RESOLVED);
     bundle->set("canStop", manageable && pBundle->state() == Poco::OSP::Bundle::BUNDLE_ACTIVE && dependents.empty());
@@ -349,7 +372,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
         if (!isAuthenticated(_pContext, request))
         {
             logAudit(_pContext, request, "bundle_catalog", "unauthorized", "");
-            sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
+            sendJSON(response, createUnauthorizedPayload(request), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
             return;
         }
 
@@ -365,14 +388,14 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
             if (!pBundle)
             {
                 logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "target_not_found", username, symbolicName);
-                sendJSON(response, createMessagePayload(false, "目标包不存在。", Poco::Net::HTTPResponse::HTTP_NOT_FOUND), Poco::Net::HTTPResponse::HTTP_NOT_FOUND);
+                sendJSON(response, createMessagePayload(false, localized(request, "目标包不存在。", "The target bundle does not exist."), Poco::Net::HTTPResponse::HTTP_NOT_FOUND), Poco::Net::HTTPResponse::HTTP_NOT_FOUND);
                 return;
             }
 
             if (!isManageable(pBundle, _pContext))
             {
                 logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "forbidden", username, symbolicName, "protected_bundle");
-                sendJSON(response, createMessagePayload(false, protectedReasonFor(symbolicName), Poco::Net::HTTPResponse::HTTP_FORBIDDEN), Poco::Net::HTTPResponse::HTTP_FORBIDDEN);
+                sendJSON(response, createMessagePayload(false, protectedReasonFor(request, symbolicName), Poco::Net::HTTPResponse::HTTP_FORBIDDEN), Poco::Net::HTTPResponse::HTTP_FORBIDDEN);
                 return;
             }
 
@@ -382,7 +405,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
                 {
                     pBundle->resolve();
                     logAudit(_pContext, request, "resolve", "success", username, symbolicName);
-                    sendJSON(response, createMessagePayload(true, "包已解析，可以继续启动。"));
+                    sendJSON(response, createMessagePayload(true, localized(request, "包已解析，可以继续启动。", "The bundle has been resolved and can now be started.")));
                     return;
                 }
 
@@ -390,7 +413,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
                 {
                     pBundle->start();
                     logAudit(_pContext, request, "start", "success", username, symbolicName);
-                    sendJSON(response, createMessagePayload(true, "包已启动。"));
+                    sendJSON(response, createMessagePayload(true, localized(request, "包已启动。", "The bundle has been started.")));
                     return;
                 }
 
@@ -399,7 +422,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
                     const auto dependents = collectActiveDependents(_pContext, symbolicName);
                     if (!dependents.empty())
                     {
-                        std::string message = "仍有依赖包处于运行状态，不能停用：";
+                        std::string message = localized(request, "仍有依赖包处于运行状态，不能停用：", "The bundle cannot be stopped because dependent bundles are still running: ");
                         message += Poco::cat(std::string(", "), dependents.begin(), dependents.end());
                         logAudit(_pContext, request, "stop", "dependency_blocked", username, symbolicName, Poco::cat(std::string(","), dependents.begin(), dependents.end()));
                         sendJSON(response, createMessagePayload(false, message, Poco::Net::HTTPResponse::HTTP_CONFLICT), Poco::Net::HTTPResponse::HTTP_CONFLICT);
@@ -408,7 +431,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
 
                     pBundle->stop();
                     logAudit(_pContext, request, "stop", "success", username, symbolicName);
-                    sendJSON(response, createMessagePayload(true, "包已停用。"));
+                    sendJSON(response, createMessagePayload(true, localized(request, "包已停用。", "The bundle has been stopped.")));
                     return;
                 }
 
@@ -417,7 +440,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
                     Poco::OSP::PreferencesService::Ptr pPreferencesService = findPreferencesService(_pContext);
                     if (!pPreferencesService)
                     {
-                        sendJSON(response, createMessagePayload(false, "当前系统未提供 PreferencesService。", Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE), Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE);
+                        sendJSON(response, createMessagePayload(false, localized(request, "当前系统未提供 PreferencesService。", "PreferencesService is not available in the current system."), Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE), Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE);
                         return;
                     }
 
@@ -449,12 +472,12 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
 
                     pPreferences->save();
                     logAudit(_pContext, request, "savePreferences", "success", username, symbolicName, "keys=" + std::to_string(newKeys.size()));
-                    sendJSON(response, createMessagePayload(true, "配置参数已保存。"));
+                    sendJSON(response, createMessagePayload(true, localized(request, "配置参数已保存。", "Preferences have been saved.")));
                     return;
                 }
 
                 logAudit(_pContext, request, "bundle_manage", "unsupported_action", username, symbolicName, action);
-                sendJSON(response, createMessagePayload(false, "不支持的管理动作。", Poco::Net::HTTPResponse::HTTP_BAD_REQUEST), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
+                sendJSON(response, createMessagePayload(false, localized(request, "不支持的管理动作。", "Unsupported management action."), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
                 return;
             }
             catch (const Poco::Exception& exc)
@@ -480,7 +503,7 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
         {
             try
             {
-                bundles->add(createBundlePayload(pBundle, _pContext, pPreferencesService));
+                bundles->add(createBundlePayload(request, pBundle, _pContext, pPreferencesService));
             }
             catch (const Poco::Exception& exc)
             {
@@ -504,7 +527,9 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
 
         Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
         payload->set("authenticated", true);
-        payload->set("message", bundleVector.empty() ? "当前没有发现已加载的系统包。" : "系统包列表同步完成。");
+        payload->set("message", bundleVector.empty()
+            ? localized(request, "当前没有发现已加载的系统包。", "No loaded system bundles were found.")
+            : localized(request, "系统包列表同步完成。", "The system bundle catalog has been synchronized."));
         payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
         payload->set("bundleCount", static_cast<int>(bundleVector.size()));
         payload->set("stateSummary", stateSummary);
@@ -516,14 +541,14 @@ void BundleCatalogRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
     {
         _pContext->logger().error("Bundle list request failed: " + exc.displayText());
         sendJSON(response,
-            createMessagePayload(false, "系统包列表读取失败。", Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
+            createMessagePayload(false, localized(request, "系统包列表读取失败。", "Failed to read the system bundle catalog."), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
             Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
     catch (const std::exception& exc)
     {
         _pContext->logger().error("Bundle list request failed: " + std::string(exc.what()));
         sendJSON(response,
-            createMessagePayload(false, "系统包列表读取失败。", Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
+            createMessagePayload(false, localized(request, "系统包列表读取失败。", "Failed to read the system bundle catalog."), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
             Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
 }

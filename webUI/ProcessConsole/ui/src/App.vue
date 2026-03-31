@@ -1,11 +1,12 @@
 ﻿<script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watchEffect } from 'vue'
 import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+import { createUiLocaleHeaders } from './core/requestLocale.js'
 
-const { isZh } = useUiLocale()
+const { isZh, toggleLocale } = useUiLocale()
 const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
@@ -54,7 +55,9 @@ const zh = {
     modules: '查看进程已加载模块。',
     stack: '查看当前请求线程调用栈。',
     functions: '快速查看当前调用栈函数名。'
-  }
+  },
+  language: 'EN',
+  documentTitle: 'MyIoT 终端交互'
 }
 
 const en = {
@@ -103,10 +106,18 @@ const en = {
     modules: 'Show loaded modules for the process.',
     stack: 'Capture the current request-thread stack.',
     functions: 'Quickly list function names from the current stack.'
-  }
+  },
+  language: '中文',
+  documentTitle: 'MyIoT Process Console'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.title = text.value.documentTitle
+  }
+})
 const featurePackages = computed(() =>
   rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
 )
@@ -220,10 +231,10 @@ async function executeConsoleCommand(command, options = {}) {
     const response = await fetch('/myiot/services/process-console/exec', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: {
+      headers: createUiLocaleHeaders({
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json'
-      },
+      }),
       body
     })
 
@@ -357,6 +368,9 @@ async function handleSignOut() {
           </div>
 
           <div class="header-pills">
+            <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+              {{ text.language }}
+            </v-btn>
             <a
               v-for="featurePackage in launchablePackages"
               :key="featurePackage.id"

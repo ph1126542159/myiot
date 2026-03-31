@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
@@ -67,7 +67,8 @@ const zh = {
     '主页工作台初始化完成。',
     'Bundle 目录已刷新。',
     '诊断入口已准备就绪。'
-  ]
+  ],
+  documentTitle: 'MyIoT 控制台主页'
 }
 
 const en = {
@@ -129,10 +130,17 @@ const en = {
     'Home workspace initialized.',
     'Bundle catalog refreshed.',
     'Diagnostic entry points are ready.'
-  ]
+  ],
+  documentTitle: 'MyIoT Control Console Home'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.title = text.value.documentTitle
+  }
+})
 const featurePackages = computed(() =>
   rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
 )

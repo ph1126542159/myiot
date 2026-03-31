@@ -335,7 +335,7 @@ private:
     void setStatusMessage(const std::string& message);
     void recordError(const std::string& message);
     bool previewLeaseActive() const;
-    void appendHistoryLocked(const std::array<std::int16_t, kFrameColumns>& samples);
+    void appendHistoryLocked(const std::array<std::int16_t, kFrameColumns>& samples, Poco::Int64 capturedAtUs);
     void clearWaveformHistory();
     void clearWaveformHistoryLocked();
     bool enqueueFrame(FramePacket packet);
@@ -398,6 +398,8 @@ private:
     Poco::NotificationQueue _queue;
     std::array<std::deque<std::int16_t>, kFrameColumns> _history;
     std::array<std::deque<std::int16_t>, kFrameColumns> _publishedHistory;
+    std::deque<Poco::Int64> _historyTimelineUs;
+    std::deque<Poco::Int64> _publishedTimelineUs;
     std::array<std::int16_t, kFrameColumns> _latestSamples{};
     bool _hasLatestFrame = false;
     Poco::Int64 _lastPreviewPublishedAtUs = 0;
@@ -406,6 +408,8 @@ private:
     Poco::UInt16 _udpPort = 19048;
     Poco::Net::SocketAddress _udpTarget;
     std::unique_ptr<Poco::Net::DatagramSocket> _udpSocket;
+    Poco::UInt64 _udpPacketsSent = 0;
+    Poco::UInt64 _udpBytesSent = 0;
     std::string _statusMessage = "JNDM123 runtime ready.";
     std::string _lastError;
     std::string _lastFrameAt;
@@ -475,7 +479,7 @@ bool JNDM123Runtime::previewLeaseActive() const
     return now.epochMicroseconds() <= _previewLeaseUntilUs.load();
 }
 
-void JNDM123Runtime::appendHistoryLocked(const std::array<std::int16_t, kFrameColumns>& samples)
+void JNDM123Runtime::appendHistoryLocked(const std::array<std::int16_t, kFrameColumns>& samples, Poco::Int64 capturedAtUs)
 {
     for (std::size_t i = 0; i < samples.size(); ++i)
     {
@@ -485,6 +489,12 @@ void JNDM123Runtime::appendHistoryLocked(const std::array<std::int16_t, kFrameCo
         {
             history.pop_front();
         }
+    }
+
+    _historyTimelineUs.push_back(capturedAtUs);
+    if (_historyTimelineUs.size() > kHistoryLimit)
+    {
+        _historyTimelineUs.pop_front();
     }
 }
 
@@ -504,6 +514,8 @@ void JNDM123Runtime::clearWaveformHistoryLocked()
     {
         history.clear();
     }
+    _historyTimelineUs.clear();
+    _publishedTimelineUs.clear();
     _hasLatestFrame = false;
     _latestSamples.fill(0);
     _lastFrameAt.clear();
@@ -579,8 +591,13 @@ void JNDM123Runtime::broadcastFrame(const FramePacket& packet, const std::array<
 
     try
     {
-        _udpSocket->sendTo(&udpPacket, static_cast<int>(sizeof(udpPacket)), target);
+        const int sentBytes = _udpSocket->sendTo(&udpPacket, static_cast<int>(sizeof(udpPacket)), target);
         Poco::FastMutex::ScopedLock lock(_stateMutex);
+        ++_udpPacketsSent;
+        if (sentBytes > 0)
+        {
+            _udpBytesSent += static_cast<Poco::UInt64>(sentBytes);
+        }
         _lastBroadcastAt = isoTimestamp();
     }
     catch (const Poco::Exception& exc)
@@ -710,7 +727,10 @@ Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
     std::string udpHost;
     Poco::UInt16 udpPort = 0;
     bool udpEnabled = false;
+    Poco::UInt64 udpPacketsSent = 0;
+    Poco::UInt64 udpBytesSent = 0;
     std::array<std::deque<std::int16_t>, kFrameColumns> historyCopy;
+    std::deque<Poco::Int64> timelineCopy;
 
     {
         Poco::FastMutex::ScopedLock lock(_stateMutex);
@@ -726,9 +746,12 @@ Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
         udpHost = _udpHost;
         udpPort = _udpPort;
         udpEnabled = _udpEnabled;
+        udpPacketsSent = _udpPacketsSent;
+        udpBytesSent = _udpBytesSent;
         if (includeWaveform)
         {
             historyCopy = _publishedHistory;
+            timelineCopy = _publishedTimelineUs;
         }
     }
 
@@ -755,7 +778,19 @@ Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
     udp->set("host", udpHost);
     udp->set("port", udpPort);
     udp->set("lastBroadcastAt", lastBroadcastAt);
+    udp->set("packetsSent", udpPacketsSent);
+    udp->set("bytesSent", udpBytesSent);
     payload->set("udp", udp);
+
+    Array::Ptr timelineUs = new Array;
+    if (includeWaveform)
+    {
+        for (const auto timestampUs: timelineCopy)
+        {
+            timelineUs->add(static_cast<Poco::Int64>(timestampUs));
+        }
+    }
+    payload->set("timelineUs", timelineUs);
 
     Array::Ptr chips = new Array;
     for (std::size_t chipIndex = 0; chipIndex < kAd7606Count; ++chipIndex)
@@ -907,11 +942,12 @@ void JNDM123Runtime::dispatcherLoop()
             _lastFrameAt = isoTimestamp(packet.capturedAt);
             if (keepWaveform)
             {
-                appendHistoryLocked(samples);
+                appendHistoryLocked(samples, capturedAtUs);
                 if (_lastPreviewPublishedAtUs == 0 ||
                     (capturedAtUs - _lastPreviewPublishedAtUs) >= kPreviewPublishIntervalUs)
                 {
                     _publishedHistory = _history;
+                    _publishedTimelineUs = _historyTimelineUs;
                     _lastPreviewPublishedAtUs = capturedAtUs;
                     _lastPreviewPublishedAt = isoTimestamp(packet.capturedAt);
                 }
@@ -1030,7 +1066,7 @@ int i2cByteRead(int fd, std::uint8_t address, std::uint8_t reg, std::uint8_t& va
 
     ioctlData.msgs = messages;
     ioctlData.nmsgs = 2;
-    return ::ioctl(fd, I2C_RDWR, &ioctlData) == 0 ? 0 : -1;
+    return ::ioctl(fd, I2C_RDWR, &ioctlData) < 0 ? -1 : 0;
 }
 
 int i2cByteWrite(int fd, std::uint8_t address, std::uint8_t reg, std::uint8_t value)
@@ -1049,7 +1085,7 @@ int i2cByteWrite(int fd, std::uint8_t address, std::uint8_t reg, std::uint8_t va
 
     ioctlData.msgs = &message;
     ioctlData.nmsgs = 1;
-    return ::ioctl(fd, I2C_RDWR, &ioctlData) == 0 ? 0 : -1;
+    return ::ioctl(fd, I2C_RDWR, &ioctlData) < 0 ? -1 : 0;
 }
 
 bool looksLikeCdce937(int fd, std::uint8_t address, std::uint8_t* idReg = nullptr)

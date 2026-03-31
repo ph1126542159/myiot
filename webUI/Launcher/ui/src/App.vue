@@ -1,9 +1,9 @@
 ﻿<script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import { useUiLocale } from './core/locale'
 import { authenticate, refreshSession, sessionState } from './core/sessionGateway'
 
-const { isZh } = useUiLocale()
+const { isZh, toggleLocale } = useUiLocale()
 
 const REMEMBERED_CREDENTIALS_KEY = 'myiot.launcher.rememberedCredentials'
 
@@ -22,7 +22,9 @@ const zh = {
   passwordPlaceholder: '请输入密码',
   rememberPassword: '记住密码',
   browserOnly: '仅保存在当前浏览器',
-  login: '登录'
+  login: '登录',
+  language: 'EN',
+  documentTitle: 'MyIoT 登录入口'
 }
 
 const en = {
@@ -40,10 +42,18 @@ const en = {
   passwordPlaceholder: 'Enter password',
   rememberPassword: 'Remember password',
   browserOnly: 'Stored only in this browser',
-  login: 'Sign In'
+  login: 'Sign In',
+  language: '中文',
+  documentTitle: 'MyIoT Login Entry'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.title = text.value.documentTitle
+  }
+})
 
 const username = ref('')
 const password = ref('')
@@ -180,6 +190,12 @@ async function submitLogin() {
       <v-container fluid class="shell-container">
         <section class="login-shell">
           <div class="login-card">
+            <div class="login-card-toolbar">
+              <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+                {{ text.language }}
+              </v-btn>
+            </div>
+
             <div class="brand-mark login-mark">
               <span></span>
               <span></span>
@@ -274,6 +290,12 @@ async function submitLogin() {
   background: linear-gradient(180deg, rgba(9, 21, 38, 0.94), rgba(7, 18, 33, 0.86));
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(22px);
+}
+
+.login-card-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 }
 
 .login-mark {

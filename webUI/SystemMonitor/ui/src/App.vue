@@ -1,11 +1,12 @@
 ﻿<script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+import { createUiLocaleHeaders } from './core/requestLocale.js'
 
-const { isZh } = useUiLocale()
+const { isZh, toggleLocale } = useUiLocale()
 const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
@@ -54,7 +55,9 @@ const zh = {
   noDisks: '当前没有可展示的磁盘信息。',
   webuiPackages: 'WebUI 包',
   packageEntries: '当前已注册的页面入口',
-  openPage: '打开页面'
+  openPage: '打开页面',
+  language: 'EN',
+  documentTitle: 'MyIoT 系统监控'
 }
 
 const en = {
@@ -103,10 +106,18 @@ const en = {
   noDisks: 'No disk information is available right now.',
   webuiPackages: 'WebUI Packages',
   packageEntries: 'Registered page entry points',
-  openPage: 'Open Page'
+  openPage: 'Open Page',
+  language: '中文',
+  documentTitle: 'MyIoT System Monitor'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.title = text.value.documentTitle
+  }
+})
 const featurePackages = computed(() =>
   rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
 )
@@ -357,7 +368,7 @@ async function loadMetrics() {
   try {
     const response = await fetch(`/myiot/monitor/metrics.json?_=${Date.now()}`, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' }
+      headers: createUiLocaleHeaders({ Accept: 'application/json' })
     })
 
     if (response.status === 401) {
@@ -444,6 +455,9 @@ async function handleSignOut() {
           </div>
 
           <div class="header-pills">
+            <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+              {{ text.language }}
+            </v-btn>
             <a href="/myiot/home/index.html" class="meta-pill">
               <v-icon icon="mdi-view-dashboard-outline" size="18"></v-icon>
               <span>{{ text.backHome }}</span>

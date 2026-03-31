@@ -39,6 +39,29 @@
 
 namespace {
 
+std::string normalizeLocale(std::string value)
+{
+    Poco::toLowerInPlace(value);
+    return Poco::startsWith(value, std::string("en")) ? "en" : "zh";
+}
+
+std::string localized(Poco::Net::HTTPServerRequest& request, const std::string& zh, const std::string& en)
+{
+    const std::string explicitLocale = request.get("X-MyIoT-Locale", "");
+    if (!explicitLocale.empty())
+    {
+        return normalizeLocale(explicitLocale) == "en" ? en : zh;
+    }
+
+    const std::string acceptLanguage = request.get("Accept-Language", "");
+    if (!acceptLanguage.empty())
+    {
+        return normalizeLocale(acceptLanguage) == "en" ? en : zh;
+    }
+
+    return zh;
+}
+
 Poco::OSP::Web::WebSession::Ptr findSession(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
 {
     Poco::OSP::Web::WebSessionManager::Ptr pSessionManager =
@@ -87,11 +110,11 @@ void sendJSON(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Ptr p
     }
 }
 
-Poco::JSON::Object::Ptr createUnauthorizedPayload()
+Poco::JSON::Object::Ptr createUnauthorizedPayload(Poco::Net::HTTPServerRequest& request)
 {
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("authenticated", false);
-    payload->set("message", "未登录，无法读取系统监控数据。");
+    payload->set("message", localized(request, "未登录，无法读取系统监控数据。", "You are not signed in, so system monitoring data cannot be read."));
     payload->set("metrics", Poco::JSON::Object::Ptr(new Poco::JSON::Object));
     return payload;
 }
@@ -546,11 +569,11 @@ MetricsSampler& metricsSampler()
     return sampler;
 }
 
-Poco::JSON::Object::Ptr createSamplePayload(const MetricsSample& sample)
+Poco::JSON::Object::Ptr createSamplePayload(Poco::Net::HTTPServerRequest& request, const MetricsSample& sample)
 {
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("authenticated", true);
-    payload->set("message", "系统监控指标同步正常。");
+    payload->set("message", localized(request, "系统监控指标同步正常。", "System monitoring metrics are synchronized."));
     payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
     payload->set("sampleIntervalMs", static_cast<Poco::UInt64>(sample.sampleIntervalMs));
 
@@ -1023,11 +1046,11 @@ MetricsSampler& metricsSampler()
     return sampler;
 }
 
-Poco::JSON::Object::Ptr createSamplePayload(const MetricsSample& sample)
+Poco::JSON::Object::Ptr createSamplePayload(Poco::Net::HTTPServerRequest& request, const MetricsSample& sample)
 {
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("authenticated", true);
-    payload->set("message", "系统监控指标同步正常。");
+    payload->set("message", localized(request, "系统监控指标同步正常。", "System monitoring metrics are synchronized."));
     payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
     payload->set("sampleIntervalMs", static_cast<Poco::UInt64>(sample.sampleIntervalMs));
 
@@ -1097,14 +1120,14 @@ void SystemMetricsRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& re
 {
     if (!isAuthenticated(_pContext, request))
     {
-        sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
+        sendJSON(response, createUnauthorizedPayload(request), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
         return;
     }
 
 #if defined(_WIN32)
-    sendJSON(response, createSamplePayload(metricsSampler().sample()));
+    sendJSON(response, createSamplePayload(request, metricsSampler().sample()));
 #else
-    sendJSON(response, createSamplePayload(metricsSampler().sample()));
+    sendJSON(response, createSamplePayload(request, metricsSampler().sample()));
 #endif
 }
 

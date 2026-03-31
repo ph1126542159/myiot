@@ -1,11 +1,12 @@
 ﻿<script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
 import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
+import { createUiLocaleHeaders } from './core/requestLocale.js'
 
-const { isZh } = useUiLocale()
+const { isZh, toggleLocale } = useUiLocale()
 const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
@@ -37,7 +38,9 @@ const zh = {
   emptyFile: '当前日志文件还没有内容。',
   selectProcess: '请先从左侧选择一个进程查看日志。',
   refreshCadence: '刷新频率',
-  currentUser: '当前账号'
+  currentUser: '当前账号',
+  language: 'EN',
+  documentTitle: 'MyIoT 实时日志'
 }
 
 const en = {
@@ -69,10 +72,18 @@ const en = {
   emptyFile: 'This log file is currently empty.',
   selectProcess: 'Select a process on the left to review its log output.',
   refreshCadence: 'Refresh cadence',
-  currentUser: 'Current User'
+  currentUser: 'Current User',
+  language: '中文',
+  documentTitle: 'MyIoT Realtime Logs'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.title = text.value.documentTitle
+  }
+})
 const featurePackages = computed(() =>
   rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
 )
@@ -117,7 +128,7 @@ async function loadLogs() {
   try {
     const response = await fetch(`/myiot/home/logs.json?lines=60&_=${Date.now()}`, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' }
+      headers: createUiLocaleHeaders({ Accept: 'application/json' })
     })
 
     if (response.status === 401) {
@@ -208,6 +219,9 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="header-pills">
+            <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
+              {{ text.language }}
+            </v-btn>
             <a
               v-for="featurePackage in launchablePackages"
               :key="featurePackage.id"

@@ -27,6 +27,29 @@
 
 namespace {
 
+std::string normalizeLocale(std::string value)
+{
+    Poco::toLowerInPlace(value);
+    return Poco::startsWith(value, std::string("en")) ? "en" : "zh";
+}
+
+std::string localized(Poco::Net::HTTPServerRequest& request, const std::string& zh, const std::string& en)
+{
+    const std::string explicitLocale = request.get("X-MyIoT-Locale", "");
+    if (!explicitLocale.empty())
+    {
+        return normalizeLocale(explicitLocale) == "en" ? en : zh;
+    }
+
+    const std::string acceptLanguage = request.get("Accept-Language", "");
+    if (!acceptLanguage.empty())
+    {
+        return normalizeLocale(acceptLanguage) == "en" ? en : zh;
+    }
+
+    return zh;
+}
+
 Poco::OSP::Web::WebSession::Ptr findSession(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
 {
     Poco::OSP::Web::WebSessionManager::Ptr pSessionManager =
@@ -225,11 +248,11 @@ Poco::JSON::Array::Ptr readTailLines(const Poco::Path& path, int lineLimit)
     return lines;
 }
 
-Poco::JSON::Object::Ptr createUnauthorizedPayload()
+Poco::JSON::Object::Ptr createUnauthorizedPayload(Poco::Net::HTTPServerRequest& request)
 {
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("authenticated", false);
-    payload->set("message", "未登录，无法读取后端日志。");
+    payload->set("message", localized(request, "未登录，无法读取后端日志。", "You are not signed in, so backend logs cannot be read."));
     payload->set("processes", Poco::JSON::Array::Ptr(new Poco::JSON::Array));
     return payload;
 }
@@ -249,7 +272,7 @@ void LogStreamRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& reques
 {
     if (!isAuthenticated(_pContext, request))
     {
-        sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
+        sendJSON(response, createUnauthorizedPayload(request), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
         return;
     }
 
@@ -294,7 +317,9 @@ void LogStreamRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& reques
 
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("authenticated", true);
-    payload->set("message", processes->size() > 0 ? "后端日志同步正常。" : "当前未发现可读取的后端日志文件。");
+    payload->set("message", processes->size() > 0
+        ? localized(request, "后端日志同步正常。", "Backend logs are synchronized.")
+        : localized(request, "当前未发现可读取的后端日志文件。", "No readable backend log files are available right now."));
     payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
     payload->set("processes", processes);
     sendJSON(response, payload);
