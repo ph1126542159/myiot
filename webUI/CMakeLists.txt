@@ -4,6 +4,12 @@ set(MYIOT_WEBUI_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(CMakeParseArguments)
 
+if(WIN32)
+    set(MYIOT_BUNDLE_OPT_PREFIX "/")
+else()
+    set(MYIOT_BUNDLE_OPT_PREFIX "--")
+endif()
+
 function(myiot_add_webui_package)
     set(options)
     set(oneValueArgs TARGET_NAME BUNDLE_NAME PACKAGE_VERSION UI_DIR NATIVE_DIR BUNDLE_SPEC_TEMPLATE)
@@ -91,7 +97,11 @@ function(myiot_add_webui_package)
     add_custom_target(${WEBUI_TARGET_NAME}_Bundle ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundles"
         ${bundle_stage_commands}
-        COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND} "--output-dir=${CMAKE_BINARY_DIR}/bundles" "--osname=${MYIOT_PLATFORM_OSNAME}" "--osarch=${MYIOT_PLATFORM_OSARCH}" "${bundle_spec}"
+        COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND}
+            "${MYIOT_BUNDLE_OPT_PREFIX}output-dir=${CMAKE_BINARY_DIR}/bundles"
+            "${MYIOT_BUNDLE_OPT_PREFIX}osname=${MYIOT_PLATFORM_OSNAME}"
+            "${MYIOT_BUNDLE_OPT_PREFIX}osarch=${MYIOT_PLATFORM_OSARCH}"
+            "${bundle_spec}"
         DEPENDS
             OSPBundleCreator
             ${WEBUI_TARGET_NAME}_Frontend

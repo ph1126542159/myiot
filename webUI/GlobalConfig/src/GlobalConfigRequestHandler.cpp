@@ -24,7 +24,6 @@
 #include "Poco/Timestamp.h"
 #include "Poco/URI.h"
 #include "Poco/Util/AbstractConfiguration.h"
-#include "Poco/Util/Application.h"
 #include "Poco/Util/PropertyFileConfiguration.h"
 #include <algorithm>
 #include <set>
@@ -311,7 +310,6 @@ Poco::JSON::Array::Ptr parseEntryArray(const std::string& json)
 
 std::string applicationConfigPath()
 {
-    auto& configuration = Poco::Util::Application::instance().config();
     std::vector<std::string> candidates;
 
     const auto appendCandidate = [&candidates](const std::string& directory) {
@@ -325,8 +323,12 @@ std::string applicationConfigPath()
         }
     };
 
-    appendCandidate(configuration.getString("application.dir", ""));
-    appendCandidate(configuration.getString("application.configDir", ""));
+    Poco::Path currentDir = Poco::Path::current();
+    appendCandidate(currentDir.toString());
+
+    Poco::Path parentDir(currentDir);
+    parentDir.makeParent();
+    appendCandidate(parentDir.toString());
 
     for (const auto& candidate: candidates)
     {
@@ -560,17 +562,6 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
                     Poco::Path path(configPath);
                     Poco::File(path.parent()).createDirectories();
                     pConfiguration->save(configPath);
-
-                    auto& runtimeConfiguration = Poco::Util::Application::instance().config();
-                    for (std::size_t i = 0; i < incoming->size(); ++i)
-                    {
-                        Poco::JSON::Object::Ptr entry = incoming->getObject(i);
-                        if (!entry) continue;
-
-                        const std::string key = Poco::trim(entry->getValue<std::string>("key"));
-                        if (key.empty()) continue;
-                        runtimeConfiguration.setString(key, entry->getValue<std::string>("value"));
-                    }
 
                     logAudit(_pContext, request, "save_application_config", "success", username, configPath, "keys=" + std::to_string(newKeys.size()));
                     sendJSON(response,

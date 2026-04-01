@@ -18,7 +18,7 @@
 #include "Poco/Timestamp.h"
 #include "Poco/URI.h"
 #include "Poco/Util/AbstractConfiguration.h"
-#include "Poco/Util/Application.h"
+#include "Poco/Util/PropertyFileConfiguration.h"
 #include <algorithm>
 #include <deque>
 #include <fstream>
@@ -200,29 +200,72 @@ void appendCandidateDirectory(std::vector<Poco::Path>& directories, std::set<std
     }
 }
 
+std::vector<std::string> candidateConfigurationFiles()
+{
+    std::vector<std::string> files;
+    std::set<std::string> seen;
+
+    const auto appendFile = [&files, &seen](const Poco::Path& baseDir, const std::string& fileName) {
+        Poco::Path filePath(baseDir);
+        filePath.setFileName(fileName);
+        const std::string candidate = filePath.toString();
+        if (seen.insert(candidate).second)
+        {
+            files.push_back(candidate);
+        }
+    };
+
+    Poco::Path currentDir = Poco::Path::current();
+    appendFile(currentDir, "macchina.properties");
+    appendFile(currentDir, "settings.properties");
+
+    Poco::Path parentDir(currentDir);
+    parentDir.makeParent();
+    appendFile(parentDir, "macchina.properties");
+    appendFile(parentDir, "settings.properties");
+
+    return files;
+}
+
+std::string expandKnownPlaceholders(std::string value)
+{
+    const std::string currentDir = Poco::Path::current();
+    const std::string currentBaseName = "macchina";
+
+    Poco::replaceInPlace(value, std::string("${application.dir}"), currentDir);
+    Poco::replaceInPlace(value, std::string("${application.configDir}"), currentDir);
+    Poco::replaceInPlace(value, std::string("${application.baseName}"), currentBaseName);
+    return value;
+}
+
 std::vector<Poco::Path> candidateLogDirectories()
 {
     std::vector<Poco::Path> directories;
     std::set<std::string> seen;
-    auto& configuration = Poco::Util::Application::instance().config();
 
-    try
+    for (const auto& configFile: candidateConfigurationFiles())
     {
-        appendCandidateDirectory(directories, seen, configuration.getString("application.dir", ""));
-        appendCandidateDirectory(directories, seen, configuration.getString("application.configDir", ""));
-
-        std::vector<std::string> configKeys;
-        collectKeys(configuration, configKeys, "logging");
-        for (const auto& key: configKeys)
+        try
         {
-            if (Poco::endsWith(key, std::string(".path")))
+            Poco::File file(configFile);
+            if (!file.exists() || !file.isFile()) continue;
+
+            appendCandidateDirectory(directories, seen, configFile);
+
+            Poco::AutoPtr<Poco::Util::PropertyFileConfiguration> pConfiguration = new Poco::Util::PropertyFileConfiguration(configFile);
+            std::vector<std::string> configKeys;
+            collectKeys(*pConfiguration, configKeys, "logging");
+            for (const auto& key: configKeys)
             {
-                appendCandidateDirectory(directories, seen, configuration.getString(key, ""));
+                if (Poco::endsWith(key, std::string(".path")))
+                {
+                    appendCandidateDirectory(directories, seen, expandKnownPlaceholders(pConfiguration->getString(key, "")));
+                }
             }
         }
-    }
-    catch (...)
-    {
+        catch (...)
+        {
+        }
     }
 
     appendCandidateDirectory(directories, seen, "/var/log/myiot");

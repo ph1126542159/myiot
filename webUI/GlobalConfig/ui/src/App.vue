@@ -200,6 +200,10 @@ function filterEntriesByPrefix(entries, prefix = '') {
   return entries.filter((entry) => String(entry?.key ?? '').startsWith(prefix))
 }
 
+function countEntriesByPrefix(entries, prefix = '') {
+  return filterEntriesByPrefix(entries, prefix).length
+}
+
 function nodeEntriesSnapshot(node, source = drafts) {
   if (!node) return []
   if (node.kind === 'section') return source[node.sectionId] ?? []
@@ -212,65 +216,217 @@ function isDirtyForNode(node) {
   return entrySignature(nodeEntriesSnapshot(node, drafts)) !== entrySignature(nodeEntriesSnapshot(node, originalDrafts))
 }
 
+function formatTreeLabel(segment) {
+  const normalized = String(segment ?? '').trim()
+  if (!normalized) return 'root'
+
+  const knownLabels = {
+    io: 'IO',
+    osp: 'OSP',
+    js: 'JS',
+    net: 'Net',
+    appinf: 'AppInf',
+    myiot: 'MyIoT',
+    webui: 'WebUI',
+    webevent: 'WebEvent',
+    bundleadmin: 'BundleAdmin',
+    processconsole: 'Process Console',
+    bundlewatcher: 'Bundle Watcher',
+    globalconfig: 'Global Config',
+    launcher: 'Launcher',
+    logviewer: 'Log Viewer',
+    monitor: 'Monitor',
+  }
+
+  if (knownLabels[normalized]) return knownLabels[normalized]
+  if (normalized === normalized.toUpperCase()) return normalized
+
+  return normalized
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function createGroupNode(id, title, icon, description, children = []) {
+  return { id, kind: 'group', title, icon, description, children }
+}
+
+function createVirtualNode(id, title, icon, sourceSectionId, filterPrefix, description, entryCount = 0) {
+  return {
+    id,
+    kind: 'virtual',
+    title,
+    icon,
+    sourceSectionId,
+    filterPrefix,
+    description,
+    entryCount,
+  }
+}
+
+function createSectionTreeNode(section, title = section.title) {
+  return {
+    id: section.id,
+    kind: 'section',
+    title,
+    icon: section.icon || 'mdi-file-cog-outline',
+    sectionId: section.id,
+    description: section.helper,
+    state: section.state,
+    entryCount: section.entryCount ?? 0,
+  }
+}
+
+function buildApplicationNodes(applicationSection) {
+  if (!applicationSection) return []
+
+  const entries = applicationSection.entries ?? []
+  const topLevelMap = new Map()
+  for (const entry of entries) {
+    const parts = String(entry?.key ?? '').split('.').filter(Boolean)
+    if (!parts.length) continue
+
+    const topLevel = parts[0]
+    if (!topLevelMap.has(topLevel)) topLevelMap.set(topLevel, new Set())
+    if (parts[1]) topLevelMap.get(topLevel).add(parts[1])
+  }
+
+  const children = [
+    createSectionTreeNode(applicationSection, text.value.appAll),
+  ]
+
+  Array.from(topLevelMap.keys())
+    .sort((left, right) => left.localeCompare(right))
+    .forEach((topLevel) => {
+      const topPrefix = `${topLevel}.`
+      const secondLevel = Array.from(topLevelMap.get(topLevel) ?? []).sort((left, right) => left.localeCompare(right))
+
+      if (secondLevel.length > 1) {
+        const nestedChildren = [
+          createVirtualNode(
+            `virtual:${topLevel}`,
+            formatTreeLabel(topLevel),
+            topLevel === 'logging' ? 'mdi-text-box-search-outline' : 'mdi-folder-outline',
+            applicationSection.id,
+            topPrefix,
+            applicationSection.helper,
+            countEntriesByPrefix(entries, topPrefix),
+          ),
+        ]
+
+        secondLevel.forEach((childKey) => {
+          const childPrefix = `${topLevel}.${childKey}.`
+          nestedChildren.push(
+            createVirtualNode(
+              `virtual:${topLevel}:${childKey}`,
+              formatTreeLabel(childKey),
+              topLevel === 'logging' ? 'mdi-tune-variant' : 'mdi-file-tree-outline',
+              applicationSection.id,
+              childPrefix,
+              applicationSection.helper,
+              countEntriesByPrefix(entries, childPrefix),
+            ),
+          )
+        })
+
+        children.push(
+          createGroupNode(
+            `group:application:${topLevel}`,
+            formatTreeLabel(topLevel),
+            topLevel === 'logging' ? 'mdi-text-box-search-outline' : 'mdi-folder-multiple-outline',
+            applicationSection.helper,
+            nestedChildren,
+          ),
+        )
+      } else {
+        children.push(
+          createVirtualNode(
+            `virtual:${topLevel}`,
+            formatTreeLabel(topLevel),
+            topLevel === 'logging' ? 'mdi-text-box-search-outline' : 'mdi-folder-outline',
+            applicationSection.id,
+            topPrefix,
+            applicationSection.helper,
+            countEntriesByPrefix(entries, topPrefix),
+          ),
+        )
+      }
+    })
+
+  return children
+}
+
+function buildBundleNamespaceNodes(bundleSections) {
+  const root = []
+  const groupMap = new Map()
+
+  function ensureGroup(pathSegments) {
+    if (!pathSegments.length) return root
+
+    const groupId = `group:bundle:${pathSegments.join('.')}`
+    if (groupMap.has(groupId)) return groupMap.get(groupId).children
+
+    const parentSegments = pathSegments.slice(0, -1)
+    const parentChildren = ensureGroup(parentSegments)
+    const groupNode = createGroupNode(
+      groupId,
+      formatTreeLabel(pathSegments[pathSegments.length - 1]),
+      'mdi-folder-multiple-outline',
+      text.value.bundlesRootHint,
+      [],
+    )
+    groupMap.set(groupId, groupNode)
+    parentChildren.push(groupNode)
+    return groupNode.children
+  }
+
+  bundleSections.forEach((section) => {
+    const segments = String(section.symbolicName || section.target || '')
+      .split('.')
+      .filter(Boolean)
+
+    if (!segments.length) {
+      root.push(createSectionTreeNode(section))
+      return
+    }
+
+    const parentChildren = ensureGroup(segments.slice(0, -1))
+    parentChildren.push(createSectionTreeNode(section, formatTreeLabel(segments[segments.length - 1])))
+  })
+
+  const sortNodes = (nodes) => {
+    nodes.sort((left, right) => {
+      if (left.kind === 'group' && right.kind !== 'group') return -1
+      if (left.kind !== 'group' && right.kind === 'group') return 1
+      return String(left.title).localeCompare(String(right.title))
+    })
+    nodes.forEach((node) => {
+      if (node.children?.length) sortNodes(node.children)
+    })
+    return nodes
+  }
+
+  return sortNodes(root)
+}
+
 function createTreeNodes(sectionList) {
   const applicationSection = sectionList.find((section) => section.scope === 'application') ?? null
   const bundleSections = sectionList.filter((section) => section.scope === 'bundle')
-  const applicationChildren = []
-
-  if (applicationSection) {
-    applicationChildren.push({
-      id: applicationSection.id,
-      kind: 'section',
-      title: text.value.appAll,
-      icon: 'mdi-file-cog-outline',
-      sectionId: applicationSection.id,
-      description: applicationSection.helper
-    })
-    applicationChildren.push({
-      id: 'virtual:logging',
-      kind: 'virtual',
-      title: text.value.loggingConfig,
-      icon: 'mdi-text-box-search-outline',
-      sourceSectionId: applicationSection.id,
-      filterPrefix: 'logging.',
-      description: text.value.loggingConfigHint
-    })
-  }
+  const applicationChildren = buildApplicationNodes(applicationSection)
+  const bundleChildren = buildBundleNamespaceNodes(bundleSections)
 
   return [
-    {
-      id: 'root:application',
-      kind: 'group',
-      title: text.value.appRoot,
-      icon: 'mdi-application-cog-outline',
-      description: text.value.appRootHint,
-      children: applicationChildren
-    },
-    {
-      id: 'root:bundles',
-      kind: 'group',
-      title: text.value.bundlesRoot,
-      icon: 'mdi-package-variant-closed',
-      description: text.value.bundlesRootHint,
-      children: bundleSections.map((section) => ({
-        id: section.id,
-        kind: 'section',
-        title: section.title,
-        icon: section.icon || 'mdi-package-variant',
-        sectionId: section.id,
-        description: section.helper,
-        state: section.state
-      }))
-    }
+    createGroupNode('root:application', text.value.appRoot, 'mdi-application-cog-outline', text.value.appRootHint, applicationChildren),
+    createGroupNode('root:bundles', text.value.bundlesRoot, 'mdi-package-variant-closed', text.value.bundlesRootHint, bundleChildren),
   ]
 }
 
-function collectNodeMap(nodes, map = {}) {
+function collectTreeMetadata(nodes, nodeMap = {}, parentMap = {}, parentId = '') {
   nodes.forEach((node) => {
-    map[node.id] = node
-    if (node.children?.length) collectNodeMap(node.children, map)
+    nodeMap[node.id] = node
+    parentMap[node.id] = parentId
+    if (node.children?.length) collectTreeMetadata(node.children, nodeMap, parentMap, node.id)
   })
-  return map
+  return { nodeMap, parentMap }
 }
 
 function firstEditableNodeId(nodes) {
@@ -282,6 +438,39 @@ function firstEditableNodeId(nodes) {
     }
   }
   return ''
+}
+
+function countLeafNodes(node) {
+  if (!node) return 0
+  if (node.kind !== 'group') return 1
+  return (node.children ?? []).reduce((total, child) => total + countLeafNodes(child), 0)
+}
+
+function flattenVisibleTreeRows(nodes, depth = 0, rows = []) {
+  nodes.forEach((node) => {
+    const hasChildren = Boolean(node.children?.length)
+    rows.push({
+      node,
+      depth,
+      hasChildren,
+      isOpen: hasChildren ? isTreeGroupOpen(node.id) : false,
+      leafCount: hasChildren ? countLeafNodes(node) : 0,
+    })
+
+    if (hasChildren && isTreeGroupOpen(node.id)) {
+      flattenVisibleTreeRows(node.children, depth + 1, rows)
+    }
+  })
+  return rows
+}
+
+function expandNodeAncestors(nodeId, parentMap) {
+  let cursor = nodeId
+  while (cursor) {
+    const parentId = parentMap[cursor]
+    if (parentId) openTreeState[parentId] = true
+    cursor = parentId
+  }
 }
 
 function applyPayload(payload, preferredNodeId = '') {
@@ -296,9 +485,10 @@ function applyPayload(payload, preferredNodeId = '') {
   })
 
   const nodes = createTreeNodes(sections.value)
-  const nodeMap = collectNodeMap(nodes)
+  const { nodeMap, parentMap } = collectTreeMetadata(nodes)
   const nextNodeId = preferredNodeId || selectedNodeId.value
   selectedNodeId.value = nodeMap[nextNodeId] ? nextNodeId : firstEditableNodeId(nodes)
+  expandNodeAncestors(selectedNodeId.value, parentMap)
 }
 
 async function requestJson(path, options = {}) {
@@ -330,7 +520,9 @@ async function loadConfigCenter(preferredNodeId = '') {
 }
 
 const treeNodes = computed(() => createTreeNodes(sections.value))
-const treeNodeMap = computed(() => collectNodeMap(treeNodes.value))
+const treeMetadata = computed(() => collectTreeMetadata(treeNodes.value))
+const treeNodeMap = computed(() => treeMetadata.value.nodeMap)
+const treeRows = computed(() => flattenVisibleTreeRows(treeNodes.value))
 const selectedTreeNode = computed(() => treeNodeMap.value[selectedNodeId.value] ?? null)
 const selectedEditorSection = computed(() => {
   const node = selectedTreeNode.value
@@ -375,6 +567,7 @@ function isTreeGroupOpen(nodeId) {
 
 function selectNode(node) {
   selectedNodeId.value = node.id
+  expandNodeAncestors(node.id, treeMetadata.value.parentMap)
 }
 
 function bundleStateTone(state) {
@@ -383,6 +576,15 @@ function bundleStateTone(state) {
   if (normalized.includes('resolved')) return 'info'
   if (normalized.includes('installed')) return 'warning'
   return 'secondary'
+}
+
+function treeRowSubtitle(row) {
+  if (row.node.kind === 'group') return `${row.leafCount} ${text.value.totalNodes}`
+  if (row.node.kind === 'virtual' || row.node.id === 'application') {
+    return `${row.node.entryCount ?? 0} ${text.value.totalKeys}`
+  }
+  if (row.node.kind === 'section' && row.node.state) return row.node.state
+  return row.node.description || ''
 }
 
 function bundleActionKey(sectionId, action) {
@@ -560,50 +762,52 @@ watch(selectedNodeId, () => {
                 <strong class="path-value">{{ summary.applicationConfigPath || '--' }}</strong>
               </div>
 
-              <div v-if="treeNodes.length" class="tree-shell">
-                <section v-for="group in treeNodes" :key="group.id" class="tree-group">
-                  <button
-                    type="button"
-                    class="tree-row tree-row-group"
-                    :class="{ 'tree-row-active': selectedNodeId === group.id }"
-                    @click="selectNode(group)"
-                  >
-                    <div class="tree-row-main">
-                      <span class="tree-toggle" @click.stop="toggleTreeGroup(group.id)">
-                        <v-icon :icon="isTreeGroupOpen(group.id) ? 'mdi-chevron-down' : 'mdi-chevron-right'" size="18"></v-icon>
-                      </span>
-                      <v-icon :icon="group.icon" size="18"></v-icon>
-                      <span>{{ group.title }}</span>
-                    </div>
-                    <v-chip size="x-small" variant="tonal" color="info">
-                      {{ group.children?.length ?? 0 }}
-                    </v-chip>
-                  </button>
-
-                  <div v-if="isTreeGroupOpen(group.id)" class="tree-children">
-                    <button
-                      v-for="child in group.children"
-                      :key="child.id"
-                      type="button"
-                      class="tree-row tree-row-leaf"
-                      :class="{ 'tree-row-active': selectedNodeId === child.id }"
-                      @click="selectNode(child)"
+              <div v-if="treeRows.length" class="tree-shell">
+                <button
+                  v-for="row in treeRows"
+                  :key="row.node.id"
+                  type="button"
+                  class="tree-row"
+                  :class="{
+                    'tree-row-group': row.node.kind === 'group',
+                    'tree-row-leaf': row.node.kind !== 'group',
+                    'tree-row-active': selectedNodeId === row.node.id
+                  }"
+                  :style="{ '--tree-depth': row.depth, '--tree-indent': `${18 + row.depth * 18}px` }"
+                  @click="selectNode(row.node)"
+                >
+                  <div class="tree-row-main">
+                    <span
+                      class="tree-toggle"
+                      :class="{ 'tree-toggle-placeholder': !row.hasChildren }"
+                      @click.stop="row.hasChildren && toggleTreeGroup(row.node.id)"
                     >
-                      <div class="tree-row-main">
-                        <span class="tree-branch-line" aria-hidden="true"></span>
-                        <v-icon :icon="child.icon" size="18"></v-icon>
-                        <span>{{ child.title }}</span>
-                      </div>
-                      <v-chip
-                        size="x-small"
-                        variant="tonal"
-                        :color="isDirtyForNode(child) ? 'warning' : 'success'"
-                      >
-                        {{ isDirtyForNode(child) ? text.dirty : text.clean }}
-                      </v-chip>
-                    </button>
+                      <v-icon
+                        v-if="row.hasChildren"
+                        :icon="row.isOpen ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                        size="18"
+                      ></v-icon>
+                    </span>
+                    <span class="tree-node-icon">
+                      <v-icon :icon="row.node.icon" size="18"></v-icon>
+                    </span>
+                    <span class="tree-row-copy">
+                      <strong>{{ row.node.title }}</strong>
+                    </span>
                   </div>
-                </section>
+                  <div class="tree-row-meta">
+                    <span class="tree-row-count">
+                      {{ row.node.kind === 'group' ? row.leafCount : (row.node.entryCount ?? 0) }}
+                    </span>
+                    <span
+                      v-if="row.node.kind !== 'group'"
+                      class="tree-row-status"
+                      :class="{ 'tree-row-status-dirty': isDirtyForNode(row.node) }"
+                    >
+                      {{ isDirtyForNode(row.node) ? text.dirty : text.clean }}
+                    </span>
+                  </div>
+                </button>
               </div>
 
               <div v-else class="empty-state compact-empty">
@@ -665,11 +869,11 @@ watch(selectedNodeId, () => {
                 </div>
               </div>
 
-              <div v-else class="editor-shell">
-                <div class="panel-head">
-                  <div>
-                    <p class="section-kicker">{{ text.generatedEditor }}</p>
-                    <h2>{{ selectedTreeNode.title }}</h2>
+                <div v-else class="editor-shell">
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">{{ text.generatedEditor }}</p>
+                      <h2>{{ selectedTreeNode.title }}</h2>
                     <p class="panel-copy">{{ selectedTreeNode.description }}</p>
                   </div>
                   <div class="header-pills">
@@ -684,7 +888,7 @@ watch(selectedNodeId, () => {
                   </div>
                 </div>
 
-                <div class="detail-grid">
+                <div class="detail-grid detail-grid-dense">
                   <div class="status-card">
                     <span>{{ text.sourcePath }}</span>
                     <strong class="path-value">{{ selectedEditorSection?.sourcePath || '--' }}</strong>
@@ -752,6 +956,7 @@ watch(selectedNodeId, () => {
                   </div>
                   <div class="runtime-actions">
                     <v-btn
+                      size="small"
                       color="info"
                       variant="outlined"
                       :loading="managingActionId === bundleActionKey(selectedEditorSection.id, 'resolve')"
@@ -761,6 +966,7 @@ watch(selectedNodeId, () => {
                       {{ text.resolve }}
                     </v-btn>
                     <v-btn
+                      size="small"
                       color="success"
                       variant="outlined"
                       :loading="managingActionId === bundleActionKey(selectedEditorSection.id, 'start')"
@@ -770,6 +976,7 @@ watch(selectedNodeId, () => {
                       {{ text.start }}
                     </v-btn>
                     <v-btn
+                      size="small"
                       color="error"
                       variant="outlined"
                       :loading="managingActionId === bundleActionKey(selectedEditorSection.id, 'stop')"
@@ -781,18 +988,21 @@ watch(selectedNodeId, () => {
                   </div>
                 </div>
 
-                <div class="editor-toolbar">
+                <div class="editor-toolbar editor-toolbar-dense">
                   <v-text-field
                     v-model="entrySearch"
+                    density="compact"
+                    variant="outlined"
                     :label="text.search"
                     :placeholder="text.searchPlaceholder"
                     prepend-inner-icon="mdi-magnify"
                     hide-details
                   />
-                  <v-btn color="primary" variant="outlined" :disabled="!selectedEditorSection?.editable" @click="addEntry">
+                  <v-btn size="small" color="primary" variant="outlined" :disabled="!selectedEditorSection?.editable" @click="addEntry">
                     {{ text.addEntry }}
                   </v-btn>
                   <v-btn
+                    size="small"
                     color="secondary"
                     :loading="savingSectionId === selectedEditorSection?.id"
                     :disabled="!selectedEditorSection?.editable || !isDirtyForNode(selectedTreeNode)"
@@ -806,19 +1016,24 @@ watch(selectedNodeId, () => {
                   <article v-for="{ entry, index } in visibleEntries" :key="`${selectedNodeId}-${index}`" class="entry-card">
                     <v-text-field
                       v-model="entry.key"
+                      density="compact"
+                      variant="outlined"
                       :label="text.key"
                       :disabled="!selectedEditorSection?.editable"
                       hide-details
                     />
                     <v-textarea
                       v-model="entry.value"
+                      density="compact"
+                      variant="outlined"
                       :label="text.value"
                       :disabled="!selectedEditorSection?.editable"
                       auto-grow
                       rows="1"
+                      max-rows="6"
                       hide-details
                     />
-                    <v-btn variant="text" color="error" :disabled="!selectedEditorSection?.editable" @click="removeEntry(index)">
+                    <v-btn size="small" variant="text" color="error" :disabled="!selectedEditorSection?.editable" @click="removeEntry(index)">
                       {{ text.remove }}
                     </v-btn>
                   </article>
@@ -869,14 +1084,14 @@ watch(selectedNodeId, () => {
 .feature-panel {
   position: relative;
   display: grid;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 28px;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
   border: 1px solid rgba(78, 188, 255, 0.16);
   background:
     linear-gradient(180deg, rgba(10, 23, 41, 0.94), rgba(6, 16, 30, 0.98)),
-    radial-gradient(circle at top right, rgba(107, 210, 255, 0.08), transparent 42%);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+    radial-gradient(circle at top right, rgba(107, 210, 255, 0.06), transparent 40%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   overflow: hidden;
 }
 
@@ -928,10 +1143,10 @@ watch(selectedNodeId, () => {
 .status-card,
 .child-node-card {
   display: grid;
-  gap: 8px;
-  padding: 16px 18px;
+  gap: 6px;
+  padding: 12px 14px;
   border: 1px solid rgba(78, 188, 255, 0.12);
-  border-radius: 18px;
+  border-radius: 12px;
   background: rgba(5, 16, 29, 0.72);
 }
 
@@ -950,17 +1165,6 @@ watch(selectedNodeId, () => {
   word-break: break-all;
 }
 
-.tree-group {
-  display: grid;
-  gap: 10px;
-}
-
-.tree-children {
-  display: grid;
-  gap: 10px;
-  padding-left: 18px;
-}
-
 .tree-row,
 .child-node-card {
   width: 100%;
@@ -970,68 +1174,155 @@ watch(selectedNodeId, () => {
 }
 
 .tree-row {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid rgba(78, 188, 255, 0.12);
-  border-radius: 18px;
-  background: rgba(5, 16, 29, 0.72);
+  min-height: 34px;
+  gap: 10px;
+  padding: 4px 8px 4px var(--tree-indent, 18px);
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: #e6f4ff;
+}
+
+.tree-shell {
+  position: relative;
+  gap: 2px;
+  padding: 6px 0 6px 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(78, 188, 255, 0.08);
+  background: rgba(3, 12, 22, 0.35);
+}
+
+.tree-shell::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 21px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(112, 240, 193, 0.18), rgba(78, 188, 255, 0.04));
+  pointer-events: none;
+}
+
+.tree-row::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tree-indent, 18px) - 8px);
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: rgba(112, 240, 193, 0.2);
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .tree-row:hover,
 .tree-row-active,
 .child-node-card:hover {
-  border-color: rgba(112, 240, 193, 0.32);
-  box-shadow: inset 0 0 0 1px rgba(112, 240, 193, 0.2), 0 0 24px rgba(58, 216, 255, 0.08);
-  transform: translateY(-1px);
+  background: rgba(76, 148, 210, 0.12);
+  box-shadow: inset 2px 0 0 rgba(112, 240, 193, 0.7);
+  transform: none;
+}
+
+.tree-row-group {
+  font-weight: 600;
 }
 
 .tree-row-main,
 .section-title-group {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
-.tree-row-main span:last-child {
+.tree-row-copy {
+  min-width: 0;
+}
+
+.tree-row-copy strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-.tree-branch-line {
-  width: 10px;
-  height: 1px;
-  background: rgba(112, 240, 193, 0.35);
+.tree-row-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: max-content;
 }
 
-.tree-row-group {
-  font-weight: 700;
+.tree-row-count,
+.tree-row-status {
+  font-size: 0.75rem;
+  line-height: 1;
+  color: rgba(198, 223, 246, 0.6);
+}
+
+.tree-row-count {
+  min-width: 18px;
+  text-align: right;
 }
 
 .tree-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: rgba(225, 241, 255, 0.72);
+  flex: 0 0 16px;
+}
+
+.tree-toggle-placeholder {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tree-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: rgba(159, 220, 255, 0.9);
+}
+
+.tree-row-status-dirty {
+  color: #ffcc7a;
+}
+
+.detail-grid-dense {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .editor-toolbar {
   flex-wrap: wrap;
   align-items: stretch;
+  gap: 10px;
+}
+
+.editor-toolbar-dense {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(78, 188, 255, 0.1);
+  background: rgba(5, 16, 29, 0.52);
 }
 
 .runtime-toolbar {
   flex-wrap: wrap;
   align-items: center;
-  padding: 16px 18px;
-  border-radius: 20px;
+  padding: 12px 14px;
+  border-radius: 14px;
   border: 1px solid rgba(112, 240, 193, 0.16);
   background: linear-gradient(135deg, rgba(9, 23, 38, 0.92), rgba(9, 31, 50, 0.78));
 }
@@ -1048,21 +1339,21 @@ watch(selectedNodeId, () => {
 .runtime-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .editor-toolbar :deep(.v-input) {
-  min-width: min(100%, 320px);
+  min-width: min(100%, 260px);
   flex: 1 1 260px;
 }
 
 .entry-card {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr) auto;
-  gap: 14px;
+  gap: 10px;
   align-items: start;
-  padding: 18px;
-  border-radius: 20px;
+  padding: 12px;
+  border-radius: 12px;
   border: 1px solid rgba(78, 188, 255, 0.12);
   background: rgba(5, 16, 29, 0.72);
 }
@@ -1098,6 +1389,16 @@ watch(selectedNodeId, () => {
   .detail-grid,
   .entry-card {
     grid-template-columns: 1fr;
+  }
+
+  .tree-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .tree-row-meta {
+    justify-content: flex-start;
+    padding-left: calc(var(--tree-indent, 18px) + 22px);
   }
 
   .runtime-actions {

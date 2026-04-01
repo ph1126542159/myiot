@@ -1,5 +1,11 @@
 include(CMakeParseArguments)
 
+if(WIN32)
+    set(MYIOT_BUNDLE_OPT_PREFIX "/")
+else()
+    set(MYIOT_BUNDLE_OPT_PREFIX "--")
+endif()
+
 function(myiot_add_service_bundle)
     set(options)
     set(oneValueArgs TARGET_NAME BUNDLE_NAME PACKAGE_VERSION BUNDLE_SPEC_TEMPLATE)
@@ -39,18 +45,20 @@ function(myiot_add_service_bundle)
 
     file(RELATIVE_PATH bundle_code_rel_dir "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/bin")
     if(MSVC)
-        set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>")
-        list(APPEND bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${SVC_TARGET_NAME}>")
+        set(bundle_code_args
+            "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>"
+            "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${SVC_TARGET_NAME}>"
+        )
     else()
-        set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>*")
+        set(bundle_code_args "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>*")
     endif()
 
     add_custom_target(${SVC_TARGET_NAME}_Bundle ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundles"
         COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND}
-            "--output-dir=${CMAKE_BINARY_DIR}/bundles"
-            "--osname=${MYIOT_PLATFORM_OSNAME}"
-            "--osarch=${MYIOT_PLATFORM_OSARCH}"
+            "${MYIOT_BUNDLE_OPT_PREFIX}output-dir=${CMAKE_BINARY_DIR}/bundles"
+            "${MYIOT_BUNDLE_OPT_PREFIX}osname=${MYIOT_PLATFORM_OSNAME}"
+            "${MYIOT_BUNDLE_OPT_PREFIX}osarch=${MYIOT_PLATFORM_OSARCH}"
             ${bundle_code_args}
             "${bundle_spec}"
         DEPENDS

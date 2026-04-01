@@ -1,5 +1,11 @@
 include(CMakeParseArguments)
 
+if(WIN32)
+    set(MYIOT_BUNDLE_OPT_PREFIX "/")
+else()
+    set(MYIOT_BUNDLE_OPT_PREFIX "--")
+endif()
+
 function(myiot_add_osp_bundle target_name output_name)
     set(options)
     set(oneValueArgs BUNDLE_SPEC)
@@ -24,9 +30,9 @@ function(myiot_add_osp_bundle target_name output_name)
         set(bundle_stamp "${CMAKE_CURRENT_BINARY_DIR}/${target_name}.bndl.stamp")
         file(RELATIVE_PATH bundle_code_rel_dir "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/bin")
         if(MSVC)
-            set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${target_name}>")
+            set(bundle_code_args "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${target_name}>")
         else()
-            set(bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${target_name}>*")
+            set(bundle_code_args "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${target_name}>*")
         endif()
         set(bundle_resource_deps)
 
@@ -35,16 +41,16 @@ function(myiot_add_osp_bundle target_name output_name)
         endif()
 
         if(MSVC)
-            list(APPEND bundle_code_args "--code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${target_name}>")
+            list(APPEND bundle_code_args "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${target_name}>")
         endif()
 
         add_custom_command(
             OUTPUT "${bundle_stamp}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${bundle_output_dir}"
             COMMAND ${MYIOT_OSP_BUNDLE_CREATOR_COMMAND}
-                "--output-dir=${bundle_output_dir}"
-                "--osname=${MYIOT_OSP_BUNDLE_OSNAME}"
-                "--osarch=${MYIOT_OSP_BUNDLE_OSARCH}"
+                "${MYIOT_BUNDLE_OPT_PREFIX}output-dir=${bundle_output_dir}"
+                "${MYIOT_BUNDLE_OPT_PREFIX}osname=${MYIOT_OSP_BUNDLE_OSNAME}"
+                "${MYIOT_BUNDLE_OPT_PREFIX}osarch=${MYIOT_OSP_BUNDLE_OSARCH}"
                 ${bundle_code_args}
                 "${bundle_spec}"
             COMMAND ${CMAKE_COMMAND} -E touch "${bundle_stamp}"

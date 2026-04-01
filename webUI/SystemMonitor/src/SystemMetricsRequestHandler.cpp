@@ -16,14 +16,12 @@
 #include <chrono>
 #include <cctype>
 #include <cstdint>
-#include <dirent.h>
 #include <fstream>
 #include <limits>
 #include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
-#include <sys/statvfs.h>
 #include <vector>
 
 #if defined(_WIN32)
@@ -35,6 +33,9 @@
 #include <wbemidl.h>
 #include <windows.h>
 #pragma comment(lib, "wbemuuid.lib")
+#else
+#include <dirent.h>
+#include <sys/statvfs.h>
 #endif
 
 namespace {
