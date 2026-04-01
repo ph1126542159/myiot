@@ -40,7 +40,13 @@ const zh = {
   refreshCadence: '刷新频率',
   currentUser: '当前账号',
   language: 'EN',
-  documentTitle: 'MyIoT 实时日志'
+  documentTitle: 'MyIoT 实时日志',
+  popupMode: '悬浮窗口',
+  popupHint: '这个页面已切换为独立悬浮模式，适合边操作边观察日志。',
+  refreshNow: '立即刷新',
+  openFullPage: '完整页',
+  closeWindow: '关闭窗口',
+  noLogsHint: '如果这里始终为空，请检查服务是否已经启动，以及日志文件是否已经生成。'
 }
 
 const en = {
@@ -74,14 +80,24 @@ const en = {
   refreshCadence: 'Refresh cadence',
   currentUser: 'Current User',
   language: '中文',
-  documentTitle: 'MyIoT Realtime Logs'
+  documentTitle: 'MyIoT Realtime Logs',
+  popupMode: 'Floating Window',
+  popupHint: 'This page is running in a detached popup layout so you can keep logs visible beside operation pages.',
+  refreshNow: 'Refresh',
+  openFullPage: 'Full Page',
+  closeWindow: 'Close Window',
+  noLogsHint: 'If this stays empty, check whether the service is running and whether log files have been created.'
 }
 
 const text = computed(() => (isZh.value ? zh : en))
+const isPopupMode = computed(() => {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('popup') === '1'
+})
 
 watchEffect(() => {
   if (typeof document !== 'undefined') {
-    document.title = text.value.documentTitle
+    document.title = isPopupMode.value ? `${text.value.documentTitle} · ${text.value.popupMode}` : text.value.documentTitle
   }
 })
 const featurePackages = computed(() =>
@@ -117,6 +133,14 @@ function scrollLogConsoles() {
   document.querySelectorAll('.log-console').forEach((element) => {
     element.scrollTop = element.scrollHeight
   })
+}
+
+function openFullPage() {
+  window.location.assign('/myiot/logs/index.html')
+}
+
+function closeWindow() {
+  window.close()
 }
 
 async function loadLogs() {
@@ -203,7 +227,7 @@ onBeforeUnmount(() => {
       <div class="ambient-glow ambient-glow-b" aria-hidden="true"></div>
 
       <v-container fluid class="shell-container">
-        <header class="shell-header">
+        <header class="shell-header" :class="{ 'shell-header-popup': isPopupMode }">
           <div class="brand-block">
             <div class="brand-mark">
               <span></span>
@@ -214,7 +238,7 @@ onBeforeUnmount(() => {
             <div>
               <p class="eyebrow">{{ text.brandEyebrow }}</p>
               <h1>{{ text.title }}</h1>
-              <p class="brand-copy">{{ text.copy }}</p>
+              <p class="brand-copy">{{ isPopupMode ? text.popupHint : text.copy }}</p>
             </div>
           </div>
 
@@ -223,6 +247,7 @@ onBeforeUnmount(() => {
               {{ text.language }}
             </v-btn>
             <a
+              v-if="!isPopupMode"
               v-for="featurePackage in launchablePackages"
               :key="featurePackage.id"
               :href="featurePackage.entryPath"
@@ -232,10 +257,23 @@ onBeforeUnmount(() => {
               <v-icon :icon="featurePackage.icon" size="18"></v-icon>
               <span>{{ featurePackage.name }}</span>
             </a>
+            <div v-if="isPopupMode" class="meta-pill meta-pill-active">
+              <v-icon icon="mdi-open-in-new" size="18"></v-icon>
+              <span>{{ text.popupMode }}</span>
+            </div>
             <div class="meta-pill">
               <v-icon icon="mdi-account-circle-outline" size="18"></v-icon>
               <span>{{ sessionState.username }}</span>
             </div>
+            <v-btn variant="outlined" color="info" size="small" @click="loadLogs">
+              {{ text.refreshNow }}
+            </v-btn>
+            <v-btn v-if="isPopupMode" variant="outlined" color="primary" size="small" @click="openFullPage">
+              {{ text.openFullPage }}
+            </v-btn>
+            <v-btn v-if="isPopupMode" variant="tonal" color="secondary" size="small" @click="closeWindow">
+              {{ text.closeWindow }}
+            </v-btn>
             <v-btn
               variant="tonal"
               color="secondary"
@@ -248,7 +286,7 @@ onBeforeUnmount(() => {
           </div>
         </header>
 
-        <div class="layout-grid">
+        <div class="layout-grid" :class="{ 'layout-grid-popup': isPopupMode }">
           <section class="feature-panel">
             <div class="feature-frame"></div>
 
@@ -302,7 +340,8 @@ onBeforeUnmount(() => {
                 </button>
 
                 <div v-if="!logProcesses.length && !logsLoading" class="log-empty-state">
-                  {{ text.noLogs }}
+                  <strong>{{ text.noLogs }}</strong>
+                  <span>{{ text.noLogsHint }}</span>
                 </div>
               </aside>
 
@@ -362,7 +401,7 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <aside class="side-column">
+          <aside v-if="!isPopupMode" class="side-column">
             <section class="feature-panel">
               <div class="feature-frame"></div>
 
@@ -417,6 +456,10 @@ onBeforeUnmount(() => {
   margin-top: 24px;
 }
 
+.layout-grid-popup {
+  grid-template-columns: 1fr;
+}
+
 .side-column,
 .status-card-list,
 .log-board {
@@ -442,6 +485,10 @@ onBeforeUnmount(() => {
   border-radius: inherit;
   border: 1px solid rgba(112, 240, 193, 0.08);
   pointer-events: none;
+}
+
+.shell-header-popup {
+  align-items: flex-start;
 }
 
 .meta-pill-link {
@@ -573,6 +620,10 @@ onBeforeUnmount(() => {
 .log-empty,
 .log-empty-state {
   color: rgba(210, 232, 255, 0.62);
+}
+
+.log-empty-state {
+  gap: 8px;
 }
 
 @media (max-width: 980px) {

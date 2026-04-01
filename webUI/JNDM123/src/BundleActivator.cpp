@@ -12,6 +12,7 @@ class BundleActivator: public Poco::OSP::BundleActivator
 public:
     void start(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        initializeJNDM123Runtime();
         pContext->logger().information("MyIoT WebUI JNDM123 bundle started.");
     }
 

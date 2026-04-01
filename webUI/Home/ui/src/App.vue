@@ -20,9 +20,9 @@ const zh = {
   language: 'EN',
   catalog: '功能目录',
   installedModules: '已安装模块',
-  bundleList: '系统包列表',
-  openBundleCatalog: '打开包目录',
-  bundleCatalogDesc: '查看当前 OSP Bundle 的安装与运行状态。',
+  configCenter: '配置中心',
+  openConfigCenter: '打开配置中心',
+  configCenterDesc: '查看全局配置、Bundle 偏好项和运行状态。',
   liveLogs: '实时日志',
   openLogWindow: '打开日志窗口',
   openLogWindowDesc: '将实时日志窗口独立打开，便于边操作边观察输出。',
@@ -60,12 +60,12 @@ const zh = {
   processConsole: '进程控制台',
   openProcessDiagnostics: '打开进程诊断页',
   openProcessDiagnosticsDesc: '需要交互式排查时，可进入独立的命令式诊断页面。',
-  reviewRuntimeBundles: '查看运行包状态',
-  reviewRuntimeBundlesDesc: '从系统包列表查看功能包版本、状态和入口信息。',
+  reviewRuntimeBundles: '查看配置与运行状态',
+  reviewRuntimeBundlesDesc: '在配置中心里统一查看全局配置、Bundle 状态和运行控制。',
   trace: [
     '会话已恢复并校验完成。',
     '主页工作台初始化完成。',
-    'Bundle 目录已刷新。',
+    '配置中心入口已刷新。',
     '诊断入口已准备就绪。'
   ],
   documentTitle: 'MyIoT 控制台主页'
@@ -83,9 +83,9 @@ const en = {
   language: '中文',
   catalog: 'Catalog',
   installedModules: 'Installed Modules',
-  bundleList: 'Bundle List',
-  openBundleCatalog: 'Open Bundle Catalog',
-  bundleCatalogDesc: 'Review installed OSP bundles and runtime status.',
+  configCenter: 'Config Center',
+  openConfigCenter: 'Open Config Center',
+  configCenterDesc: 'Review global properties, bundle preferences, and runtime state.',
   liveLogs: 'Live Logs',
   openLogWindow: 'Open Log Window',
   openLogWindowDesc: 'Keep the realtime log viewer open beside operation pages.',
@@ -123,12 +123,12 @@ const en = {
   processConsole: 'Process Console',
   openProcessDiagnostics: 'Open process diagnostics',
   openProcessDiagnosticsDesc: 'Use command-based diagnostics in a dedicated page when you need interactive inspection.',
-  reviewRuntimeBundles: 'Review runtime bundles',
-  reviewRuntimeBundlesDesc: 'Check package versions, status, and available entry points from the system bundle list.',
+  reviewRuntimeBundles: 'Review config and runtime state',
+  reviewRuntimeBundlesDesc: 'Use the configuration center to inspect global settings, bundle state, and runtime controls in one place.',
   trace: [
     'Session restored and verified.',
     'Home workspace initialized.',
-    'Bundle catalog refreshed.',
+    'Configuration center entry refreshed.',
     'Diagnostic entry points are ready.'
   ],
   documentTitle: 'MyIoT Control Console Home'
@@ -159,8 +159,8 @@ const downstreamPackages = computed(() =>
   featurePackages.value.filter((featurePackage) => featurePackage.id !== 'myiot.home')
 )
 
-const bundleListPackage = computed(() =>
-  featurePackages.value.find((featurePackage) => featurePackage.id === 'myiot.bundle-list') ?? null
+const configPackage = computed(() =>
+  featurePackages.value.find((featurePackage) => featurePackage.id === 'myiot.global-config') ?? null
 )
 
 const logViewerPackage = computed(() =>
@@ -197,9 +197,33 @@ async function handleSignOut() {
   window.location.replace('/myiot/login/index.html')
 }
 
+function openPopupWindow(url, name, width = 1180, height = 820) {
+  const left = Math.max(Math.round((window.screen.width - width) / 2), 32)
+  const top = Math.max(Math.round((window.screen.height - height) / 2), 32)
+  const features = [
+    'popup=yes',
+    'resizable=yes',
+    'scrollbars=yes',
+    'toolbar=no',
+    'menubar=no',
+    'location=no',
+    'status=no',
+    `width=${width}`,
+    `height=${height}`,
+    `left=${left}`,
+    `top=${top}`,
+  ].join(',')
+
+  return window.open(url, name, features)
+}
+
 function openLogViewer() {
-  const target = logViewerPackage.value?.entryPath || '/myiot/logs/index.html'
-  window.open(target, '_blank', 'noopener,noreferrer')
+  const baseTarget = logViewerPackage.value?.entryPath || '/myiot/logs/index.html'
+  const target = `${baseTarget}${baseTarget.includes('?') ? '&' : '?'}popup=1`
+  const popup = openPopupWindow(target, 'myiot-log-viewer')
+  if (!popup) {
+    window.open(baseTarget, '_blank', 'noopener,noreferrer')
+  }
 }
 
 onMounted(async () => {
@@ -276,14 +300,14 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div v-if="bundleListPackage" class="rail-action">
-              <p class="section-kicker">{{ text.bundleList }}</p>
-              <a :href="bundleListPackage.entryPath" class="rail-action-button">
+            <div v-if="configPackage" class="rail-action">
+              <p class="section-kicker">{{ text.configCenter }}</p>
+              <a :href="configPackage.entryPath" class="rail-action-button">
                 <span class="rail-action-copy">
-                  <strong>{{ text.openBundleCatalog }}</strong>
-                  <small>{{ text.bundleCatalogDesc }}</small>
+                  <strong>{{ text.openConfigCenter }}</strong>
+                  <small>{{ text.configCenterDesc }}</small>
                 </span>
-                <v-icon :icon="bundleListPackage.icon" size="20"></v-icon>
+                <v-icon :icon="configPackage.icon" size="20"></v-icon>
               </a>
             </div>
 
@@ -539,13 +563,13 @@ onMounted(async () => {
                 </a>
 
                 <a
-                  v-if="bundleListPackage?.entryPath"
-                  :href="bundleListPackage.entryPath"
+                  v-if="configPackage?.entryPath"
+                  :href="configPackage.entryPath"
                   class="utility-card"
                 >
                   <div class="utility-row">
-                    <v-icon icon="mdi-package-variant-closed" size="24"></v-icon>
-                    <span>{{ text.bundleList }}</span>
+                    <v-icon icon="mdi-cog-box" size="24"></v-icon>
+                    <span>{{ text.configCenter }}</span>
                   </div>
                   <strong>{{ text.reviewRuntimeBundles }}</strong>
                   <p>{{ text.reviewRuntimeBundlesDesc }}</p>

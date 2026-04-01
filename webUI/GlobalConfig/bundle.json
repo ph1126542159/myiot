@@ -1,0 +1,17 @@
+{
+  "id": "myiot.global-config",
+  "name": "Config",
+  "title": "Global Configuration Center",
+  "version": "0.1.0",
+  "category": "diagnostics",
+  "icon": "mdi-cog-box",
+  "order": 31,
+  "status": "active",
+  "entryPath": "/myiot/config/index.html",
+  "description": "Review and edit application-wide properties together with per-bundle preferences.",
+  "capabilities": [
+    "global-configuration",
+    "preferences-management",
+    "runtime-diagnostics"
+  ]
+}

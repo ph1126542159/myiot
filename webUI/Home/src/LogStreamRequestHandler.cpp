@@ -17,6 +17,7 @@
 #include "Poco/String.h"
 #include "Poco/Timestamp.h"
 #include "Poco/URI.h"
+#include "Poco/Util/AbstractConfiguration.h"
 #include "Poco/Util/Application.h"
 #include <algorithm>
 #include <deque>
@@ -150,24 +151,83 @@ int streamOrder(const std::string& streamName)
     return 3;
 }
 
-std::vector<Poco::Path> candidateLogDirectories()
+void collectKeys(const Poco::Util::AbstractConfiguration& configuration, std::vector<std::string>& keys, const std::string& root = std::string())
 {
-    std::vector<Poco::Path> directories;
-    std::set<std::string> seen;
+    Poco::Util::AbstractConfiguration::Keys childKeys;
+    configuration.keys(root, childKeys);
+
+    if (childKeys.empty() && !root.empty() && configuration.hasProperty(root))
+    {
+        keys.push_back(root);
+        return;
+    }
+
+    for (const auto& key: childKeys)
+    {
+        std::string fullKey = root;
+        if (!fullKey.empty()) fullKey += '.';
+        fullKey += key;
+        collectKeys(configuration, keys, fullKey);
+    }
+}
+
+void appendCandidateDirectory(std::vector<Poco::Path>& directories, std::set<std::string>& seen, const std::string& candidate)
+{
+    if (candidate.empty()) return;
 
     try
     {
-        const std::string applicationDir = Poco::Util::Application::instance().config().getString("application.dir", "");
-        if (!applicationDir.empty())
+        Poco::Path path(candidate);
+        Poco::File file(path);
+
+        if (file.exists() && file.isFile())
         {
-            Poco::Path path(applicationDir);
-            const std::string normalized = path.toString();
-            if (seen.insert(normalized).second) directories.push_back(path);
+            path.makeParent();
+        }
+        else if (!path.getExtension().empty())
+        {
+            path.makeParent();
+        }
+
+        const std::string normalized = path.toString();
+        if (!normalized.empty() && seen.insert(normalized).second)
+        {
+            directories.push_back(path);
         }
     }
     catch (...)
     {
     }
+}
+
+std::vector<Poco::Path> candidateLogDirectories()
+{
+    std::vector<Poco::Path> directories;
+    std::set<std::string> seen;
+    auto& configuration = Poco::Util::Application::instance().config();
+
+    try
+    {
+        appendCandidateDirectory(directories, seen, configuration.getString("application.dir", ""));
+        appendCandidateDirectory(directories, seen, configuration.getString("application.configDir", ""));
+
+        std::vector<std::string> configKeys;
+        collectKeys(configuration, configKeys, "logging");
+        for (const auto& key: configKeys)
+        {
+            if (Poco::endsWith(key, std::string(".path")))
+            {
+                appendCandidateDirectory(directories, seen, configuration.getString(key, ""));
+            }
+        }
+    }
+    catch (...)
+    {
+    }
+
+    appendCandidateDirectory(directories, seen, "/var/log/myiot");
+    appendCandidateDirectory(directories, seen, "/opt/myiot/log");
+    appendCandidateDirectory(directories, seen, "/tmp");
 
     Poco::Path currentPath = Poco::Path::current();
     const std::string currentNormalized = currentPath.toString();

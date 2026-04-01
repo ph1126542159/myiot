@@ -1,0 +1,6 @@
+<extensions>
+  <extension point="osp.web.server.requesthandler" path="/myiot/config/data.json" class="MyIoT::WebUI::GlobalConfig::GlobalConfigRequestHandlerFactory" library="io.myiot.webui.config" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/myiot/config/manage.json" class="MyIoT::WebUI::GlobalConfig::GlobalConfigRequestHandlerFactory" library="io.myiot.webui.config" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/myiot/config/save.json" class="MyIoT::WebUI::GlobalConfig::GlobalConfigRequestHandlerFactory" library="io.myiot.webui.config" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.directory" path="/myiot/config" resource="webapp" allowSpecialization="owner" hidden="true"/>
+</extensions>

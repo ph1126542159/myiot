@@ -4,7 +4,7 @@ import vuetify from 'vite-plugin-vuetify'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  base: '/myiot/packages/',
+  base: '/myiot/config/',
   plugins: [
     vue(),
     vuetify({ autoImport: true }),

@@ -1,32 +1,35 @@
 ﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
-import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
-import { localizeFeaturePackage } from './core/packageLocalization.js'
 import { refreshSession, sessionState, signOut } from './core/sessionGateway'
 import { createUiLocaleHeaders } from './core/requestLocale.js'
 
 const { isZh, toggleLocale } = useUiLocale()
-const locale = computed(() => (isZh.value ? 'zh' : 'en'))
 
 const zh = {
   connecting: '正在连接 JNDM123 控制服务...',
   unknown: '未知',
   signOut: '退出登录',
+  openLogWindow: '悬浮日志',
+  openConfigCenter: '配置中心',
   language: 'EN',
   labEyebrow: 'JNDM123 实验台',
   labTitle: '时钟分频与 6 路 AD7606 采集',
   labCopy: '分频器调整遵循本地 CDCE937 I2C 测试流程。FIFO 采集沿用 `work.c` 的 packet-mode 实现，去掉控制台/文件输出后，统一喂给页面预览和 UDP 广播。',
   clockEyebrow: '时钟',
   clockTitle: 'CDCE937 分频控制',
-  clockCopy: '点击执行后，后端会暂停采集、写入分频值、回读实际结果，并在需要时恢复采集。',
+  clockCopy: '可同时勾选多个输出一次性下发同一个分频值。点击执行后，后端会暂停采集线程、写入分频、回读结果，并在成功后恢复采集。',
   i2cDevice: 'I2C 设备',
-  output: '输出',
+  output: '输出选择',
   divider: '分频值',
   execute: '执行',
   refresh: '刷新',
   device: '设备',
-  selectedOutput: '当前输出',
+  selectedOutput: '已选输出',
+  chooseOutputs: '勾选需要一起分频的输出',
+  selectedCount: (count) => `已选 ${count} 路`,
+  noneSelected: '请至少选择一个输出。',
+  mixedDivider: '当前选中输出的分频值不一致，输入新值后可一次性下发。',
   eepromLock: 'EEPROM / 锁定',
   busy: '忙',
   lock: '锁定',
@@ -57,10 +60,15 @@ const zh = {
   udpBytesRate: 'UDP 字节/秒',
   udpPacketsTrend: '每秒发包速率',
   udpBytesTrend: '每秒字节速率',
+  udpFixedPayload: '固定包长下，字节速率曲线与发包速率同趋势。',
   collectingUdpStats: '正在累计 UDP 每秒统计，请保持页面打开几秒钟。',
   waveformsEyebrow: '波形',
   waveformsTitle: '6 组独立图表',
   waveformsCopy: '每张图对应一个 AD7606 芯片。可选择“全部”或单独 `CH1~CH8`。预览关闭时，后端会停止为浏览器打包历史波形，但仍保留 UDP 广播；预览开启时，缓存波形每秒刷新一次。',
+  rawScale: '原始值',
+  voltageScale: '电压值',
+  voltageEstimate: '电压视图按 +/-10V 满量程估算。',
+  timeAxis: '时间轴',
   preview: '预览',
   overview: '概览',
   channels: '通道',
@@ -107,20 +115,26 @@ const en = {
   connecting: 'Connecting to JNDM123 control service...',
   unknown: 'unknown',
   signOut: 'Sign Out',
+  openLogWindow: 'Floating Logs',
+  openConfigCenter: 'Config Center',
   language: '中文',
   labEyebrow: 'JNDM123 Lab',
   labTitle: 'Clock Divider and 6x AD7606 Capture',
   labCopy: 'Divider updates follow the local CDCE937 I2C test flow. FIFO capture follows the packet-mode implementation from `work.c`, removes console/file output, and feeds the UI plus UDP broadcast.',
   clockEyebrow: 'Clock',
   clockTitle: 'CDCE937 Divider Control',
-  clockCopy: 'Press execute to apply the selected divider. The backend pauses acquisition, writes the divider, reads the actual result back, and restarts capture when needed.',
+  clockCopy: 'Select one or more outputs to push the same divider in one shot. The backend pauses acquisition threads, writes the divider, reads back the actual state, and restarts capture on success.',
   i2cDevice: 'I2C Device',
-  output: 'Output',
+  output: 'Outputs',
   divider: 'Divider',
   execute: 'Execute',
   refresh: 'Refresh',
   device: 'Device',
-  selectedOutput: 'Selected Output',
+  selectedOutput: 'Selected Outputs',
+  chooseOutputs: 'Pick the outputs to update together',
+  selectedCount: (count) => `${count} selected`,
+  noneSelected: 'Select at least one output.',
+  mixedDivider: 'Selected outputs currently use different dividers. Enter a new value to apply them together.',
   eepromLock: 'EEPROM / Lock',
   busy: 'Busy',
   lock: 'Lock',
@@ -151,10 +165,15 @@ const en = {
   udpBytesRate: 'UDP Bytes/s',
   udpPacketsTrend: 'Packets Per Second',
   udpBytesTrend: 'Bytes Per Second',
+  udpFixedPayload: 'With a fixed packet size, bytes/s naturally follows the packets/s trend.',
   collectingUdpStats: 'Collecting UDP per-second statistics. Keep this page open for a few seconds.',
   waveformsEyebrow: 'Waveforms',
   waveformsTitle: '6 Independent Charts',
   waveformsCopy: 'Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is not active, the backend stops packaging waveform history for the browser but keeps UDP broadcast alive. When preview is active, cached waveform data is refreshed to the browser once per second.',
+  rawScale: 'Raw',
+  voltageScale: 'Voltage',
+  voltageEstimate: 'Voltage view assumes a +/-10V full-scale input.',
+  timeAxis: 'Time Axis',
   preview: 'Preview',
   overview: 'Overview',
   channels: 'Channels',
@@ -205,9 +224,6 @@ watchEffect(() => {
   }
 })
 const uiLocale = computed(() => (isZh.value ? 'zh-CN' : 'en-US'))
-const featurePackages = computed(() =>
-  rawFeaturePackages.map((featurePackage) => localizeFeaturePackage(featurePackage, locale.value))
-)
 
 const channelPalette = ['#38d6ff', '#8cf2b2', '#f7a94a', '#ff6e88', '#7ab8ff', '#ffd166', '#d48bff', '#8df4ff']
 const channelOptions = computed(() => [
@@ -221,9 +237,10 @@ const channelOptions = computed(() => [
   { title: 'CH7', value: '6' },
   { title: 'CH8', value: '7' },
 ])
-const dividerOptions = [1, 2, 3, 4, 5, 10].map((value) => ({ title: `${value}`, value }))
-const chartPlot = Object.freeze({ left: 8, right: 97, top: 12, bottom: 82 })
+const chartPlot = Object.freeze({ left: 14, right: 96, top: 10, bottom: 74 })
 const udpRateHistoryLimit = 30
+const adcFullScaleVoltage = 10
+const adcCodeFullScale = 32768
 
 const banner = ref({
   type: 'info',
@@ -236,8 +253,8 @@ const udpBusy = ref(false)
 const pollInFlight = ref(false)
 const dividerStatus = ref({ outputs: [] })
 const acquisitionState = ref({ chips: [], udp: { enabled: true, host: '255.255.255.255', port: 19048 } })
-const selectedOutputIndex = ref(0)
-const selectedDivider = ref(1)
+const selectedOutputIndices = ref([0])
+const selectedDivider = ref('1')
 const activeView = ref('preview')
 const channelSelection = reactive({
   0: 'all',
@@ -246,6 +263,14 @@ const channelSelection = reactive({
   3: 'all',
   4: 'all',
   5: 'all'
+})
+const waveformValueModeByChip = reactive({
+  0: 'raw',
+  1: 'raw',
+  2: 'raw',
+  3: 'raw',
+  4: 'raw',
+  5: 'raw'
 })
 const udpForm = reactive({
   enabled: true,
@@ -268,17 +293,27 @@ const outputs = computed(() => dividerStatus.value?.outputs ?? [])
 const chips = computed(() => acquisitionState.value?.chips ?? [])
 const acquisitionRunning = computed(() => Boolean(acquisitionState.value?.running))
 const previewEnabled = computed(() => activeView.value === 'preview' && document.visibilityState === 'visible')
-const selectedOutput = computed(() => outputs.value.find((entry) => entry.index === selectedOutputIndex.value) ?? null)
-const outputOptions = computed(() =>
-  outputs.value.map((output) => ({
-    title: `${output.name} / ${text.value.pin} ${output.pin}`,
-    value: output.index
-  }))
+const selectedOutputs = computed(() =>
+  outputs.value.filter((entry) => selectedOutputIndices.value.includes(entry.index))
 )
+const selectedDividerMax = computed(() => {
+  if (!selectedOutputIndices.value.length) return null
+  return Math.min(...selectedOutputIndices.value.map((outputIndex) => (outputIndex === 0 ? 1023 : 127)))
+})
+const selectedOutputSummary = computed(() =>
+  selectedOutputs.value.length ? selectedOutputs.value.map((output) => output.name).join(', ') : '--'
+)
+const selectedOutputMetric = computed(() => {
+  if (!selectedOutputs.value.length) return '--'
+  return text.value.selectedCount(selectedOutputs.value.length)
+})
+const selectionHasMixedDividers = computed(() => {
+  const dividers = selectedOutputs.value
+    .map((output) => Number(output.divider))
+    .filter((divider) => Number.isInteger(divider) && divider > 0)
+  return dividers.length > 1 && new Set(dividers).size > 1
+})
 
-const launchablePackages = computed(() =>
-  featurePackages.value.filter((featurePackage) => featurePackage.entryPath)
-)
 const waveformTimelineUs = computed(() => Array.isArray(acquisitionState.value?.timelineUs) ? acquisitionState.value.timelineUs : [])
 const udpTimelineMs = computed(() => udpRateHistory.value.map((point) => point.timeMs))
 const udpPacketSeries = computed(() => udpRateHistory.value.map((point) => point.packetsPerSecond))
@@ -365,13 +400,9 @@ function formatTimelineLabel(value, unit = 'us') {
   if (!Number.isFinite(numeric)) return '--'
 
   const date = new Date(unit === 'us' ? numeric / 1000 : numeric)
-  const clock = date.toLocaleTimeString(uiLocale.value, {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-  return `${clock}.${String(date.getMilliseconds()).padStart(3, '0')}`
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${minutes}:${seconds}`
 }
 
 function formatBytes(value) {
@@ -398,8 +429,47 @@ function formatBytesRate(value) {
   return `${formatBytes(value)}/s`
 }
 
+function rawToVoltage(rawValue) {
+  const numeric = Number(rawValue)
+  if (!Number.isFinite(numeric)) return 0
+  return (numeric / adcCodeFullScale) * adcFullScaleVoltage
+}
+
+function waveformModeForChip(chipIndex) {
+  return waveformValueModeByChip[chipIndex] === 'voltage' ? 'voltage' : 'raw'
+}
+
+function waveformDisplayValue(rawValue, mode = 'raw') {
+  return mode === 'voltage' ? rawToVoltage(rawValue) : Number(rawValue)
+}
+
+function formatVoltageValue(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '--'
+
+  const abs = Math.abs(numeric)
+  if (abs >= 1) return `${formatDecimal(numeric, 3)} V`
+  if (abs >= 0.001) return `${formatDecimal(numeric * 1000, 1)} mV`
+  return `${formatDecimal(numeric * 1000000, 0)} uV`
+}
+
+function formatWaveformAxisValue(value, mode = 'raw') {
+  return mode === 'voltage' ? formatVoltageValue(value) : formatInteger(value)
+}
+
+function formatWaveformLegendValue(rawValue, mode = 'raw') {
+  return mode === 'voltage'
+    ? formatVoltageValue(rawToVoltage(rawValue))
+    : formatInteger(rawValue)
+}
+
 function formatPacketAxisValue(value) {
-  return formatDecimal(value, 1)
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric === 0) return '0'
+
+  const exponent = Math.floor(Math.log10(Math.abs(numeric)))
+  const mantissa = numeric / (10 ** exponent)
+  return `${formatDecimal(mantissa, 1)}x10^${exponent}`
 }
 
 function formatAxisValue(value, formatter = formatInteger) {
@@ -408,11 +478,52 @@ function formatAxisValue(value, formatter = formatInteger) {
   return formatter(numeric)
 }
 
-function syncSelectedDivider() {
-  const current = selectedOutput.value
-  if (current && dividerOptions.some((option) => option.value === current.divider)) {
-    selectedDivider.value = current.divider
+function syncSelectedOutputs() {
+  const availableIndexes = new Set(outputs.value.map((output) => output.index))
+  const normalized = selectedOutputIndices.value
+    .filter((outputIndex) => availableIndexes.has(outputIndex))
+    .sort((left, right) => left - right)
+
+  const unique = [...new Set(normalized)]
+  if (!unique.length && outputs.value.length) {
+    unique.push(outputs.value[0].index)
   }
+
+  selectedOutputIndices.value = unique
+}
+
+function syncSelectedDivider() {
+  if (!selectedOutputs.value.length) return
+
+  const dividers = selectedOutputs.value
+    .map((output) => Number(output.divider))
+    .filter((divider) => Number.isInteger(divider) && divider > 0)
+
+  if (!dividers.length) return
+
+  const uniqueDividers = [...new Set(dividers)]
+  if (uniqueDividers.length === 1) {
+    selectedDivider.value = String(uniqueDividers[0])
+  } else {
+    selectedDivider.value = ''
+  }
+}
+
+function parseSelectedDivider() {
+  if (!selectedOutputIndices.value.length || !selectedDividerMax.value) return null
+  const divider = Number.parseInt(String(selectedDivider.value ?? '').trim(), 10)
+  if (!Number.isInteger(divider)) return null
+  if (divider < 1 || divider > selectedDividerMax.value) return null
+  return divider
+}
+
+function toggleOutputSelection(outputIndex, enabled) {
+  if (enabled) {
+    selectedOutputIndices.value = [...new Set([...selectedOutputIndices.value, outputIndex])].sort((left, right) => left - right)
+    return
+  }
+
+  selectedOutputIndices.value = selectedOutputIndices.value.filter((value) => value !== outputIndex)
 }
 
 function syncUdpForm() {
@@ -493,6 +604,7 @@ async function loadDividerStatus() {
   try {
     const payload = await requestJson(`/myiot/jndm123/divider.json?devicePath=${encodeURIComponent(devicePath.value)}`)
     dividerStatus.value = payload
+    syncSelectedOutputs()
     syncSelectedDivider()
   } catch (error) {
     banner.value = {
@@ -521,17 +633,34 @@ async function loadAcquisitionSnapshot() {
 }
 
 async function applyDivider() {
+  if (!selectedOutputIndices.value.length) {
+    banner.value = {
+      type: 'error',
+      text: text.value.noneSelected
+    }
+    return
+  }
+
+  const divider = parseSelectedDivider()
+  if (divider === null) {
+    banner.value = {
+      type: 'error',
+      text: `${text.value.divider} must be in 1..${selectedDividerMax.value}.`
+    }
+    return
+  }
+
   dividerBusy.value = true
   banner.value = {
     type: 'info',
-    text: text.value.applyingDivider(selectedDivider.value, selectedOutput.value?.name || `Y${selectedOutputIndex.value + 1}`)
+    text: text.value.applyingDivider(divider, selectedOutputSummary.value)
   }
 
   try {
     const body = new URLSearchParams()
     body.set('devicePath', devicePath.value)
-    body.set('outputIndex', String(selectedOutputIndex.value))
-    body.set('divider', String(selectedDivider.value))
+    body.set('outputIndices', selectedOutputIndices.value.join(','))
+    body.set('divider', String(divider))
     const payload = await requestJson('/myiot/jndm123/divider.json', {
       method: 'POST',
       body
@@ -631,8 +760,10 @@ function visibleSeries(chip) {
   }))
 }
 
-function chartRange(chip) {
-  const values = visibleSeries(chip).flatMap((series) => series.samples)
+function chartRange(chip, mode = waveformModeForChip(chip?.index)) {
+  const values = visibleSeries(chip).flatMap((series) =>
+    series.samples.map((sample) => waveformDisplayValue(sample, mode))
+  )
   if (!values.length) return { min: -1, max: 1 }
 
   const min = Math.min(...values)
@@ -657,6 +788,44 @@ function normalizeY(value, minValue, maxValue) {
   return chartPlot.bottom - (ratio * (chartPlot.bottom - chartPlot.top))
 }
 
+function chartXTicks(timeline, unit = 'us', segments = 4) {
+  const start = Number(timeline?.[0])
+  const end = Number(timeline?.[timeline.length - 1])
+
+  return Array.from({ length: segments + 1 }, (_, index) => {
+    const ratio = segments === 0 ? 0 : index / segments
+    const position = chartPlot.left + (ratio * (chartPlot.right - chartPlot.left))
+    const tickValue = Number.isFinite(start) && Number.isFinite(end)
+      ? start + ((end - start) * ratio)
+      : NaN
+
+    return {
+      key: `${unit}-${index}-${start}-${end}`,
+      position,
+      label: Number.isFinite(tickValue) ? formatTimelineLabel(tickValue, unit) : '--'
+    }
+  })
+}
+
+function chartYTicks(range, formatter = formatAxisValue, segments = 4) {
+  const min = Number(range?.min)
+  const max = Number(range?.max)
+
+  return Array.from({ length: segments + 1 }, (_, index) => {
+    const ratio = segments === 0 ? 0 : index / segments
+    const position = chartPlot.top + (ratio * (chartPlot.bottom - chartPlot.top))
+    const value = Number.isFinite(min) && Number.isFinite(max)
+      ? max - ((max - min) * ratio)
+      : NaN
+
+    return {
+      key: `${index}-${min}-${max}`,
+      position,
+      label: Number.isFinite(value) ? formatter(value) : '--'
+    }
+  })
+}
+
 function resolveX(index, length, timeline = []) {
   if (length <= 1) return (chartPlot.left + chartPlot.right) / 2
   if (timeline.length === length) {
@@ -672,14 +841,33 @@ function resolveX(index, length, timeline = []) {
   return chartPlot.left + ((index / (length - 1)) * (chartPlot.right - chartPlot.left))
 }
 
-function linePoints(samples, minValue, maxValue, timeline = []) {
+function linePoints(samples, minValue, maxValue, timeline = [], projector = (value) => value) {
   if (!samples.length) return ''
 
   return samples.map((sample, index) => {
     const x = resolveX(index, samples.length, timeline)
-    const y = normalizeY(sample, minValue, maxValue)
+    const y = normalizeY(projector(sample), minValue, maxValue)
     return `${x.toFixed(2)},${y.toFixed(2)}`
   }).join(' ')
+}
+
+function areaPoints(samples, minValue, maxValue, timeline = [], projector = (value) => value) {
+  if (!samples.length) return ''
+
+  const line = samples.map((sample, index) => {
+    const x = resolveX(index, samples.length, timeline)
+    const y = normalizeY(projector(sample), minValue, maxValue)
+    return `${x.toFixed(2)},${y.toFixed(2)}`
+  })
+
+  const startX = resolveX(0, samples.length, timeline)
+  const endX = resolveX(samples.length - 1, samples.length, timeline)
+
+  return [
+    `${startX.toFixed(2)},${chartPlot.bottom.toFixed(2)}`,
+    ...line,
+    `${endX.toFixed(2)},${chartPlot.bottom.toFixed(2)}`
+  ].join(' ')
 }
 
 function zeroLineY(minValue, maxValue) {
@@ -703,9 +891,9 @@ function chipTimeline(chip) {
   return waveformTimelineUs.value
 }
 
-function latestChannelValue(series) {
-  if (series.samples?.length) return String(series.samples[series.samples.length - 1])
-  if (series.hasValue) return String(series.value)
+function latestChannelValue(series, mode = 'raw') {
+  if (series.samples?.length) return formatWaveformLegendValue(series.samples[series.samples.length - 1], mode)
+  if (series.hasValue) return formatWaveformLegendValue(series.value, mode)
   return '--'
 }
 
@@ -730,10 +918,51 @@ async function handleSignOut() {
   window.location.replace('/myiot/login/index.html')
 }
 
+function openPopupWindow(url, name, width = 1180, height = 820) {
+  const left = Math.max(Math.round((window.screen.width - width) / 2), 32)
+  const top = Math.max(Math.round((window.screen.height - height) / 2), 32)
+  const features = [
+    'popup=yes',
+    'resizable=yes',
+    'scrollbars=yes',
+    'toolbar=no',
+    'menubar=no',
+    'location=no',
+    'status=no',
+    `width=${width}`,
+    `height=${height}`,
+    `left=${left}`,
+    `top=${top}`,
+  ].join(',')
+
+  return window.open(url, name, features)
+}
+
+function openLogWindow() {
+  const baseTarget = '/myiot/logs/index.html'
+  const popup = openPopupWindow(`${baseTarget}?popup=1`, 'myiot-log-viewer')
+  if (!popup) {
+    window.open(baseTarget, '_blank', 'noopener,noreferrer')
+  }
+}
+
+function openConfigCenter() {
+  window.open('/myiot/config/index.html', '_blank', 'noopener,noreferrer')
+}
+
 watch(activeView, () => {
   resetPolling()
   loadAcquisitionSnapshot()
 })
+
+watch(selectedOutputIndices, () => {
+  syncSelectedDivider()
+}, { deep: true })
+
+watch(outputs, () => {
+  syncSelectedOutputs()
+  syncSelectedDivider()
+}, { deep: true })
 
 onMounted(async () => {
   const payload = await refreshSession()
@@ -785,6 +1014,12 @@ onBeforeUnmount(() => {
               <v-btn variant="outlined" color="primary" size="small" @click="toggleLocale">
                 {{ text.language }}
               </v-btn>
+              <v-btn variant="outlined" color="info" size="small" @click="openLogWindow">
+                {{ text.openLogWindow }}
+              </v-btn>
+              <v-btn variant="outlined" color="secondary" size="small" @click="openConfigCenter">
+                {{ text.openConfigCenter }}
+              </v-btn>
               <div class="meta-pill">
                 <v-icon icon="mdi-lan-connect" size="18"></v-icon>
                 <span>{{ currentDeviceAddress }}</span>
@@ -824,22 +1059,19 @@ onBeforeUnmount(() => {
                   placeholder="/dev/i2c-0"
                 />
 
-                <v-select
-                  v-model="selectedOutputIndex"
-                  :items="outputOptions"
-                  :label="text.output"
-                  prepend-inner-icon="mdi-vector-polyline"
-                />
-
-                <v-select
+                <v-text-field
                   v-model="selectedDivider"
-                  :items="dividerOptions"
                   :label="text.divider"
                   prepend-inner-icon="mdi-tune-variant"
+                  type="number"
+                  min="1"
+                  :max="selectedDividerMax"
+                  :hint="selectedDividerMax ? `1..${selectedDividerMax}` : text.noneSelected"
+                  persistent-hint
                 />
 
                 <div class="panel-actions">
-                  <v-btn color="primary" block :loading="dividerBusy" :disabled="dividerBusy || !outputs.length" @click="applyDivider">
+                  <v-btn color="primary" block :loading="dividerBusy" :disabled="dividerBusy || !outputs.length || !selectedOutputIndices.length" @click="applyDivider">
                     {{ text.execute }}
                   </v-btn>
                   <v-btn variant="outlined" color="secondary" block :disabled="dividerBusy" @click="loadDividerStatus">
@@ -856,8 +1088,8 @@ onBeforeUnmount(() => {
                 </article>
                 <article class="metric-card">
                   <div class="meta-copy">{{ text.selectedOutput }}</div>
-                  <div class="metric-value">{{ selectedOutput?.divider ?? '--' }} / {{ formatFrequency(selectedOutput?.frequencyHz) }}</div>
-                  <div class="meta-copy small">{{ selectedOutput?.name || '--' }} / {{ selectedOutput?.pdiv || '--' }}</div>
+                  <div class="metric-value">{{ selectedOutputMetric }}</div>
+                  <div class="meta-copy small">{{ selectedOutputSummary }}</div>
                 </article>
                 <article class="metric-card">
                   <div class="meta-copy">{{ text.eepromLock }}</div>
@@ -871,14 +1103,27 @@ onBeforeUnmount(() => {
                 </article>
               </div>
 
+              <div class="meta-copy small mt-5">{{ text.chooseOutputs }}</div>
+              <div v-if="selectionHasMixedDividers" class="meta-copy small mt-2">{{ text.mixedDivider }}</div>
+
               <div class="outputs-grid">
                 <article
                   v-for="output in outputs"
                   :key="output.index"
                   class="output-card"
-                  :class="{ active: output.index === selectedOutputIndex }"
+                  :class="{ active: selectedOutputIndices.includes(output.index) }"
+                  @click="toggleOutputSelection(output.index, !selectedOutputIndices.includes(output.index))"
                 >
-                  <div class="meta-copy">{{ output.name }} / {{ output.pdiv }}</div>
+                  <div class="d-flex align-center justify-space-between ga-3">
+                    <div class="meta-copy">{{ output.name }} / {{ output.pdiv }}</div>
+                    <v-checkbox-btn
+                      :model-value="selectedOutputIndices.includes(output.index)"
+                      color="primary"
+                      density="compact"
+                      @click.stop
+                      @update:model-value="toggleOutputSelection(output.index, $event)"
+                    />
+                  </div>
                   <div class="output-line">{{ output.divider || '--' }}</div>
                   <div class="meta-copy small">{{ text.pin }} {{ output.pin }} / {{ formatFrequency(output.frequencyHz) }}</div>
                 </article>
@@ -954,13 +1199,43 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
 
-                  <div v-if="udpPacketSeries.length" class="chart-surface compact-chart-surface">
-                    <div class="chart-axis chart-axis-y-top">{{ formatAxisValue(udpPacketRange.max, formatPacketAxisValue) }}</div>
-                    <div class="chart-axis chart-axis-y-bottom">{{ formatAxisValue(udpPacketRange.min, formatPacketAxisValue) }}</div>
-                    <div class="chart-axis chart-axis-x-left">{{ chartStartLabel(udpTimelineMs, 'ms') }}</div>
-                    <div class="chart-axis chart-axis-x-right">{{ chartEndLabel(udpTimelineMs, 'ms') }}</div>
+                  <div v-if="udpPacketSeries.length" class="chart-surface chart-surface-cool compact-chart-surface">
+                    <div
+                      v-for="tick in chartYTicks(udpPacketRange, formatPacketAxisValue)"
+                      :key="`udp-packet-y-${tick.key}`"
+                      class="chart-axis chart-axis-y-tick"
+                      :style="{ top: `${tick.position}%` }"
+                    >
+                      {{ tick.label }}
+                    </div>
+                    <div
+                      v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
+                      :key="`udp-packet-x-${tick.key}`"
+                      class="chart-axis chart-axis-x-tick"
+                      :style="{ left: `${tick.position}%` }"
+                    >
+                      {{ tick.label }}
+                    </div>
 
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-svg compact-chart-svg">
+                      <line
+                        v-for="tick in chartYTicks(udpPacketRange, formatPacketAxisValue)"
+                        :key="`udp-packet-grid-y-${tick.key}`"
+                        :x1="chartPlot.left"
+                        :x2="chartPlot.right"
+                        :y1="tick.position"
+                        :y2="tick.position"
+                        class="chart-grid-line"
+                      />
+                      <line
+                        v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
+                        :key="`udp-packet-grid-x-${tick.key}`"
+                        :x1="tick.position"
+                        :x2="tick.position"
+                        :y1="chartPlot.top"
+                        :y2="chartPlot.bottom"
+                        class="chart-grid-line chart-grid-line-vertical"
+                      />
                       <line
                         :x1="chartPlot.left"
                         :x2="chartPlot.right"
@@ -986,10 +1261,11 @@ onBeforeUnmount(() => {
                         :points="linePoints(udpPacketSeries, udpPacketRange.min, udpPacketRange.max, udpTimelineMs)"
                         fill="none"
                         stroke="#8cf2b2"
-                        stroke-width="0.72"
+                        stroke-width="0.92"
                         vector-effect="non-scaling-stroke"
                         stroke-linecap="round"
                         stroke-linejoin="round"
+                        class="chart-signal-line chart-signal-line-packet"
                       />
                     </svg>
                   </div>
@@ -1004,16 +1280,54 @@ onBeforeUnmount(() => {
                     <div class="chart-title">
                       <strong>{{ text.udpBytesTrend }}</strong>
                       <span>{{ udpRateHistory.length ? text.visibleLines(1, udpByteSeries.length) : text.collectingUdpStats }}</span>
+                      <span class="chart-note">{{ text.udpFixedPayload }}</span>
                     </div>
                   </div>
 
-                  <div v-if="udpByteSeries.length" class="chart-surface compact-chart-surface">
-                    <div class="chart-axis chart-axis-y-top">{{ formatAxisValue(udpByteRange.max, formatBytes) }}</div>
-                    <div class="chart-axis chart-axis-y-bottom">{{ formatAxisValue(udpByteRange.min, formatBytes) }}</div>
-                    <div class="chart-axis chart-axis-x-left">{{ chartStartLabel(udpTimelineMs, 'ms') }}</div>
-                    <div class="chart-axis chart-axis-x-right">{{ chartEndLabel(udpTimelineMs, 'ms') }}</div>
+                  <div v-if="udpByteSeries.length" class="chart-surface chart-surface-warm compact-chart-surface">
+                    <div
+                      v-for="tick in chartYTicks(udpByteRange, formatBytes)"
+                      :key="`udp-byte-y-${tick.key}`"
+                      class="chart-axis chart-axis-y-tick"
+                      :style="{ top: `${tick.position}%` }"
+                    >
+                      {{ tick.label }}
+                    </div>
+                    <div
+                      v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
+                      :key="`udp-byte-x-${tick.key}`"
+                      class="chart-axis chart-axis-x-tick"
+                      :style="{ left: `${tick.position}%` }"
+                    >
+                      {{ tick.label }}
+                    </div>
 
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-svg compact-chart-svg">
+                      <defs>
+                        <linearGradient id="udp-byte-fill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stop-color="#f7a94a" stop-opacity="0.44" />
+                          <stop offset="72%" stop-color="#f7a94a" stop-opacity="0.14" />
+                          <stop offset="100%" stop-color="#f7a94a" stop-opacity="0.03" />
+                        </linearGradient>
+                      </defs>
+                      <line
+                        v-for="tick in chartYTicks(udpByteRange, formatBytes)"
+                        :key="`udp-byte-grid-y-${tick.key}`"
+                        :x1="chartPlot.left"
+                        :x2="chartPlot.right"
+                        :y1="tick.position"
+                        :y2="tick.position"
+                        class="chart-grid-line"
+                      />
+                      <line
+                        v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
+                        :key="`udp-byte-grid-x-${tick.key}`"
+                        :x1="tick.position"
+                        :x2="tick.position"
+                        :y1="chartPlot.top"
+                        :y2="chartPlot.bottom"
+                        class="chart-grid-line chart-grid-line-vertical"
+                      />
                       <line
                         :x1="chartPlot.left"
                         :x2="chartPlot.right"
@@ -1035,14 +1349,20 @@ onBeforeUnmount(() => {
                         :y2="chartPlot.bottom"
                         class="chart-boundary-line"
                       />
+                      <polygon
+                        :points="areaPoints(udpByteSeries, udpByteRange.min, udpByteRange.max, udpTimelineMs)"
+                        fill="url(#udp-byte-fill)"
+                        class="chart-signal-area"
+                      />
                       <polyline
                         :points="linePoints(udpByteSeries, udpByteRange.min, udpByteRange.max, udpTimelineMs)"
                         fill="none"
                         stroke="#f7a94a"
-                        stroke-width="0.72"
+                        stroke-width="1.02"
                         vector-effect="non-scaling-stroke"
                         stroke-linecap="round"
                         stroke-linejoin="round"
+                        class="chart-signal-line chart-signal-line-byte"
                       />
                     </svg>
                   </div>
@@ -1063,7 +1383,6 @@ onBeforeUnmount(() => {
                   <h2>{{ text.waveformsTitle }}</h2>
                   <p class="panel-copy">{{ text.waveformsCopy }}</p>
                 </div>
-
                 <div class="view-toggle">
                   <v-btn :variant="activeView === 'preview' ? 'flat' : 'outlined'" color="primary" @click="activeView = 'preview'">
                     {{ text.preview }}
@@ -1080,23 +1399,66 @@ onBeforeUnmount(() => {
                     <div class="chart-title">
                       <strong>{{ chip.name }}</strong>
                       <span>{{ text.visibleLines(visibleSeries(chip).length, chip.channels?.[0]?.samples?.length ?? 0) }}</span>
+                      <span class="chart-mode-chip">{{ waveformModeForChip(chip.index) === 'raw' ? text.rawScale : text.voltageScale }} / {{ text.timeAxis }}</span>
+                      <span v-if="waveformModeForChip(chip.index) === 'voltage'" class="chart-note">{{ text.voltageEstimate }}</span>
                     </div>
 
-                    <v-select
-                      v-model="channelSelection[chip.index]"
-                      :items="channelOptions"
-                      :label="text.channels"
-                      style="max-width: 160px"
-                    />
+                    <div class="chart-head-actions">
+                      <div class="axis-toggle axis-toggle-compact">
+                        <v-btn :variant="waveformModeForChip(chip.index) === 'raw' ? 'flat' : 'outlined'" color="primary" size="small" @click="waveformValueModeByChip[chip.index] = 'raw'">
+                          {{ text.rawScale }}
+                        </v-btn>
+                        <v-btn :variant="waveformModeForChip(chip.index) === 'voltage' ? 'flat' : 'outlined'" color="secondary" size="small" @click="waveformValueModeByChip[chip.index] = 'voltage'">
+                          {{ text.voltageScale }}
+                        </v-btn>
+                      </div>
+
+                      <v-select
+                        v-model="channelSelection[chip.index]"
+                        :items="channelOptions"
+                        :label="text.channels"
+                        style="max-width: 160px"
+                      />
+                    </div>
                   </div>
 
                   <div v-if="visibleSeries(chip).some((series) => series.samples.length)" class="chart-surface">
-                    <div class="chart-axis chart-axis-y-top">{{ formatAxisValue(chartRange(chip).max) }}</div>
-                    <div class="chart-axis chart-axis-y-bottom">{{ formatAxisValue(chartRange(chip).min) }}</div>
-                    <div class="chart-axis chart-axis-x-left">{{ chartStartLabel(chipTimeline(chip), 'us') }}</div>
-                    <div class="chart-axis chart-axis-x-right">{{ chartEndLabel(chipTimeline(chip), 'us') }}</div>
+                    <div
+                      v-for="tick in chartYTicks(chartRange(chip, waveformModeForChip(chip.index)), (value) => formatWaveformAxisValue(value, waveformModeForChip(chip.index)))"
+                      :key="`wave-y-${chip.index}-${tick.key}`"
+                      class="chart-axis chart-axis-y-tick"
+                      :style="{ top: `${tick.position}%` }"
+                    >
+                      {{ tick.label }}
+                    </div>
+                    <div
+                      v-for="tick in chartXTicks(chipTimeline(chip), 'us')"
+                      :key="`wave-x-${chip.index}-${tick.key}`"
+                      class="chart-axis chart-axis-x-tick"
+                      :style="{ left: `${tick.position}%` }"
+                    >
+                      {{ tick.label }}
+                    </div>
 
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-svg">
+                      <line
+                        v-for="tick in chartYTicks(chartRange(chip, waveformModeForChip(chip.index)), (value) => formatWaveformAxisValue(value, waveformModeForChip(chip.index)))"
+                        :key="`wave-grid-y-${chip.index}-${tick.key}`"
+                        :x1="chartPlot.left"
+                        :x2="chartPlot.right"
+                        :y1="tick.position"
+                        :y2="tick.position"
+                        class="chart-grid-line"
+                      />
+                      <line
+                        v-for="tick in chartXTicks(chipTimeline(chip), 'us')"
+                        :key="`wave-grid-x-${chip.index}-${tick.key}`"
+                        :x1="tick.position"
+                        :x2="tick.position"
+                        :y1="chartPlot.top"
+                        :y2="chartPlot.bottom"
+                        class="chart-grid-line chart-grid-line-vertical"
+                      />
                       <line
                         :x1="chartPlot.left"
                         :x2="chartPlot.right"
@@ -1119,9 +1481,9 @@ onBeforeUnmount(() => {
                         class="chart-boundary-line"
                       />
                       <line
-                        v-if="zeroLineY(chartRange(chip).min, chartRange(chip).max) !== null"
-                        :y1="zeroLineY(chartRange(chip).min, chartRange(chip).max)"
-                        :y2="zeroLineY(chartRange(chip).min, chartRange(chip).max)"
+                        v-if="zeroLineY(chartRange(chip, waveformModeForChip(chip.index)).min, chartRange(chip, waveformModeForChip(chip.index)).max) !== null"
+                        :y1="zeroLineY(chartRange(chip, waveformModeForChip(chip.index)).min, chartRange(chip, waveformModeForChip(chip.index)).max)"
+                        :y2="zeroLineY(chartRange(chip, waveformModeForChip(chip.index)).min, chartRange(chip, waveformModeForChip(chip.index)).max)"
                         :x1="chartPlot.left"
                         :x2="chartPlot.right"
                         class="chart-guide-line"
@@ -1129,13 +1491,14 @@ onBeforeUnmount(() => {
                       <polyline
                         v-for="series in visibleSeries(chip)"
                         :key="series.index"
-                        :points="linePoints(series.samples, chartRange(chip).min, chartRange(chip).max, chipTimeline(chip))"
+                        :points="linePoints(series.samples, chartRange(chip, waveformModeForChip(chip.index)).min, chartRange(chip, waveformModeForChip(chip.index)).max, chipTimeline(chip), (sample) => waveformDisplayValue(sample, waveformModeForChip(chip.index)))"
                         fill="none"
                         :stroke="series.color"
-                        stroke-width="0.72"
+                        stroke-width="0.86"
                         vector-effect="non-scaling-stroke"
                         stroke-linecap="round"
                         stroke-linejoin="round"
+                        class="chart-signal-line"
                       />
                     </svg>
                   </div>
@@ -1147,7 +1510,7 @@ onBeforeUnmount(() => {
                   <div class="legend-row">
                     <span v-for="series in visibleSeries(chip)" :key="series.index" class="legend-chip">
                       <span class="legend-swatch" :style="{ background: series.color }"></span>
-                      {{ series.name }} / {{ latestChannelValue(series) }}
+                      {{ series.name }} / {{ latestChannelValue(series, waveformModeForChip(chip.index)) }}
                     </span>
                   </div>
                 </article>
@@ -1165,29 +1528,283 @@ onBeforeUnmount(() => {
               </div>
             </section>
 
-            <section class="lab-panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">{{ text.navigationEyebrow }}</p>
-                  <h2>{{ text.navigationTitle }}</h2>
-                </div>
-              </div>
-
-              <div class="legend-row">
-                <a
-                  v-for="featurePackage in launchablePackages.filter((entry) => entry.id !== 'myiot.jndm123')"
-                  :key="featurePackage.id"
-                  :href="featurePackage.entryPath"
-                  class="legend-chip"
-                >
-                  <v-icon :icon="featurePackage.icon" size="16"></v-icon>
-                  {{ featurePackage.title }}
-                </a>
-              </div>
-            </section>
           </div>
         </div>
       </v-container>
     </div>
   </v-app>
 </template>
+
+<style scoped>
+.waveform-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.axis-toggle,
+.view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.axis-toggle-compact {
+  justify-content: flex-end;
+}
+
+.chart-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.waveform-note {
+  padding: 8px 12px;
+  border: 1px solid rgba(91, 141, 239, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(12, 31, 56, 0.9), rgba(20, 45, 74, 0.72));
+  color: rgba(227, 237, 255, 0.82);
+}
+
+.chart-card {
+  border: 1px solid rgba(104, 146, 227, 0.18);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(15, 26, 45, 0.96), rgba(9, 17, 31, 0.98)),
+    radial-gradient(circle at top right, rgba(72, 165, 255, 0.14), transparent 42%);
+  box-shadow:
+    0 24px 50px rgba(5, 12, 23, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.compact-chart-card {
+  min-height: 360px;
+}
+
+.chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 0;
+}
+
+.compact-chart-head {
+  padding-bottom: 6px;
+}
+
+.chart-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-title strong {
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.chart-title span {
+  color: rgba(226, 234, 248, 0.7);
+  font-size: 0.88rem;
+}
+
+.chart-note {
+  color: rgba(185, 202, 233, 0.66);
+  font-size: 0.8rem;
+  max-width: 38ch;
+}
+
+.chart-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(61, 122, 221, 0.14);
+  border: 1px solid rgba(92, 153, 255, 0.24);
+  color: rgba(223, 232, 252, 0.92);
+}
+
+.chart-surface {
+  position: relative;
+  min-height: 335px;
+  margin: 14px 20px 10px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(7, 14, 28, 0.98), rgba(11, 21, 39, 0.94)),
+    radial-gradient(circle at top, rgba(95, 183, 255, 0.08), transparent 44%);
+  border: 1px solid rgba(96, 132, 194, 0.18);
+  overflow: hidden;
+}
+
+.chart-surface-cool {
+  background:
+    linear-gradient(180deg, rgba(7, 18, 30, 0.98), rgba(10, 27, 37, 0.95)),
+    radial-gradient(circle at top, rgba(95, 255, 183, 0.08), transparent 46%);
+}
+
+.chart-surface-warm {
+  background:
+    linear-gradient(180deg, rgba(26, 14, 7, 0.98), rgba(36, 22, 11, 0.95)),
+    radial-gradient(circle at top, rgba(255, 194, 107, 0.12), transparent 46%);
+}
+
+.compact-chart-surface {
+  min-height: 260px;
+}
+
+.chart-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+    radial-gradient(circle at 15% 12%, rgba(115, 229, 211, 0.08), transparent 24%);
+  pointer-events: none;
+}
+
+.chart-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.compact-chart-svg {
+  opacity: 0.96;
+}
+
+.chart-axis {
+  position: absolute;
+  z-index: 2;
+  color: rgba(212, 223, 243, 0.74);
+  font-size: 0.76rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.chart-axis-y-tick {
+  left: 10px;
+  transform: translateY(-50%);
+}
+
+.chart-axis-x-tick {
+  bottom: 10px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.chart-grid-line {
+  stroke: rgba(163, 188, 232, 0.18);
+  stroke-width: 0.32;
+  stroke-dasharray: 1.2 1.8;
+}
+
+.chart-grid-line-vertical {
+  stroke: rgba(115, 149, 208, 0.14);
+}
+
+.chart-boundary-line {
+  stroke: rgba(196, 215, 248, 0.22);
+  stroke-width: 0.38;
+}
+
+.chart-boundary-line-strong {
+  stroke: rgba(222, 234, 255, 0.42);
+}
+
+.chart-guide-line {
+  stroke: rgba(255, 193, 115, 0.38);
+  stroke-width: 0.34;
+  stroke-dasharray: 1.6 1.6;
+}
+
+.chart-signal-line {
+  filter: drop-shadow(0 0 6px rgba(113, 209, 255, 0.22));
+}
+
+.chart-signal-line-packet {
+  filter: drop-shadow(0 0 8px rgba(140, 242, 178, 0.24));
+}
+
+.chart-signal-line-byte {
+  filter: drop-shadow(0 0 10px rgba(247, 169, 74, 0.28));
+}
+
+.chart-signal-area {
+  opacity: 0.96;
+}
+
+.chart-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 335px;
+  padding: 32px;
+  text-align: center;
+  color: rgba(214, 225, 245, 0.68);
+}
+
+.compact-chart-placeholder {
+  min-height: 260px;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 20px 20px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(102, 140, 209, 0.18);
+  background: rgba(14, 24, 42, 0.7);
+  color: rgba(230, 238, 255, 0.85);
+  text-decoration: none;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px currentColor;
+}
+
+@media (max-width: 960px) {
+  .waveform-toolbar {
+    justify-content: flex-start;
+  }
+
+  .chart-head-actions {
+    justify-content: flex-start;
+  }
+
+  .chart-surface {
+    min-height: 280px;
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .compact-chart-surface,
+  .compact-chart-placeholder {
+    min-height: 240px;
+  }
+
+  .chart-placeholder {
+    min-height: 280px;
+  }
+}
+</style>

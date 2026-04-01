@@ -19,7 +19,7 @@ const zh = {
   title: '系统资源实时监控',
   copy: '这里集中显示当前系统的磁盘、内存、线程、进程、IO、网络和 CPU 变化趋势。页面以 1 秒节奏轮询后端指标接口，并在浏览器内维持最近 60 个采样点。',
   backHome: '返回主页',
-  bundleList: '系统包列表',
+  configCenter: '配置中心',
   signOut: '退出登录',
   runtime: '运行态',
   overview: '监控入口概览',
@@ -70,7 +70,7 @@ const en = {
   title: 'Realtime System Resource Monitor',
   copy: 'This page brings together disk, memory, thread, process, IO, network, and CPU trends. It polls the backend metrics endpoint once per second and keeps the latest 60 samples in the browser.',
   backHome: 'Back to Home',
-  bundleList: 'Bundle List',
+  configCenter: 'Config Center',
   signOut: 'Sign Out',
   runtime: 'Runtime',
   overview: 'Monitor Overview',
@@ -462,9 +462,9 @@ async function handleSignOut() {
               <v-icon icon="mdi-view-dashboard-outline" size="18"></v-icon>
               <span>{{ text.backHome }}</span>
             </a>
-            <a href="/myiot/packages/index.html" class="meta-pill">
-              <v-icon icon="mdi-package-variant-closed" size="18"></v-icon>
-              <span>{{ text.bundleList }}</span>
+            <a href="/myiot/config/index.html" class="meta-pill">
+              <v-icon icon="mdi-cog-outline" size="18"></v-icon>
+              <span>{{ text.configCenter }}</span>
             </a>
             <div class="meta-pill">
               <v-icon icon="mdi-account-circle-outline" size="18"></v-icon>

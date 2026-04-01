@@ -1,12 +1,12 @@
 <bundlespec>
   <manifest>
-    <name>MyIoT WebUI Bundle List</name>
+    <name>MyIoT WebUI Global Config</name>
     <symbolicName>@MYIOT_WEBUI_PACKAGE_BUNDLE_NAME@</symbolicName>
     <version>@MYIOT_WEBUI_PACKAGE_VERSION@</version>
     <vendor>MyIoT</vendor>
     <copyright>(c) 2026 MyIoT</copyright>
     <activator>
-      <class>MyIoT::WebUI::BundleList::BundleActivator</class>
+      <class>MyIoT::WebUI::GlobalConfig::BundleActivator</class>
       <library>@MYIOT_WEBUI_PACKAGE_BUNDLE_NAME@</library>
     </activator>
     <lazyStart>false</lazyStart>

@@ -1,5 +1,0 @@
-<extensions>
-  <extension point="osp.web.server.requesthandler" path="/myiot/packages/data.json" class="MyIoT::WebUI::BundleList::BundleCatalogRequestHandlerFactory" library="io.myiot.webui.packages" allowSpecialization="none" hidden="true"/>
-  <extension point="osp.web.server.requesthandler" path="/myiot/packages/manage.json" class="MyIoT::WebUI::BundleList::BundleCatalogRequestHandlerFactory" library="io.myiot.webui.packages" allowSpecialization="none" hidden="true"/>
-  <extension point="osp.web.server.directory" path="/myiot/packages" resource="webapp" allowSpecialization="owner" hidden="true"/>
-</extensions>

@@ -4,6 +4,8 @@
 #include "Poco/DateTimeFormat.h"
 #include "Poco/DateTimeFormatter.h"
 #include "Poco/Exception.h"
+#include "Poco/File.h"
+#include "Poco/Path.h"
 #include "Poco/Mutex.h"
 #include "Poco/Format.h"
 #include "Poco/JSON/Array.h"
@@ -32,6 +34,7 @@
 #include <cstring>
 #include <deque>
 #include <exception>
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -53,7 +56,9 @@ using Poco::JSON::Array;
 using Poco::JSON::Object;
 
 constexpr const char* kDefaultI2CDevice = "/dev/i2c-0";
+constexpr const char* kDividerStateFile = "/var/lib/myiot/jndm123-divider-state.properties";
 constexpr std::size_t kDividerOutputCount = 7;
+constexpr std::size_t kDividerStartupOutputCount = 6;
 constexpr std::size_t kAd7606Count = 6;
 constexpr std::size_t kChannelsPerChip = 8;
 constexpr std::size_t kFrameWords = 24;
@@ -81,10 +86,12 @@ constexpr int kGpioMaskStart = 976;
 constexpr bool kMaskStartActiveLow = false;
 constexpr std::uint8_t kCdce937RegId = 0x00;
 constexpr std::uint8_t kCdce937RegCfg1 = 0x01;
+constexpr std::uint8_t kCdce937RegY1Control = 0x02;
+constexpr std::uint8_t kCdce937RegMux1 = 0x14;
+constexpr std::uint8_t kCdce937RegMux2 = 0x24;
+constexpr std::uint8_t kCdce937RegMux3 = 0x34;
 constexpr std::uint8_t kProbeAddresses[] = {0x6c, 0x6d, 0x6e, 0x6f};
 #endif
-
-const std::array<int, 6> kAllowedDividers = {1, 2, 3, 4, 5, 10};
 
 struct DividerOutputSpec
 {
@@ -103,6 +110,13 @@ const std::array<DividerOutputSpec, kDividerOutputCount> kDividerOutputs = {{
     {5, "Y6", "Pdiv6", 12},
     {6, "Y7", "Pdiv7", 11},
 }};
+
+struct SavedDividerConfiguration
+{
+    std::string devicePath = kDefaultI2CDevice;
+    std::array<int, kDividerStartupOutputCount> dividers{{1, 1, 1, 1, 1, 1}};
+    bool hasAllOutputs = false;
+};
 
 Poco::Logger& logger()
 {
@@ -215,6 +229,85 @@ bool parseBoolValue(const std::string& text, bool defaultValue = false)
     return defaultValue;
 }
 
+int dividerLimitForOutput(int outputIndex)
+{
+    return outputIndex == 0 ? 1023 : 127;
+}
+
+std::vector<int> normalizeOutputIndicesOrThrow(const std::vector<int>& outputIndices)
+{
+    if (outputIndices.empty())
+    {
+        throw Poco::InvalidArgumentException("At least one output must be selected.");
+    }
+
+    std::vector<int> normalized = outputIndices;
+    std::sort(normalized.begin(), normalized.end());
+    normalized.erase(std::unique(normalized.begin(), normalized.end()), normalized.end());
+
+    for (const int outputIndex: normalized)
+    {
+        if (outputIndex < 0 || outputIndex >= static_cast<int>(kDividerOutputCount))
+        {
+            throw Poco::InvalidArgumentException("Output index must be in 0..6.");
+        }
+    }
+
+    return normalized;
+}
+
+std::vector<int> parseOutputIndexListOrThrow(const std::string& text)
+{
+    std::vector<int> outputIndices;
+    std::stringstream stream(text);
+    std::string token;
+    while (std::getline(stream, token, ','))
+    {
+        Poco::trimInPlace(token);
+        if (token.empty()) continue;
+
+        int outputIndex = 0;
+        if (!parseIntStrict(token, outputIndex))
+        {
+            throw Poco::InvalidArgumentException("outputIndices must contain numeric output indexes.");
+        }
+        outputIndices.push_back(outputIndex);
+    }
+
+    return normalizeOutputIndicesOrThrow(outputIndices);
+}
+
+void validateDividerOrThrow(int outputIndex, int divider)
+{
+    if (outputIndex < 0 || outputIndex >= static_cast<int>(kDividerOutputCount))
+    {
+        throw Poco::InvalidArgumentException("Output index must be in 0..6.");
+    }
+
+    const int limit = dividerLimitForOutput(outputIndex);
+    if (divider <= 0 || divider > limit)
+    {
+        throw Poco::InvalidArgumentException(
+            Poco::format("Divider for %s must be in 1..%d.", kDividerOutputs[outputIndex].name, limit));
+    }
+}
+
+std::string describeOutputs(const std::vector<int>& outputIndices)
+{
+    const std::vector<int> normalized = normalizeOutputIndicesOrThrow(outputIndices);
+
+    std::ostringstream description;
+    for (std::size_t index = 0; index < normalized.size(); ++index)
+    {
+        if (index > 0)
+        {
+            description << (index + 1 == normalized.size() ? ", " : ", ");
+        }
+        description << kDividerOutputs[normalized[index]].name;
+    }
+    return description.str();
+}
+
 struct DividerOutputState
 {
     int index = 0;
@@ -239,6 +332,86 @@ struct DividerSnapshot
     bool powerDown = false;
     std::vector<DividerOutputState> outputs;
 };
+
+SavedDividerConfiguration loadSavedDividerConfiguration()
+{
+    SavedDividerConfiguration configuration;
+    std::ifstream input(kDividerStateFile);
+    if (!input) return configuration;
+
+    std::array<bool, kDividerStartupOutputCount> seen{{false, false, false, false, false, false}};
+    std::string line;
+    while (std::getline(input, line))
+    {
+        Poco::trimInPlace(line);
+        if (line.empty() || line[0] == '#') continue;
+
+        const std::size_t separator = line.find('=');
+        if (separator == std::string::npos) continue;
+
+        std::string key = line.substr(0, separator);
+        std::string value = line.substr(separator + 1);
+        Poco::trimInPlace(key);
+        Poco::trimInPlace(value);
+
+        if (key == "devicePath")
+        {
+            if (!value.empty()) configuration.devicePath = value;
+            continue;
+        }
+
+        if (key.size() == 2 && key[0] == 'y' && key[1] >= '1' && key[1] <= '6')
+        {
+            int divider = 0;
+            if (!parseIntStrict(value, divider)) continue;
+
+            const int outputIndex = key[1] - '1';
+            try
+            {
+                validateDividerOrThrow(outputIndex, divider);
+            }
+            catch (...)
+            {
+                continue;
+            }
+
+            configuration.dividers[outputIndex] = divider;
+            seen[outputIndex] = true;
+        }
+    }
+
+    configuration.hasAllOutputs =
+        std::all_of(seen.begin(), seen.end(), [](bool value) { return value; });
+    return configuration;
+}
+
+void saveDividerConfiguration(const DividerSnapshot& snapshot, const std::string& devicePath)
+{
+    Poco::Path configPath(kDividerStateFile);
+    Poco::File(configPath.parent()).createDirectories();
+
+    std::ofstream output(kDividerStateFile, std::ios::trunc);
+    if (!output)
+    {
+        throw Poco::IOException("Unable to write divider state file " + std::string(kDividerStateFile));
+    }
+
+    output << "# Auto-generated by MyIoT WebUI JNDM123\n";
+    output << "devicePath=" << (devicePath.empty() ? kDefaultI2CDevice : devicePath) << "\n";
+    for (std::size_t index = 0; index < kDividerStartupOutputCount; ++index)
+    {
+        if (index >= snapshot.outputs.size())
+        {
+            throw Poco::InvalidAccessException("Divider snapshot is missing outputs required for persistence.");
+        }
+        output << "y" << (index + 1) << "=" << snapshot.outputs[index].divider << "\n";
+    }
+
+    if (!output.good())
+    {
+        throw Poco::IOException("Unable to flush divider state file " + std::string(kDividerStateFile));
+    }
+}
 
 struct AcquisitionActionResult
 {
@@ -315,8 +488,10 @@ class JNDM123Runtime
 public:
     static JNDM123Runtime& instance();
 
+    void initializeFromSavedConfiguration();
     DividerSnapshot readDividerStatus(const std::string& devicePath);
     DividerSnapshot applyDivider(const std::string& devicePath, int outputIndex, int divider);
+    DividerSnapshot applyDividers(const std::string& devicePath, const std::vector<int>& outputIndices, int divider);
     AcquisitionActionResult startAcquisition();
     AcquisitionActionResult stopAcquisition(const std::string& message = "Acquisition stopped by operator.");
     AcquisitionActionResult updateUdpSettings(bool enabled, const std::string& host, Poco::UInt16 port);
@@ -372,6 +547,9 @@ public:
     int readOneFramePacket(std::array<std::uint32_t, kFrameWords>& frame);
     DividerSnapshot readDividerStatusLocked(const std::string& devicePath);
     DividerSnapshot applyDividerLocked(const std::string& devicePath, int outputIndex, int divider);
+    DividerSnapshot applyDividersLocked(const std::string& devicePath, const std::vector<int>& outputIndices, int divider);
+    void disablePllModeLocked(Cdce937Device& device);
+    DividerSnapshot initializeHardwareFromSavedConfigurationLocked();
     AcquisitionActionResult startAcquisitionLocked();
     AcquisitionActionResult stopAcquisitionLocked(const std::string& message, bool clearHistoryAfterStop);
 
@@ -459,6 +637,42 @@ JNDM123Runtime::JNDM123Runtime():
 JNDM123Runtime::~JNDM123Runtime()
 {
     shutdown();
+}
+
+void JNDM123Runtime::initializeFromSavedConfiguration()
+{
+#if defined(__linux__)
+    try
+    {
+        Poco::FastMutex::ScopedLock lock(_controlMutex);
+        DividerSnapshot snapshot = initializeHardwareFromSavedConfigurationLocked();
+        saveDividerConfiguration(snapshot, snapshot.devicePath);
+
+        AcquisitionActionResult startResult = startAcquisitionLocked();
+        if (!startResult.ok)
+        {
+            throw Poco::IOException(startResult.message);
+        }
+
+        const std::string message = "CDCE937 PLL bypass enabled, saved divider state restored for Y1~Y6, acquisition started.";
+        setStatusMessage(message);
+        logger().information(message);
+    }
+    catch (const Poco::Exception& exc)
+    {
+        const std::string message = "JNDM123 startup initialization skipped: " + exc.displayText();
+        recordError(message);
+        setStatusMessage(message);
+        logger().warning(message);
+    }
+    catch (const std::exception& exc)
+    {
+        const std::string message = std::string("JNDM123 startup initialization skipped: ") + exc.what();
+        recordError(message);
+        setStatusMessage(message);
+        logger().warning(message);
+    }
+#endif
 }
 
 void JNDM123Runtime::setStatusMessage(const std::string& message)
@@ -618,14 +832,15 @@ DividerSnapshot JNDM123Runtime::readDividerStatus(const std::string& devicePath)
 
 DividerSnapshot JNDM123Runtime::applyDivider(const std::string& devicePath, int outputIndex, int divider)
 {
-    if (outputIndex < 0 || outputIndex >= static_cast<int>(kDividerOutputCount))
-    {
-        throw Poco::InvalidArgumentException("Output index must be in 0..6.");
-    }
+    return applyDividers(devicePath, std::vector<int>{outputIndex}, divider);
+}
 
-    if (std::find(kAllowedDividers.begin(), kAllowedDividers.end(), divider) == kAllowedDividers.end())
+DividerSnapshot JNDM123Runtime::applyDividers(const std::string& devicePath, const std::vector<int>& outputIndices, int divider)
+{
+    const std::vector<int> normalizedOutputs = normalizeOutputIndicesOrThrow(outputIndices);
+    for (const int outputIndex: normalizedOutputs)
     {
-        throw Poco::InvalidArgumentException("Divider must be one of 1, 2, 3, 4, 5 or 10.");
+        validateDividerOrThrow(outputIndex, divider);
     }
 
     Poco::FastMutex::ScopedLock lock(_controlMutex);
@@ -637,7 +852,7 @@ DividerSnapshot JNDM123Runtime::applyDivider(const std::string& devicePath, int 
 
     try
     {
-        DividerSnapshot snapshot = applyDividerLocked(devicePath, outputIndex, divider);
+        DividerSnapshot snapshot = applyDividersLocked(devicePath, normalizedOutputs, divider);
         clearWaveformHistory();
 
         if (wasRunning)
@@ -650,7 +865,7 @@ DividerSnapshot JNDM123Runtime::applyDivider(const std::string& devicePath, int 
             else
             {
                 snapshot.ok = false;
-                snapshot.message += " Divider applied, but acquisition restart failed: " + restartResult.message;
+                snapshot.message += " Divider update completed, but acquisition restart failed: " + restartResult.message;
             }
         }
 
@@ -1174,6 +1389,101 @@ void writeDividerRegister(JNDM123Runtime::Cdce937Device& device, int outputIndex
     }
 }
 
+void writeMaskedCdce937Register(JNDM123Runtime::Cdce937Device& device, std::uint8_t reg, std::uint8_t mask, std::uint8_t value, const std::string& errorMessage)
+{
+    std::uint8_t current = 0;
+    if (i2cByteRead(device.fd, device.address, reg, current) != 0)
+    {
+        throw Poco::IOException(errorMessage + " (read failed).");
+    }
+
+    const std::uint8_t updated = static_cast<std::uint8_t>((current & ~mask) | (value & mask));
+    if (updated == current) return;
+
+    if (i2cByteWrite(device.fd, device.address, reg, updated) != 0)
+    {
+        throw Poco::IOException(errorMessage + " (write failed).");
+    }
+}
+
+void JNDM123Runtime::disablePllModeLocked(Cdce937Device& device)
+{
+    writeMaskedCdce937Register(
+        device,
+        kCdce937RegCfg1,
+        0x1Cu,
+        0x08u,
+        "Unable to switch CDCE937 input clock to external LVCMOS bypass mode");
+
+    writeMaskedCdce937Register(
+        device,
+        kCdce937RegY1Control,
+        0x80u,
+        0x00u,
+        "Unable to route Y1 directly from the input clock");
+
+    writeMaskedCdce937Register(
+        device,
+        kCdce937RegMux1,
+        0x80u,
+        0x80u,
+        "Unable to bypass PLL routing for Y2/Y3");
+
+    writeMaskedCdce937Register(
+        device,
+        kCdce937RegMux2,
+        0x80u,
+        0x80u,
+        "Unable to bypass PLL routing for Y4/Y5");
+
+    writeMaskedCdce937Register(
+        device,
+        kCdce937RegMux3,
+        0x80u,
+        0x80u,
+        "Unable to bypass PLL routing for Y6/Y7");
+}
+
+DividerSnapshot JNDM123Runtime::initializeHardwareFromSavedConfigurationLocked()
+{
+    const SavedDividerConfiguration saved = loadSavedDividerConfiguration();
+    if (!saved.hasAllOutputs)
+    {
+        throw Poco::NotFoundException("No valid saved divider configuration was found for Y1~Y6.");
+    }
+
+    Cdce937Device device;
+    device.path = saved.devicePath.empty() ? kDefaultI2CDevice : saved.devicePath;
+
+    if (openCdce937Device(device) != 0)
+    {
+        throw Poco::IOException("Unable to open I2C device " + device.path);
+    }
+
+    try
+    {
+        autodetectCdce937(device);
+        disablePllModeLocked(device);
+
+        for (std::size_t index = 0; index < saved.dividers.size(); ++index)
+        {
+            validateDividerOrThrow(static_cast<int>(index), saved.dividers[index]);
+            writeDividerRegister(device, static_cast<int>(index), saved.dividers[index]);
+        }
+    }
+    catch (...)
+    {
+        closeCdce937Device(device);
+        throw;
+    }
+
+    closeCdce937Device(device);
+
+    DividerSnapshot snapshot = readDividerStatusLocked(device.path);
+    snapshot.message = "CDCE937 PLL bypass enabled and saved divider state restored for Y1~Y6.";
+    return snapshot;
+}
+
 void JNDM123Runtime::ensureMappedHardwareLocked()
 {
     if (_hardware.memFd >= 0 && _hardware.fifoCtrl && _hardware.fifoData) return;
@@ -1390,6 +1700,13 @@ DividerSnapshot JNDM123Runtime::readDividerStatusLocked(const std::string& devic
 
 DividerSnapshot JNDM123Runtime::applyDividerLocked(const std::string& devicePath, int outputIndex, int divider)
 {
+    return applyDividersLocked(devicePath, std::vector<int>{outputIndex}, divider);
+}
+
+DividerSnapshot JNDM123Runtime::applyDividersLocked(const std::string& devicePath, const std::vector<int>& outputIndices, int divider)
+{
+    const std::vector<int> normalizedOutputs = normalizeOutputIndicesOrThrow(outputIndices);
+
     Cdce937Device device;
     device.path = devicePath.empty() ? kDefaultI2CDevice : devicePath;
 
@@ -1401,7 +1718,10 @@ DividerSnapshot JNDM123Runtime::applyDividerLocked(const std::string& devicePath
     try
     {
         autodetectCdce937(device);
-        writeDividerRegister(device, outputIndex, divider);
+        for (const int outputIndex: normalizedOutputs)
+        {
+            writeDividerRegister(device, outputIndex, divider);
+        }
     }
     catch (...)
     {
@@ -1412,7 +1732,8 @@ DividerSnapshot JNDM123Runtime::applyDividerLocked(const std::string& devicePath
     closeCdce937Device(device);
 
     DividerSnapshot snapshot = readDividerStatusLocked(device.path);
-    snapshot.message = "Divider applied and read back from hardware.";
+    saveDividerConfiguration(snapshot, snapshot.devicePath);
+    snapshot.message = "Divider applied to " + describeOutputs(normalizedOutputs) + " and read back from hardware.";
     return snapshot;
 }
 
@@ -1499,6 +1820,11 @@ namespace MyIoT {
 namespace WebUI {
 namespace JNDM123 {
 
+void initializeJNDM123Runtime()
+{
+    JNDM123Runtime::instance().initializeFromSavedConfiguration();
+}
+
 void stopJNDM123Runtime()
 {
     JNDM123Runtime::instance().shutdown();
@@ -1524,20 +1850,40 @@ void DividerRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request,
 
         if (Poco::icompare(request.getMethod(), std::string("POST")) == 0)
         {
-            int outputIndex = 0;
             int divider = 0;
-            if (!parseIntStrict(form.get("outputIndex", ""), outputIndex) ||
-                !parseIntStrict(form.get("divider", ""), divider))
+            if (!parseIntStrict(form.get("divider", ""), divider))
             {
-                sendJSON(response, createErrorPayload("outputIndex and divider are required numeric values."), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
+                sendJSON(response, createErrorPayload("divider is a required numeric value."), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
                 return;
             }
 
-            sendJSON(response, dividerSnapshotToJson(JNDM123Runtime::instance().applyDivider(devicePath, outputIndex, divider)));
+            std::vector<int> outputIndices;
+            const std::string outputIndicesText = form.get("outputIndices", "");
+            if (!outputIndicesText.empty())
+            {
+                outputIndices = parseOutputIndexListOrThrow(outputIndicesText);
+            }
+            else
+            {
+                int outputIndex = 0;
+                if (!parseIntStrict(form.get("outputIndex", ""), outputIndex))
+                {
+                    sendJSON(response, createErrorPayload("outputIndex or outputIndices is required."), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
+                    return;
+                }
+                outputIndices.push_back(outputIndex);
+            }
+
+            sendJSON(response, dividerSnapshotToJson(JNDM123Runtime::instance().applyDividers(devicePath, outputIndices, divider)));
             return;
         }
 
         sendJSON(response, dividerSnapshotToJson(JNDM123Runtime::instance().readDividerStatus(devicePath)));
+    }
+    catch (const Poco::InvalidArgumentException& exc)
+    {
+        logger().warning("Divider request rejected: " + exc.displayText());
+        sendJSON(response, createErrorPayload(exc.displayText()), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
     }
     catch (const Poco::Exception& exc)
     {

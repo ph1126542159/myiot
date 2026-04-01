@@ -3,7 +3,7 @@ const packageTranslations = {
     zh: {
       name: '登录',
       title: '登录入口',
-      description: 'MyIoT 的轻量登录入口，负责身份验证和主页面跳转。',
+      description: 'MyIoT 的轻量登录入口，负责身份认证和初始页面跳转。',
     },
     en: {
       name: 'Login',
@@ -13,9 +13,9 @@ const packageTranslations = {
   },
   'myiot.home': {
     zh: {
-      name: '主页面',
+      name: '主页',
       title: '控制台主页',
-      description: 'MyIoT 的主控制台页面，展示功能包、状态总览和后续扩展入口。',
+      description: 'MyIoT 的主控制台页面，聚合导航、概览和诊断入口。',
     },
     en: {
       name: 'Home',
@@ -23,23 +23,23 @@ const packageTranslations = {
       description: 'Central workspace for package navigation, overview, and diagnostics entry points.',
     },
   },
-  'myiot.bundle-list': {
+  'myiot.global-config': {
     zh: {
-      name: '包列表',
-      title: '系统包列表',
-      description: '展示当前系统已加载的所有 OSP 功能包、状态、版本和运行级别。',
+      name: '配置',
+      title: '全局配置中心',
+      description: '集中查看和修改应用级配置、日志配置以及各功能包的偏好设置。',
     },
     en: {
-      name: 'Bundles',
-      title: 'System Bundle List',
-      description: 'Review installed OSP bundles, status, versions, and runtime level.',
+      name: 'Config',
+      title: 'Global Configuration Center',
+      description: 'Review and edit application-wide properties, logging settings, and per-bundle preferences.',
     },
   },
   'myiot.process-console-ui': {
     zh: {
       name: '终端',
-      title: '终端交互',
-      description: '独立打开当前进程终端交互页面，执行调试命令并查看即时输出。',
+      title: '进程控制台',
+      description: '独立打开当前进程终端交互页面，执行调试命令并查看实时输出。',
     },
     en: {
       name: 'Console',
@@ -63,7 +63,7 @@ const packageTranslations = {
     zh: {
       name: '监控',
       title: '系统监控',
-      description: '实时展示系统磁盘、内存、线程、进程、IO、网络和 CPU 走势。',
+      description: '实时展示系统磁盘、内存、线程、进程、IO、网络和 CPU 趋势。',
     },
     en: {
       name: 'Monitor',
@@ -75,7 +75,7 @@ const packageTranslations = {
     zh: {
       name: 'JNDM123',
       title: 'JNDM123 采集',
-      description: '对 JNDM123 板上的 CDCE937 分频器和 6 片 AD7606 采集通道进行网页化控制与实时可视化。',
+      description: '面向 JNDM123 板卡的 CDCE937 分频与 AD7606 采集控制页面。',
     },
     en: {
       name: 'JNDM123',

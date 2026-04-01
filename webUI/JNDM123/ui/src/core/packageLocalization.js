@@ -23,18 +23,6 @@ const packageTranslations = {
       description: 'Central workspace for package navigation, overview, and diagnostics entry points.',
     },
   },
-  'myiot.bundle-list': {
-    zh: {
-      name: '包列表',
-      title: '系统包列表',
-      description: '展示当前系统已加载的所有 OSP 功能包、状态、版本和运行级别。',
-    },
-    en: {
-      name: 'Bundles',
-      title: 'System Bundle List',
-      description: 'Review installed OSP bundles, status, versions, and runtime level.',
-    },
-  },
   'myiot.process-console-ui': {
     zh: {
       name: '终端',
