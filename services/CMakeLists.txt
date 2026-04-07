@@ -85,3 +85,4 @@ endfunction()
 
 add_subdirectory(ProcessConsole)
 add_subdirectory(BundleWatcher)
+add_subdirectory(JNDM123AcquisitionAgent)

@@ -1,5 +1,6 @@
 ﻿#include "JNDM123RequestHandler.h"
 
+#include "JNDM123AcquisitionService.h"
 #include "Poco/AutoPtr.h"
 #include "Poco/DateTimeFormat.h"
 #include "Poco/DateTimeFormatter.h"
@@ -12,12 +13,10 @@
 #include "Poco/JSON/Object.h"
 #include "Poco/JSON/Stringifier.h"
 #include "Poco/Logger.h"
-#include "Poco/Net/DatagramSocket.h"
 #include "Poco/Net/HTMLForm.h"
 #include "Poco/Net/NetException.h"
 #include "Poco/Net/HTTPServerRequest.h"
 #include "Poco/Net/HTTPServerResponse.h"
-#include "Poco/Net/SocketAddress.h"
 #include "Poco/Notification.h"
 #include "Poco/NotificationQueue.h"
 #include "Poco/OSP/ServiceFinder.h"
@@ -31,7 +30,6 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
-#include <cstring>
 #include <deque>
 #include <exception>
 #include <fstream>
@@ -54,6 +52,7 @@ namespace {
 
 using Poco::JSON::Array;
 using Poco::JSON::Object;
+using MyIoT::Services::JNDM123AcquisitionAgent::JNDM123AcquisitionService;
 
 constexpr const char* kDefaultI2CDevice = "/dev/i2c-0";
 constexpr const char* kDividerStateFile = "/var/lib/myiot/jndm123-divider-state.properties";
@@ -65,7 +64,8 @@ constexpr std::size_t kFrameWords = 24;
 constexpr std::size_t kFrameColumns = kAd7606Count * kChannelsPerChip;
 constexpr std::size_t kHistoryLimit = 240;
 constexpr std::size_t kMaxPendingFrames = 4096;
-constexpr double kReferenceClockHz = 25000000.0;
+constexpr Poco::UInt64 kFallbackReferenceClockHz = 1000000ULL;
+constexpr Poco::UInt64 kMaxSafeAcquisitionClockHz = 50000ULL;
 constexpr Poco::Int64 kPreviewLeaseUs = 2 * 1000 * 1000;
 constexpr Poco::Int64 kPreviewPublishIntervalUs = 1 * 1000 * 1000;
 
@@ -103,18 +103,43 @@ struct DividerOutputSpec
 
 const std::array<DividerOutputSpec, kDividerOutputCount> kDividerOutputs = {{
     {0, "Y1", "Pdiv1", 17},
-    {1, "Y2", "Pdiv2", 15},
-    {2, "Y3", "Pdiv3", 14},
+    {1, "Y2", "Pdiv1", 15},
+    {2, "Y3", "Pdiv1", 14},
     {3, "Y4", "Pdiv4", 7},
-    {4, "Y5", "Pdiv5", 8},
-    {5, "Y6", "Pdiv6", 12},
+    {4, "Y5", "Pdiv4", 8},
+    {5, "Y6", "Pdiv4", 12},
     {6, "Y7", "Pdiv7", 11},
 }};
+
+Poco::UInt64& configuredReferenceClockHzStorage()
+{
+    static Poco::UInt64 value = kFallbackReferenceClockHz;
+    return value;
+}
+
+Poco::UInt64 configuredReferenceClockHz()
+{
+    return configuredReferenceClockHzStorage();
+}
+
+void setConfiguredReferenceClockHz(Poco::UInt64 referenceClockHz)
+{
+    configuredReferenceClockHzStorage() = referenceClockHz;
+}
+
+Poco::OSP::BundleContext::Ptr& runtimeBundleContextStorage()
+{
+    static Poco::OSP::BundleContext::Ptr context;
+    return context;
+}
 
 struct SavedDividerConfiguration
 {
     std::string devicePath = kDefaultI2CDevice;
+    Poco::UInt64 referenceClockHz = configuredReferenceClockHz();
     std::array<int, kDividerStartupOutputCount> dividers{{1, 1, 1, 1, 1, 1}};
+    std::array<bool, kDividerStartupOutputCount> savedOutputs{{false, false, false, false, false, false}};
+    bool hasAnyOutput = false;
     bool hasAllOutputs = false;
 };
 
@@ -197,6 +222,59 @@ Object::Ptr createErrorPayload(const std::string& message)
     return payload;
 }
 
+JNDM123AcquisitionService::Ptr acquisitionServiceOrThrow()
+{
+    Poco::OSP::BundleContext::Ptr pContext = runtimeBundleContextStorage();
+    if (!pContext)
+    {
+        throw Poco::IllegalStateException("JNDM123 bundle context is not initialized.");
+    }
+
+    return Poco::OSP::ServiceFinder::findByName<JNDM123AcquisitionService>(
+        pContext,
+        JNDM123AcquisitionService::SERVICE_NAME);
+}
+
+void stripWaveformSamples(Object::Ptr payload)
+{
+    if (!payload) return;
+
+    payload->set("includeWaveform", false);
+    payload->set("timelineUs", Array::Ptr(new Array));
+
+    Array::Ptr chips = payload->getArray("chips");
+    if (!chips) return;
+
+    for (std::size_t chipIndex = 0; chipIndex < chips->size(); ++chipIndex)
+    {
+        Object::Ptr chip = chips->getObject(chipIndex);
+        if (!chip) continue;
+
+        Array::Ptr channels = chip->getArray("channels");
+        if (!channels) continue;
+
+        for (std::size_t channelIndex = 0; channelIndex < channels->size(); ++channelIndex)
+        {
+            Object::Ptr channel = channels->getObject(channelIndex);
+            if (!channel) continue;
+            channel->set("samples", Array::Ptr(new Array));
+        }
+    }
+}
+
+bool remoteAcquisitionRunning()
+{
+    try
+    {
+        Object::Ptr payload = acquisitionServiceOrThrow()->serviceStatus();
+        return payload->optValue("running", false);
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
 bool parseIntStrict(const std::string& text, int& value)
 {
     if (text.empty()) return false;
@@ -207,6 +285,24 @@ bool parseIntStrict(const std::string& text, int& value)
         const int parsed = std::stoi(text, &pos, 10);
         if (pos != text.size()) return false;
         value = parsed;
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+bool parseUInt64Strict(const std::string& text, Poco::UInt64& value)
+{
+    if (text.empty()) return false;
+
+    try
+    {
+        std::size_t pos = 0;
+        const unsigned long long parsed = std::stoull(text, &pos, 10);
+        if (pos != text.size()) return false;
+        value = static_cast<Poco::UInt64>(parsed);
         return true;
     }
     catch (...)
@@ -231,7 +327,7 @@ bool parseBoolValue(const std::string& text, bool defaultValue = false)
 
 int dividerLimitForOutput(int outputIndex)
 {
-    return outputIndex == 0 ? 1023 : 127;
+    return outputIndex >= 0 && outputIndex <= 2 ? 1023 : 127;
 }
 
 std::vector<int> normalizeOutputIndicesOrThrow(const std::vector<int>& outputIndices)
@@ -292,6 +388,14 @@ void validateDividerOrThrow(int outputIndex, int divider)
     }
 }
 
+void validateReferenceClockHzOrThrow(Poco::UInt64 referenceClockHz)
+{
+    if (referenceClockHz == 0 || referenceClockHz > 1000000000ULL)
+    {
+        throw Poco::InvalidArgumentException("referenceClockHz must be in 1..1000000000.");
+    }
+}
+
 std::string describeOutputs(const std::vector<int>& outputIndices)
 {
     const std::vector<int> normalized = normalizeOutputIndicesOrThrow(outputIndices);
@@ -323,6 +427,7 @@ struct DividerSnapshot
     bool ok = true;
     std::string message = "Divider status synchronized.";
     std::string devicePath = kDefaultI2CDevice;
+    Poco::UInt64 referenceClockHz = configuredReferenceClockHz();
     std::string deviceType = "unsupported";
     std::string address = "--";
     std::string inputClock = "--";
@@ -333,13 +438,37 @@ struct DividerSnapshot
     std::vector<DividerOutputState> outputs;
 };
 
+double maximumStartupOutputFrequencyHz(const DividerSnapshot& snapshot)
+{
+    double maximum = 0.0;
+    const std::size_t count = std::min(snapshot.outputs.size(), kDividerStartupOutputCount);
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        maximum = std::max(maximum, snapshot.outputs[index].frequencyHz);
+    }
+    return maximum;
+}
+
+std::string acquisitionClockSafetyMessage(const DividerSnapshot& snapshot)
+{
+    const double maximumFrequencyHz = maximumStartupOutputFrequencyHz(snapshot);
+    if (maximumFrequencyHz <= static_cast<double>(kMaxSafeAcquisitionClockHz))
+    {
+        return std::string();
+    }
+
+    return Poco::format(
+        "Acquisition remains stopped because the configured clock (%.0f Hz) exceeds the software safety limit (%Lu Hz).",
+        maximumFrequencyHz,
+        static_cast<unsigned long long>(kMaxSafeAcquisitionClockHz));
+}
+
 SavedDividerConfiguration loadSavedDividerConfiguration()
 {
     SavedDividerConfiguration configuration;
     std::ifstream input(kDividerStateFile);
     if (!input) return configuration;
 
-    std::array<bool, kDividerStartupOutputCount> seen{{false, false, false, false, false, false}};
     std::string line;
     while (std::getline(input, line))
     {
@@ -360,6 +489,24 @@ SavedDividerConfiguration loadSavedDividerConfiguration()
             continue;
         }
 
+        if (key == "referenceClockHz")
+        {
+            Poco::UInt64 referenceClockHz = 0;
+            if (!parseUInt64Strict(value, referenceClockHz)) continue;
+
+            try
+            {
+                validateReferenceClockHzOrThrow(referenceClockHz);
+            }
+            catch (...)
+            {
+                continue;
+            }
+
+            configuration.referenceClockHz = referenceClockHz;
+            continue;
+        }
+
         if (key.size() == 2 && key[0] == 'y' && key[1] >= '1' && key[1] <= '6')
         {
             int divider = 0;
@@ -376,13 +523,49 @@ SavedDividerConfiguration loadSavedDividerConfiguration()
             }
 
             configuration.dividers[outputIndex] = divider;
-            seen[outputIndex] = true;
+            configuration.savedOutputs[outputIndex] = true;
         }
     }
 
+    configuration.hasAnyOutput =
+        std::any_of(configuration.savedOutputs.begin(), configuration.savedOutputs.end(), [](bool value) { return value; });
     configuration.hasAllOutputs =
-        std::all_of(seen.begin(), seen.end(), [](bool value) { return value; });
+        std::all_of(configuration.savedOutputs.begin(), configuration.savedOutputs.end(), [](bool value) { return value; });
     return configuration;
+}
+
+std::string resolvePreferredDevicePath(const std::string& requestedDevicePath)
+{
+    if (!requestedDevicePath.empty())
+    {
+        return requestedDevicePath;
+    }
+
+    const SavedDividerConfiguration saved = loadSavedDividerConfiguration();
+    if (!saved.devicePath.empty())
+    {
+        return saved.devicePath;
+    }
+
+    return kDefaultI2CDevice;
+}
+
+Poco::UInt64 resolvePreferredReferenceClockHz(const std::string& requestedReferenceClockHz)
+{
+    if (!requestedReferenceClockHz.empty())
+    {
+        Poco::UInt64 referenceClockHz = 0;
+        if (!parseUInt64Strict(requestedReferenceClockHz, referenceClockHz))
+        {
+            throw Poco::InvalidArgumentException("referenceClockHz must be a numeric value.");
+        }
+        validateReferenceClockHzOrThrow(referenceClockHz);
+        return referenceClockHz;
+    }
+
+    const SavedDividerConfiguration saved = loadSavedDividerConfiguration();
+    validateReferenceClockHzOrThrow(saved.referenceClockHz);
+    return saved.referenceClockHz;
 }
 
 void saveDividerConfiguration(const DividerSnapshot& snapshot, const std::string& devicePath)
@@ -398,6 +581,7 @@ void saveDividerConfiguration(const DividerSnapshot& snapshot, const std::string
 
     output << "# Auto-generated by MyIoT WebUI JNDM123\n";
     output << "devicePath=" << (devicePath.empty() ? kDefaultI2CDevice : devicePath) << "\n";
+    output << "referenceClockHz=" << snapshot.referenceClockHz << "\n";
     for (std::size_t index = 0; index < kDividerStartupOutputCount; ++index)
     {
         if (index >= snapshot.outputs.size())
@@ -418,6 +602,52 @@ struct AcquisitionActionResult
     bool ok = true;
     std::string message;
 };
+
+AcquisitionActionResult acquisitionResultFromPayload(Object::Ptr payload, const std::string& defaultMessage)
+{
+    AcquisitionActionResult result;
+    result.ok = !payload || payload->optValue("ok", true);
+    result.message = payload ? payload->optValue("message", defaultMessage) : defaultMessage;
+    return result;
+}
+
+DividerSnapshot dividerSnapshotFromPayload(Object::Ptr payload)
+{
+    DividerSnapshot snapshot;
+    if (!payload) return snapshot;
+
+    snapshot.ok = payload->optValue("ok", true);
+    snapshot.message = payload->optValue("message", snapshot.message);
+    snapshot.devicePath = payload->optValue("devicePath", snapshot.devicePath);
+    snapshot.referenceClockHz = payload->optValue<Poco::UInt64>("referenceClockHz", snapshot.referenceClockHz);
+    snapshot.deviceType = payload->optValue("deviceType", snapshot.deviceType);
+    snapshot.address = payload->optValue("address", snapshot.address);
+    snapshot.inputClock = payload->optValue("inputClock", snapshot.inputClock);
+    snapshot.revisionId = payload->optValue("revisionId", snapshot.revisionId);
+    snapshot.eepBusy = payload->optValue("eepBusy", snapshot.eepBusy);
+    snapshot.eepLock = payload->optValue("eepLock", snapshot.eepLock);
+    snapshot.powerDown = payload->optValue("powerDown", snapshot.powerDown);
+
+    Array::Ptr outputs = payload->getArray("outputs");
+    if (!outputs) return snapshot;
+
+    for (std::size_t index = 0; index < outputs->size(); ++index)
+    {
+        Object::Ptr item = outputs->getObject(index);
+        if (!item) continue;
+
+        DividerOutputState output;
+        output.index = item->optValue("index", static_cast<int>(index));
+        output.name = item->optValue("name", std::string());
+        output.pdivName = item->optValue("pdiv", std::string());
+        output.pin = item->optValue("pin", 0);
+        output.divider = item->optValue("divider", 0);
+        output.frequencyHz = item->optValue("frequencyHz", 0.0);
+        snapshot.outputs.push_back(output);
+    }
+
+    return snapshot;
+}
 
 struct FramePacket
 {
@@ -442,16 +672,6 @@ public:
 private:
     FramePacket _packet;
 };
-
-#pragma pack(push, 1)
-struct UdpFramePacket
-{
-    char magic[8];
-    std::uint64_t sequence;
-    std::int64_t timestampUs;
-    std::int16_t samples[kFrameColumns];
-};
-#pragma pack(pop)
 
 class JNDM123Runtime;
 
@@ -490,11 +710,11 @@ public:
 
     void initializeFromSavedConfiguration();
     DividerSnapshot readDividerStatus(const std::string& devicePath);
-    DividerSnapshot applyDivider(const std::string& devicePath, int outputIndex, int divider);
-    DividerSnapshot applyDividers(const std::string& devicePath, const std::vector<int>& outputIndices, int divider);
+    DividerSnapshot applyDivider(const std::string& devicePath, int outputIndex, int divider, Poco::UInt64 referenceClockHz);
+    DividerSnapshot applyDividers(const std::string& devicePath, const std::vector<int>& outputIndices, int divider, Poco::UInt64 referenceClockHz);
+    DividerSnapshot updateReferenceClock(const std::string& devicePath, Poco::UInt64 referenceClockHz);
     AcquisitionActionResult startAcquisition();
     AcquisitionActionResult stopAcquisition(const std::string& message = "Acquisition stopped by operator.");
-    AcquisitionActionResult updateUdpSettings(bool enabled, const std::string& host, Poco::UInt16 port);
     void touchPreviewLease();
     Object::Ptr acquisitionSnapshot(bool includeWaveform);
     void shutdown();
@@ -516,8 +736,6 @@ private:
     bool enqueueFrame(FramePacket packet);
     void drainQueue();
     void unpackFrame(const std::array<std::uint32_t, kFrameWords>& words, std::array<std::int16_t, kFrameColumns>& samples) const;
-    void broadcastFrame(const FramePacket& packet, const std::array<std::int16_t, kFrameColumns>& samples);
-    void ensureUdpSocketLocked();
 
 #if defined(__linux__)
 public:
@@ -545,9 +763,9 @@ public:
     void resetFifoLocked();
     void recoverRxFifo();
     int readOneFramePacket(std::array<std::uint32_t, kFrameWords>& frame);
-    DividerSnapshot readDividerStatusLocked(const std::string& devicePath);
-    DividerSnapshot applyDividerLocked(const std::string& devicePath, int outputIndex, int divider);
-    DividerSnapshot applyDividersLocked(const std::string& devicePath, const std::vector<int>& outputIndices, int divider);
+    DividerSnapshot readDividerStatusLocked(const std::string& devicePath, Poco::UInt64 referenceClockHz);
+    DividerSnapshot applyDividerLocked(const std::string& devicePath, int outputIndex, int divider, Poco::UInt64 referenceClockHz);
+    DividerSnapshot applyDividersLocked(const std::string& devicePath, const std::vector<int>& outputIndices, int divider, Poco::UInt64 referenceClockHz);
     void disablePllModeLocked(Cdce937Device& device);
     DividerSnapshot initializeHardwareFromSavedConfigurationLocked();
     AcquisitionActionResult startAcquisitionLocked();
@@ -581,18 +799,10 @@ private:
     std::array<std::int16_t, kFrameColumns> _latestSamples{};
     bool _hasLatestFrame = false;
     Poco::Int64 _lastPreviewPublishedAtUs = 0;
-    bool _udpEnabled = true;
-    std::string _udpHost = "255.255.255.255";
-    Poco::UInt16 _udpPort = 19048;
-    Poco::Net::SocketAddress _udpTarget;
-    std::unique_ptr<Poco::Net::DatagramSocket> _udpSocket;
-    Poco::UInt64 _udpPacketsSent = 0;
-    Poco::UInt64 _udpBytesSent = 0;
     std::string _statusMessage = "JNDM123 runtime ready.";
     std::string _lastError;
     std::string _lastFrameAt;
     std::string _lastPreviewPublishedAt;
-    std::string _lastBroadcastAt;
 
 #if defined(__linux__)
     MappedHardware _hardware;
@@ -615,23 +825,6 @@ JNDM123Runtime::JNDM123Runtime():
     _readerRunnable(*this),
     _dispatcherRunnable(*this)
 {
-    try
-    {
-        Poco::FastMutex::ScopedLock lock(_stateMutex);
-        _udpTarget = Poco::Net::SocketAddress(_udpHost, _udpPort);
-        ensureUdpSocketLocked();
-    }
-    catch (const Poco::Exception& exc)
-    {
-        _lastError = exc.displayText();
-    }
-    catch (const std::exception& exc)
-    {
-        _lastError = exc.what();
-    }
-
-    _dispatcherThread.start(_dispatcherRunnable);
-    _dispatcherStarted = true;
 }
 
 JNDM123Runtime::~JNDM123Runtime()
@@ -641,20 +834,16 @@ JNDM123Runtime::~JNDM123Runtime()
 
 void JNDM123Runtime::initializeFromSavedConfiguration()
 {
-#if defined(__linux__)
     try
     {
         Poco::FastMutex::ScopedLock lock(_controlMutex);
-        DividerSnapshot snapshot = initializeHardwareFromSavedConfigurationLocked();
-        saveDividerConfiguration(snapshot, snapshot.devicePath);
-
-        AcquisitionActionResult startResult = startAcquisitionLocked();
-        if (!startResult.ok)
+        if (configuredReferenceClockHz() != kFallbackReferenceClockHz)
         {
-            throw Poco::IOException(startResult.message);
+            acquisitionServiceOrThrow()->updateReferenceClock(std::string(), configuredReferenceClockHz());
         }
 
-        const std::string message = "CDCE937 PLL bypass enabled, saved divider state restored for Y1~Y6, acquisition started.";
+        Object::Ptr payload = acquisitionServiceOrThrow()->serviceStatus();
+        const std::string message = payload->optValue("message", std::string("JNDM123 hardware state synchronized from acquisition agent."));
         setStatusMessage(message);
         logger().information(message);
     }
@@ -672,7 +861,6 @@ void JNDM123Runtime::initializeFromSavedConfiguration()
         setStatusMessage(message);
         logger().warning(message);
     }
-#endif
 }
 
 void JNDM123Runtime::setStatusMessage(const std::string& message)
@@ -772,155 +960,61 @@ void JNDM123Runtime::unpackFrame(const std::array<std::uint32_t, kFrameWords>& w
     }
 }
 
-void JNDM123Runtime::ensureUdpSocketLocked()
-{
-    if (_udpSocket) return;
-
-    _udpSocket = std::make_unique<Poco::Net::DatagramSocket>(Poco::Net::SocketAddress("0.0.0.0", 0));
-    _udpSocket->setBroadcast(true);
-}
-
-void JNDM123Runtime::broadcastFrame(const FramePacket& packet, const std::array<std::int16_t, kFrameColumns>& samples)
-{
-    bool udpEnabled = false;
-    Poco::Net::SocketAddress target;
-
-    {
-        Poco::FastMutex::ScopedLock lock(_stateMutex);
-        udpEnabled = _udpEnabled;
-        target = _udpTarget;
-        ensureUdpSocketLocked();
-    }
-
-    if (!udpEnabled || !_udpSocket) return;
-
-    UdpFramePacket udpPacket{};
-    std::memcpy(udpPacket.magic, "JNDM123", 8);
-    udpPacket.sequence = packet.sequence;
-    udpPacket.timestampUs = packet.capturedAt.epochMicroseconds();
-    for (std::size_t i = 0; i < samples.size(); ++i)
-    {
-        udpPacket.samples[i] = samples[i];
-    }
-
-    try
-    {
-        const int sentBytes = _udpSocket->sendTo(&udpPacket, static_cast<int>(sizeof(udpPacket)), target);
-        Poco::FastMutex::ScopedLock lock(_stateMutex);
-        ++_udpPacketsSent;
-        if (sentBytes > 0)
-        {
-            _udpBytesSent += static_cast<Poco::UInt64>(sentBytes);
-        }
-        _lastBroadcastAt = isoTimestamp();
-    }
-    catch (const Poco::Exception& exc)
-    {
-        recordError("UDP broadcast failed: " + exc.displayText());
-    }
-    catch (const std::exception& exc)
-    {
-        recordError(std::string("UDP broadcast failed: ") + exc.what());
-    }
-}
-
 DividerSnapshot JNDM123Runtime::readDividerStatus(const std::string& devicePath)
 {
     Poco::FastMutex::ScopedLock lock(_controlMutex);
-    return readDividerStatusLocked(devicePath);
+    return dividerSnapshotFromPayload(acquisitionServiceOrThrow()->readDividerStatus(devicePath));
 }
 
-DividerSnapshot JNDM123Runtime::applyDivider(const std::string& devicePath, int outputIndex, int divider)
+DividerSnapshot JNDM123Runtime::applyDivider(const std::string& devicePath, int outputIndex, int divider, Poco::UInt64 referenceClockHz)
 {
-    return applyDividers(devicePath, std::vector<int>{outputIndex}, divider);
+    return applyDividers(devicePath, std::vector<int>{outputIndex}, divider, referenceClockHz);
 }
 
-DividerSnapshot JNDM123Runtime::applyDividers(const std::string& devicePath, const std::vector<int>& outputIndices, int divider)
+DividerSnapshot JNDM123Runtime::applyDividers(const std::string& devicePath, const std::vector<int>& outputIndices, int divider, Poco::UInt64 referenceClockHz)
 {
     const std::vector<int> normalizedOutputs = normalizeOutputIndicesOrThrow(outputIndices);
     for (const int outputIndex: normalizedOutputs)
     {
         validateDividerOrThrow(outputIndex, divider);
     }
+    validateReferenceClockHzOrThrow(referenceClockHz);
 
     Poco::FastMutex::ScopedLock lock(_controlMutex);
-    const bool wasRunning = _acquisitionRunning.load();
-    if (wasRunning)
-    {
-        stopAcquisitionLocked("Acquisition paused for divider update.", true);
-    }
+    DividerSnapshot snapshot = dividerSnapshotFromPayload(
+        acquisitionServiceOrThrow()->applyDividers(devicePath, normalizedOutputs, divider, referenceClockHz));
+    setStatusMessage(snapshot.message);
+    return snapshot;
+}
 
-    try
-    {
-        DividerSnapshot snapshot = applyDividersLocked(devicePath, normalizedOutputs, divider);
-        clearWaveformHistory();
+DividerSnapshot JNDM123Runtime::updateReferenceClock(const std::string& devicePath, Poco::UInt64 referenceClockHz)
+{
+    validateReferenceClockHzOrThrow(referenceClockHz);
 
-        if (wasRunning)
-        {
-            AcquisitionActionResult restartResult = startAcquisitionLocked();
-            if (restartResult.ok)
-            {
-                snapshot.message += " Acquisition restarted.";
-            }
-            else
-            {
-                snapshot.ok = false;
-                snapshot.message += " Divider update completed, but acquisition restart failed: " + restartResult.message;
-            }
-        }
-
-        setStatusMessage(snapshot.message);
-        return snapshot;
-    }
-    catch (...)
-    {
-        if (wasRunning)
-        {
-            try
-            {
-                startAcquisitionLocked();
-            }
-            catch (...)
-            {
-            }
-        }
-        throw;
-    }
+    Poco::FastMutex::ScopedLock lock(_controlMutex);
+    DividerSnapshot snapshot = dividerSnapshotFromPayload(
+        acquisitionServiceOrThrow()->updateReferenceClock(devicePath, referenceClockHz));
+    setStatusMessage(snapshot.message);
+    return snapshot;
 }
 
 AcquisitionActionResult JNDM123Runtime::startAcquisition()
 {
     Poco::FastMutex::ScopedLock lock(_controlMutex);
-    return startAcquisitionLocked();
+    Object::Ptr payload = acquisitionServiceOrThrow()->startAcquisition();
+    AcquisitionActionResult result = acquisitionResultFromPayload(payload, "Acquisition started.");
+    setStatusMessage(result.message);
+    if (!result.ok) recordError(result.message);
+    return result;
 }
 
 AcquisitionActionResult JNDM123Runtime::stopAcquisition(const std::string& message)
 {
     Poco::FastMutex::ScopedLock lock(_controlMutex);
-    return stopAcquisitionLocked(message, false);
-}
-
-AcquisitionActionResult JNDM123Runtime::updateUdpSettings(bool enabled, const std::string& host, Poco::UInt16 port)
-{
-    AcquisitionActionResult result;
-    Poco::FastMutex::ScopedLock lock(_stateMutex);
-
-    if (host.empty())
-    {
-        throw Poco::InvalidArgumentException("UDP host must not be empty.");
-    }
-
-    _udpEnabled = enabled;
-    _udpHost = host;
-    _udpPort = port;
-    _udpTarget = Poco::Net::SocketAddress(_udpHost, _udpPort);
-    ensureUdpSocketLocked();
-
-    std::ostringstream message;
-    message << "UDP broadcast " << (_udpEnabled ? "enabled" : "disabled")
-            << " at " << _udpHost << ':' << _udpPort << '.';
-    _statusMessage = message.str();
-    result.message = _statusMessage;
+    Object::Ptr payload = acquisitionServiceOrThrow()->stopAcquisition(message);
+    AcquisitionActionResult result = acquisitionResultFromPayload(payload, message);
+    setStatusMessage(result.message);
+    if (!result.ok) recordError(result.message);
     return result;
 }
 
@@ -932,114 +1026,12 @@ void JNDM123Runtime::touchPreviewLease()
 
 Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
 {
-    std::array<std::int16_t, kFrameColumns> latestSamples{};
-    bool hasLatestFrame = false;
-    std::string message;
-    std::string lastError;
-    std::string lastFrameAt;
-    std::string lastPreviewPublishedAt;
-    std::string lastBroadcastAt;
-    std::string udpHost;
-    Poco::UInt16 udpPort = 0;
-    bool udpEnabled = false;
-    Poco::UInt64 udpPacketsSent = 0;
-    Poco::UInt64 udpBytesSent = 0;
-    std::array<std::deque<std::int16_t>, kFrameColumns> historyCopy;
-    std::deque<Poco::Int64> timelineCopy;
-
-    {
-        Poco::FastMutex::ScopedLock lock(_stateMutex);
-        latestSamples = _latestSamples;
-        hasLatestFrame = _hasLatestFrame;
-        message = _statusMessage.empty()
-            ? (_acquisitionRunning.load() ? "Acquisition running." : "Acquisition idle.")
-            : _statusMessage;
-        lastError = _lastError;
-        lastFrameAt = _lastFrameAt;
-        lastPreviewPublishedAt = _lastPreviewPublishedAt;
-        lastBroadcastAt = _lastBroadcastAt;
-        udpHost = _udpHost;
-        udpPort = _udpPort;
-        udpEnabled = _udpEnabled;
-        udpPacketsSent = _udpPacketsSent;
-        udpBytesSent = _udpBytesSent;
-        if (includeWaveform)
-        {
-            historyCopy = _publishedHistory;
-            timelineCopy = _publishedTimelineUs;
-        }
-    }
-
-    Object::Ptr payload = new Object;
+    Object::Ptr payload = acquisitionServiceOrThrow()->latestSnapshot();
     payload->set("authenticated", true);
-    payload->set("ok", true);
-    payload->set("updatedAt", isoTimestamp());
-    payload->set("message", message);
-    payload->set("running", _acquisitionRunning.load());
-    payload->set("previewActive", previewLeaseActive());
-    payload->set("historyLimit", static_cast<int>(kHistoryLimit));
-    payload->set("queueDepth", static_cast<int>(_queueDepth.load()));
-    payload->set("totalFrames", static_cast<Poco::UInt64>(_totalFrames.load()));
-    payload->set("droppedFrames", static_cast<Poco::UInt64>(_droppedFrames.load()));
-    payload->set("recoveries", static_cast<Poco::UInt64>(_recoveries.load()));
-    payload->set("lastFrameSequence", static_cast<Poco::UInt64>(_lastFrameSequence.load()));
-    payload->set("lastFrameAt", lastFrameAt);
-    payload->set("waveformUpdatedAt", lastPreviewPublishedAt);
-    payload->set("lastError", lastError);
-    payload->set("includeWaveform", includeWaveform);
-
-    Object::Ptr udp = new Object;
-    udp->set("enabled", udpEnabled);
-    udp->set("host", udpHost);
-    udp->set("port", udpPort);
-    udp->set("lastBroadcastAt", lastBroadcastAt);
-    udp->set("packetsSent", udpPacketsSent);
-    udp->set("bytesSent", udpBytesSent);
-    payload->set("udp", udp);
-
-    Array::Ptr timelineUs = new Array;
-    if (includeWaveform)
+    if (!includeWaveform)
     {
-        for (const auto timestampUs: timelineCopy)
-        {
-            timelineUs->add(static_cast<Poco::Int64>(timestampUs));
-        }
+        stripWaveformSamples(payload);
     }
-    payload->set("timelineUs", timelineUs);
-
-    Array::Ptr chips = new Array;
-    for (std::size_t chipIndex = 0; chipIndex < kAd7606Count; ++chipIndex)
-    {
-        Object::Ptr chip = new Object;
-        chip->set("index", static_cast<int>(chipIndex));
-        chip->set("name", "ADC" + std::to_string(chipIndex + 1));
-
-        Array::Ptr channels = new Array;
-        for (std::size_t channelIndex = 0; channelIndex < kChannelsPerChip; ++channelIndex)
-        {
-            const std::size_t sampleIndex = chipIndex * kChannelsPerChip + channelIndex;
-            Object::Ptr channel = new Object;
-            channel->set("index", static_cast<int>(channelIndex));
-            channel->set("name", "CH" + std::to_string(channelIndex + 1));
-            channel->set("hasValue", hasLatestFrame);
-            channel->set("value", static_cast<int>(latestSamples[sampleIndex]));
-
-            Array::Ptr samples = new Array;
-            if (includeWaveform)
-            {
-                for (const auto sample: historyCopy[sampleIndex])
-                {
-                    samples->add(static_cast<int>(sample));
-                }
-            }
-            channel->set("samples", samples);
-            channels->add(channel);
-        }
-
-        chip->set("channels", channels);
-        chips->add(chip);
-    }
-    payload->set("chips", chips);
     return payload;
 }
 
@@ -1047,30 +1039,6 @@ void JNDM123Runtime::shutdown()
 {
     const bool alreadyShuttingDown = _shuttingDown.exchange(true);
     if (alreadyShuttingDown) return;
-
-#if defined(__linux__)
-    try
-    {
-        Poco::FastMutex::ScopedLock lock(_controlMutex);
-        stopAcquisitionLocked("Acquisition stopped during bundle shutdown.", true);
-        releaseMappedHardwareLocked();
-    }
-    catch (...)
-    {
-    }
-#endif
-
-    _queue.wakeUpAll();
-    if (_dispatcherStarted)
-    {
-        _dispatcherThread.join();
-        _dispatcherStarted = false;
-    }
-
-    drainQueue();
-
-    Poco::FastMutex::ScopedLock stateLock(_stateMutex);
-    _udpSocket.reset();
 }
 
 void JNDM123Runtime::readerLoop()
@@ -1169,7 +1137,6 @@ void JNDM123Runtime::dispatcherLoop()
             }
         }
 
-        broadcastFrame(packet, samples);
     }
 }
 
@@ -1191,6 +1158,7 @@ Object::Ptr dividerSnapshotToJson(const DividerSnapshot& snapshot)
     payload->set("message", snapshot.message);
     payload->set("updatedAt", isoTimestamp());
     payload->set("devicePath", snapshot.devicePath);
+    payload->set("referenceClockHz", snapshot.referenceClockHz);
     payload->set("deviceType", snapshot.deviceType);
     payload->set("address", snapshot.address);
     payload->set("inputClock", snapshot.inputClock);
@@ -1341,7 +1309,7 @@ const char* inclkName(std::uint8_t value)
 
 int readDividerRegister(JNDM123Runtime::Cdce937Device& device, int outputIndex)
 {
-    if (outputIndex == 0)
+    if (outputIndex >= 0 && outputIndex <= 2)
     {
         std::uint8_t reg02 = 0;
         std::uint8_t reg03 = 0;
@@ -1350,15 +1318,15 @@ int readDividerRegister(JNDM123Runtime::Cdce937Device& device, int outputIndex)
         return static_cast<int>(((reg02 & 0x03u) << 8) | reg03);
     }
 
-    const std::uint8_t registers[] = {0x16, 0x17, 0x26, 0x27, 0x36, 0x37};
+    const std::uint8_t registers[] = {0x26, 0x26, 0x26, 0x37};
     std::uint8_t value = 0;
-    if (i2cByteRead(device.fd, device.address, registers[outputIndex - 1], value) != 0) return 0;
+    if (i2cByteRead(device.fd, device.address, registers[outputIndex - 3], value) != 0) return 0;
     return static_cast<int>(value & 0x7Fu);
 }
 
 void writeDividerRegister(JNDM123Runtime::Cdce937Device& device, int outputIndex, int divider)
 {
-    if (outputIndex == 0)
+    if (outputIndex >= 0 && outputIndex <= 2)
     {
         std::uint8_t reg02 = 0;
         if (i2cByteRead(device.fd, device.address, 0x02, reg02) != 0)
@@ -1375,15 +1343,15 @@ void writeDividerRegister(JNDM123Runtime::Cdce937Device& device, int outputIndex
         return;
     }
 
-    const std::uint8_t registers[] = {0x16, 0x17, 0x26, 0x27, 0x36, 0x37};
+    const std::uint8_t registers[] = {0x26, 0x26, 0x26, 0x37};
     std::uint8_t oldValue = 0;
-    if (i2cByteRead(device.fd, device.address, registers[outputIndex - 1], oldValue) != 0)
+    if (i2cByteRead(device.fd, device.address, registers[outputIndex - 3], oldValue) != 0)
     {
         throw Poco::IOException("Unable to read divider register.");
     }
 
     const std::uint8_t newValue = static_cast<std::uint8_t>((oldValue & 0x80u) | (divider & 0x7Fu));
-    if (i2cByteWrite(device.fd, device.address, registers[outputIndex - 1], newValue) != 0)
+    if (i2cByteWrite(device.fd, device.address, registers[outputIndex - 3], newValue) != 0)
     {
         throw Poco::IOException("Unable to write divider register.");
     }
@@ -1406,6 +1374,122 @@ void writeMaskedCdce937Register(JNDM123Runtime::Cdce937Device& device, std::uint
     }
 }
 
+void forceOutputEnabledLocked(JNDM123Runtime::Cdce937Device& device, int outputIndex)
+{
+    switch (outputIndex)
+    {
+    case 0:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegY1Control,
+            0x3Cu,
+            0x3Cu,
+            "Unable to force-enable Y1 output");
+        break;
+    case 1:
+    case 2:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux1,
+            0x0Fu,
+            0x0Fu,
+            "Unable to force-enable Y2/Y3 output group");
+        break;
+    case 3:
+    case 4:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux2,
+            0x0Fu,
+            0x0Fu,
+            "Unable to force-enable Y4/Y5 output group");
+        break;
+    case 5:
+    case 6:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux3,
+            0x0Fu,
+            0x0Fu,
+            "Unable to force-enable Y6/Y7 output group");
+        break;
+    default:
+        throw Poco::InvalidArgumentException("Output index must be in 0..6.");
+    }
+}
+
+void disablePllModeForOutputLocked(JNDM123Runtime::Cdce937Device& device, int outputIndex)
+{
+    switch (outputIndex)
+    {
+    case 0:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegY1Control,
+            0x80u,
+            0x00u,
+            "Unable to route Y1 directly from the input clock");
+        break;
+    case 1:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux1,
+            0xC0u,
+            0x80u,
+            "Unable to route Y2 to shared Pdiv1 in PLL bypass mode");
+        break;
+    case 2:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux1,
+            0xB0u,
+            0x80u,
+            "Unable to route Y3 to shared Pdiv1 in PLL bypass mode");
+        break;
+    case 3:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux2,
+            0xC0u,
+            0xC0u,
+            "Unable to bypass PLL routing for Y4");
+        break;
+    case 4:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux2,
+            0xB0u,
+            0x90u,
+            "Unable to route Y5 to shared Pdiv4 in PLL bypass mode");
+        break;
+    case 5:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux3,
+            0xC0u,
+            0x80u,
+            "Unable to route Y6 to shared Pdiv4 in PLL bypass mode");
+        break;
+    case 6:
+        writeMaskedCdce937Register(
+            device,
+            kCdce937RegMux3,
+            0xB0u,
+            0xA0u,
+            "Unable to bypass PLL routing for Y7");
+        break;
+    default:
+        throw Poco::InvalidArgumentException("Output index must be in 0..6.");
+    }
+}
+
+void writeOutputDividerLocked(JNDM123Runtime::Cdce937Device& device, int outputIndex, int divider)
+{
+    forceOutputEnabledLocked(device, outputIndex);
+    disablePllModeForOutputLocked(device, outputIndex);
+    writeDividerRegister(device, outputIndex, divider);
+}
+
 void JNDM123Runtime::disablePllModeLocked(Cdce937Device& device)
 {
     writeMaskedCdce937Register(
@@ -1414,40 +1498,12 @@ void JNDM123Runtime::disablePllModeLocked(Cdce937Device& device)
         0x1Cu,
         0x08u,
         "Unable to switch CDCE937 input clock to external LVCMOS bypass mode");
-
-    writeMaskedCdce937Register(
-        device,
-        kCdce937RegY1Control,
-        0x80u,
-        0x00u,
-        "Unable to route Y1 directly from the input clock");
-
-    writeMaskedCdce937Register(
-        device,
-        kCdce937RegMux1,
-        0x80u,
-        0x80u,
-        "Unable to bypass PLL routing for Y2/Y3");
-
-    writeMaskedCdce937Register(
-        device,
-        kCdce937RegMux2,
-        0x80u,
-        0x80u,
-        "Unable to bypass PLL routing for Y4/Y5");
-
-    writeMaskedCdce937Register(
-        device,
-        kCdce937RegMux3,
-        0x80u,
-        0x80u,
-        "Unable to bypass PLL routing for Y6/Y7");
 }
 
 DividerSnapshot JNDM123Runtime::initializeHardwareFromSavedConfigurationLocked()
 {
     const SavedDividerConfiguration saved = loadSavedDividerConfiguration();
-    if (!saved.hasAllOutputs)
+    if (!saved.hasAnyOutput)
     {
         throw Poco::NotFoundException("No valid saved divider configuration was found for Y1~Y6.");
     }
@@ -1467,8 +1523,9 @@ DividerSnapshot JNDM123Runtime::initializeHardwareFromSavedConfigurationLocked()
 
         for (std::size_t index = 0; index < saved.dividers.size(); ++index)
         {
+            if (!saved.savedOutputs[index]) continue;
             validateDividerOrThrow(static_cast<int>(index), saved.dividers[index]);
-            writeDividerRegister(device, static_cast<int>(index), saved.dividers[index]);
+            writeOutputDividerLocked(device, static_cast<int>(index), saved.dividers[index]);
         }
     }
     catch (...)
@@ -1479,8 +1536,10 @@ DividerSnapshot JNDM123Runtime::initializeHardwareFromSavedConfigurationLocked()
 
     closeCdce937Device(device);
 
-    DividerSnapshot snapshot = readDividerStatusLocked(device.path);
-    snapshot.message = "CDCE937 PLL bypass enabled and saved divider state restored for Y1~Y6.";
+    DividerSnapshot snapshot = readDividerStatusLocked(device.path, saved.referenceClockHz);
+    snapshot.message = saved.hasAllOutputs
+        ? "CDCE937 PLL bypass enabled and saved divider state restored for Y1~Y6."
+        : "CDCE937 PLL bypass enabled and saved divider state restored for available outputs.";
     return snapshot;
 }
 
@@ -1641,10 +1700,11 @@ int JNDM123Runtime::readOneFramePacket(std::array<std::uint32_t, kFrameWords>& f
     return 1;
 }
 
-DividerSnapshot JNDM123Runtime::readDividerStatusLocked(const std::string& devicePath)
+DividerSnapshot JNDM123Runtime::readDividerStatusLocked(const std::string& devicePath, Poco::UInt64 referenceClockHz)
 {
     DividerSnapshot snapshot;
     snapshot.devicePath = devicePath.empty() ? kDefaultI2CDevice : devicePath;
+    snapshot.referenceClockHz = referenceClockHz;
 
     Cdce937Device device;
     device.path = snapshot.devicePath;
@@ -1682,7 +1742,7 @@ DividerSnapshot JNDM123Runtime::readDividerStatusLocked(const std::string& devic
             output.pdivName = spec.pdivName;
             output.pin = spec.pin;
             output.divider = readDividerRegister(device, spec.index);
-            output.frequencyHz = output.divider > 0 ? (kReferenceClockHz / static_cast<double>(output.divider)) : 0.0;
+            output.frequencyHz = output.divider > 0 ? (static_cast<double>(referenceClockHz) / static_cast<double>(output.divider)) : 0.0;
             snapshot.outputs.push_back(output);
         }
 
@@ -1698,12 +1758,12 @@ DividerSnapshot JNDM123Runtime::readDividerStatusLocked(const std::string& devic
     return snapshot;
 }
 
-DividerSnapshot JNDM123Runtime::applyDividerLocked(const std::string& devicePath, int outputIndex, int divider)
+DividerSnapshot JNDM123Runtime::applyDividerLocked(const std::string& devicePath, int outputIndex, int divider, Poco::UInt64 referenceClockHz)
 {
-    return applyDividersLocked(devicePath, std::vector<int>{outputIndex}, divider);
+    return applyDividersLocked(devicePath, std::vector<int>{outputIndex}, divider, referenceClockHz);
 }
 
-DividerSnapshot JNDM123Runtime::applyDividersLocked(const std::string& devicePath, const std::vector<int>& outputIndices, int divider)
+DividerSnapshot JNDM123Runtime::applyDividersLocked(const std::string& devicePath, const std::vector<int>& outputIndices, int divider, Poco::UInt64 referenceClockHz)
 {
     const std::vector<int> normalizedOutputs = normalizeOutputIndicesOrThrow(outputIndices);
 
@@ -1718,9 +1778,10 @@ DividerSnapshot JNDM123Runtime::applyDividersLocked(const std::string& devicePat
     try
     {
         autodetectCdce937(device);
+        disablePllModeLocked(device);
         for (const int outputIndex: normalizedOutputs)
         {
-            writeDividerRegister(device, outputIndex, divider);
+            writeOutputDividerLocked(device, outputIndex, divider);
         }
     }
     catch (...)
@@ -1731,7 +1792,7 @@ DividerSnapshot JNDM123Runtime::applyDividersLocked(const std::string& devicePat
 
     closeCdce937Device(device);
 
-    DividerSnapshot snapshot = readDividerStatusLocked(device.path);
+    DividerSnapshot snapshot = readDividerStatusLocked(device.path, referenceClockHz);
     saveDividerConfiguration(snapshot, snapshot.devicePath);
     snapshot.message = "Divider applied to " + describeOutputs(normalizedOutputs) + " and read back from hardware.";
     return snapshot;
@@ -1749,6 +1810,16 @@ AcquisitionActionResult JNDM123Runtime::startAcquisitionLocked()
 
     try
     {
+        const DividerSnapshot safetySnapshot = readDividerStatusLocked(resolvePreferredDevicePath(""), resolvePreferredReferenceClockHz(""));
+        const std::string safetyMessage = acquisitionClockSafetyMessage(safetySnapshot);
+        if (!safetyMessage.empty())
+        {
+            result.ok = false;
+            result.message = safetyMessage;
+            setStatusMessage(result.message);
+            return result;
+        }
+
         ensureMappedHardwareLocked();
         initializeGpioLocked();
         stopAdcLocked();
@@ -1820,14 +1891,50 @@ namespace MyIoT {
 namespace WebUI {
 namespace JNDM123 {
 
-void initializeJNDM123Runtime()
+void initializeJNDM123Runtime(Poco::OSP::BundleContext::Ptr pContext)
 {
+    Poco::UInt64 referenceClockHz = kFallbackReferenceClockHz;
+    runtimeBundleContextStorage() = pContext;
+
+    if (pContext)
+    {
+        const std::string configuredReferenceClockHzText = pContext->thisBundle()->properties().getString("referenceClockHz", "");
+        if (!configuredReferenceClockHzText.empty())
+        {
+            Poco::UInt64 parsedReferenceClockHz = 0;
+            if (!parseUInt64Strict(configuredReferenceClockHzText, parsedReferenceClockHz))
+            {
+                pContext->logger().warning(
+                    "Invalid JNDM123 bundle property referenceClockHz=" + configuredReferenceClockHzText +
+                    ", using fallback " + std::to_string(kFallbackReferenceClockHz) + ".");
+            }
+            else
+            {
+                try
+                {
+                    validateReferenceClockHzOrThrow(parsedReferenceClockHz);
+                    referenceClockHz = parsedReferenceClockHz;
+                }
+                catch (const Poco::Exception& exc)
+                {
+                    pContext->logger().warning(
+                        "Invalid JNDM123 bundle property referenceClockHz=" + configuredReferenceClockHzText +
+                        ": " + exc.displayText() + ". Using fallback " + std::to_string(kFallbackReferenceClockHz) + ".");
+                }
+            }
+        }
+
+        pContext->logger().information("JNDM123 configured reference clock: " + std::to_string(referenceClockHz) + " Hz.");
+    }
+
+    setConfiguredReferenceClockHz(referenceClockHz);
     JNDM123Runtime::instance().initializeFromSavedConfiguration();
 }
 
 void stopJNDM123Runtime()
 {
     JNDM123Runtime::instance().shutdown();
+    runtimeBundleContextStorage().reset();
 }
 
 DividerRequestHandler::DividerRequestHandler(Poco::OSP::BundleContext::Ptr pContext):
@@ -1846,10 +1953,19 @@ void DividerRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request,
     try
     {
         Poco::Net::HTMLForm form(request, request.stream());
-        const std::string devicePath = form.get("devicePath", kDefaultI2CDevice);
+        const std::string requestedDevicePath = form.get("devicePath", "");
+        const std::string devicePath = resolvePreferredDevicePath(requestedDevicePath);
+        const Poco::UInt64 referenceClockHz = resolvePreferredReferenceClockHz(form.get("referenceClockHz", ""));
 
         if (Poco::icompare(request.getMethod(), std::string("POST")) == 0)
         {
+            const bool hasDivider = form.has("divider");
+            if (!hasDivider)
+            {
+                sendJSON(response, dividerSnapshotToJson(JNDM123Runtime::instance().updateReferenceClock(devicePath, referenceClockHz)));
+                return;
+            }
+
             int divider = 0;
             if (!parseIntStrict(form.get("divider", ""), divider))
             {
@@ -1874,7 +1990,7 @@ void DividerRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request,
                 outputIndices.push_back(outputIndex);
             }
 
-            sendJSON(response, dividerSnapshotToJson(JNDM123Runtime::instance().applyDividers(devicePath, outputIndices, divider)));
+            sendJSON(response, dividerSnapshotToJson(JNDM123Runtime::instance().applyDividers(devicePath, outputIndices, divider, referenceClockHz)));
             return;
         }
 
@@ -1921,23 +2037,6 @@ void AcquisitionRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& requ
 
         if (Poco::icompare(request.getMethod(), std::string("POST")) == 0)
         {
-            const bool hasUdpConfig = form.has("udpEnabled") || form.has("udpHost") || form.has("udpPort");
-            if (hasUdpConfig)
-            {
-                const std::string udpHost = form.get("udpHost", "255.255.255.255");
-                int udpPort = 19048;
-                if (!parseIntStrict(form.get("udpPort", "19048"), udpPort) || udpPort <= 0 || udpPort > 65535)
-                {
-                    sendJSON(response, createErrorPayload("udpPort must be in 1..65535."), Poco::Net::HTTPResponse::HTTP_BAD_REQUEST);
-                    return;
-                }
-
-                JNDM123Runtime::instance().updateUdpSettings(
-                    parseBoolValue(form.get("udpEnabled", "1"), true),
-                    udpHost,
-                    static_cast<Poco::UInt16>(udpPort));
-            }
-
             const std::string action = form.get("action", "");
             if (action == "start")
             {
@@ -1955,6 +2054,19 @@ void AcquisitionRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& requ
                 payload->set("ok", result.ok);
                 payload->set("message", result.message);
                 sendJSON(response, payload);
+                return;
+            }
+            if (action == "restart-process")
+            {
+                Object::Ptr payload = acquisitionServiceOrThrow()->restartProcess();
+                if (!includeWaveform)
+                {
+                    stripWaveformSamples(payload);
+                }
+                sendJSON(
+                    response,
+                    payload,
+                    payload->optValue("ok", true) ? Poco::Net::HTTPResponse::HTTP_OK : Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
                 return;
             }
         }

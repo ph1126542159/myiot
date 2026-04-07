@@ -15,16 +15,20 @@ const zh = {
   language: 'EN',
   labEyebrow: 'JNDM123 实验台',
   labTitle: '时钟分频与 6 路 AD7606 采集',
-  labCopy: '分频器调整遵循本地 CDCE937 I2C 测试流程。FIFO 采集沿用 `work.c` 的 packet-mode 实现，去掉控制台/文件输出后，统一喂给页面预览和 UDP 广播。',
+  labCopy: '分频器调整遵循本地 CDCE937 I2C 测试流程。FIFO 采集沿用 `work.c` 的 packet-mode 实现，去掉控制台/文件输出后，统一喂给页面预览。',
   clockEyebrow: '时钟',
   clockTitle: 'CDCE937 分频控制',
   clockCopy: '可同时勾选多个输出一次性下发同一个分频值。点击执行后，后端会暂停采集线程、写入分频、回读结果，并在成功后恢复采集。',
   i2cDevice: 'I2C 设备',
+  referenceClockHz: '外部时钟 Hz',
+  referenceClockHint: '例如 25000000 表示 25 MHz。',
   output: '输出选择',
   divider: '分频值',
   execute: '执行',
+  saveClock: '保存时钟',
   refresh: '刷新',
   device: '设备',
+  referenceClock: '外部时钟',
   selectedOutput: '已选输出',
   chooseOutputs: '勾选需要一起分频的输出',
   selectedCount: (count) => `已选 ${count} 路`,
@@ -41,30 +45,15 @@ const zh = {
   actualReadback: '下方每个输出卡片都会展示实际回读结果。',
   acquisitionEyebrow: '采集',
   acquisitionTitle: 'AD7606 采集运行态',
-  acquisitionCopy: '读取线程只负责搬运整帧数据进入 `Poco::NotificationQueue`，波形缓存和 UDP 广播都交给消费侧处理。浏览器预览每秒刷新一次缓存快照，UDP 则持续走完整出队链路。',
+  acquisitionCopy: '读取线程只负责搬运整帧数据进入 `Poco::NotificationQueue`，波形缓存交给消费侧处理。浏览器预览每秒刷新一次缓存快照。',
+  runtimeChartsTitle: '实时性能',
+  runtimeChartsCopy: '基于运行态快照的累计帧数差值，按秒估算当前帧率和浏览器看到的数据吞吐。',
   start: '启动',
   stop: '停止',
-  broadcastEyebrow: '广播',
-  broadcastTitle: 'UDP 外部接口',
-  broadcastCopy: '即使前端暂停波形预览，每一帧完整 48 通道数据仍可按打包格式持续广播到 UDP。',
-  enableUdp: '启用 UDP 广播',
-  udpHost: 'UDP 主机',
-  udpPort: 'UDP 端口',
-  saveUdp: '保存 UDP 配置',
-  lastUdp: '最近 UDP',
-  none: '无',
-  target: '目标',
-  udpPackets: 'UDP 累计包数',
-  udpBytes: 'UDP 累计字节',
-  udpPacketsRate: 'UDP 包/秒',
-  udpBytesRate: 'UDP 字节/秒',
-  udpPacketsTrend: '每秒发包速率',
-  udpBytesTrend: '每秒字节速率',
-  udpFixedPayload: '固定包长下，字节速率曲线与发包速率同趋势。',
-  collectingUdpStats: '正在累计 UDP 每秒统计，请保持页面打开几秒钟。',
+  restartProcess: '重启采集进程',
   waveformsEyebrow: '波形',
   waveformsTitle: '6 组独立图表',
-  waveformsCopy: '每张图对应一个 AD7606 芯片。可选择“全部”或单独 `CH1~CH8`。预览关闭时，后端会停止为浏览器打包历史波形，但仍保留 UDP 广播；预览开启时，缓存波形每秒刷新一次。',
+  waveformsCopy: '每张图对应一个 AD7606 芯片。可选择“全部”或单独 `CH1~CH8`。预览关闭时，后端会停止为浏览器打包历史波形；预览开启时，缓存波形每秒刷新一次。',
   rawScale: '原始值',
   voltageScale: '电压值',
   voltageEstimate: '电压视图按 +/-10V 满量程估算。',
@@ -82,11 +71,15 @@ const zh = {
   stopped: '已停止',
   waitingForOperatorAction: '等待操作指令',
   frames: '帧数',
+  frameRate: '每秒帧率',
+  throughputMBps: '每秒吞吐',
   lastFrame: (value) => `最近一帧 ${value}`,
   noFramesYet: '还没有帧数据',
   recoveries: '恢复次数',
   noRecoveryWarning: '暂无恢复告警',
   queue: '队列',
+  statPerSecond: '最近 60 秒',
+  statUpdatedAt: (value) => `更新于 ${value}`,
   previewCacheActive: '预览缓存已启用',
   previewCachePaused: '预览缓存已暂停',
   hz: 'Hz',
@@ -99,14 +92,16 @@ const zh = {
   applyingDivider: (divider, output) => `正在把分频值 ${divider} 应用到 ${output}...`,
   dividerUpdateComplete: '分频更新完成。',
   dividerUpdateFailed: '分频更新失败。',
+  savingClockConfig: '正在保存外部时钟配置...',
+  clockConfigSaved: '外部时钟配置已保存。',
+  unableSaveClockConfig: '无法保存外部时钟配置。',
   startingCapture: '正在启动 AD7606 采集...',
   stoppingCapture: '正在停止 AD7606 采集...',
+  restartingCaptureProcess: '正在重启采集进程...',
   captureStarted: '采集已启动。',
   captureStopped: '采集已停止。',
+  captureProcessRestarted: '采集进程已重启。',
   captureControlFailed: '采集控制失败。',
-  savingUdpConfig: '正在保存 UDP 广播配置...',
-  udpConfigSaved: 'UDP 配置已保存。',
-  unableSaveUdpConfig: '无法保存 UDP 配置。',
   welcome: (username) => `欢迎 ${username}，正在同步 JNDM123 硬件状态。`,
   documentTitle: 'MyIoT JNDM123 控制台'
 }
@@ -120,16 +115,20 @@ const en = {
   language: '中文',
   labEyebrow: 'JNDM123 Lab',
   labTitle: 'Clock Divider and 6x AD7606 Capture',
-  labCopy: 'Divider updates follow the local CDCE937 I2C test flow. FIFO capture follows the packet-mode implementation from `work.c`, removes console/file output, and feeds the UI plus UDP broadcast.',
+  labCopy: 'Divider updates follow the local CDCE937 I2C test flow. FIFO capture follows the packet-mode implementation from `work.c`, removes console/file output, and feeds the UI preview.',
   clockEyebrow: 'Clock',
   clockTitle: 'CDCE937 Divider Control',
   clockCopy: 'Select one or more outputs to push the same divider in one shot. The backend pauses acquisition threads, writes the divider, reads back the actual state, and restarts capture on success.',
   i2cDevice: 'I2C Device',
+  referenceClockHz: 'External Clock Hz',
+  referenceClockHint: 'For example, 25000000 means 25 MHz.',
   output: 'Outputs',
   divider: 'Divider',
   execute: 'Execute',
+  saveClock: 'Save Clock',
   refresh: 'Refresh',
   device: 'Device',
+  referenceClock: 'Reference Clock',
   selectedOutput: 'Selected Outputs',
   chooseOutputs: 'Pick the outputs to update together',
   selectedCount: (count) => `${count} selected`,
@@ -146,30 +145,15 @@ const en = {
   actualReadback: 'Actual readback is shown in every output card below.',
   acquisitionEyebrow: 'Acquisition',
   acquisitionTitle: 'AD7606 Capture Runtime',
-  acquisitionCopy: 'The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves waveform caching and UDP broadcasting to the consumer side. Browser preview snapshots are published from cache once per second, while UDP stays on the full dequeue path.',
+  acquisitionCopy: 'The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves waveform caching to the consumer side. Browser preview snapshots are published from cache once per second.',
+  runtimeChartsTitle: 'Live Performance',
+  runtimeChartsCopy: 'Based on cumulative frame deltas from runtime snapshots, the UI estimates current FPS and browser-visible throughput once per second.',
   start: 'Start',
   stop: 'Stop',
-  broadcastEyebrow: 'Broadcast',
-  broadcastTitle: 'UDP External Interface',
-  broadcastCopy: 'Every dequeued frame can be broadcast as a packed 48-channel UDP payload even when preview rendering is paused on the front end.',
-  enableUdp: 'Enable UDP Broadcast',
-  udpHost: 'UDP Host',
-  udpPort: 'UDP Port',
-  saveUdp: 'Save UDP',
-  lastUdp: 'Last UDP',
-  none: 'none',
-  target: 'Target',
-  udpPackets: 'UDP Packets',
-  udpBytes: 'UDP Bytes',
-  udpPacketsRate: 'UDP Packets/s',
-  udpBytesRate: 'UDP Bytes/s',
-  udpPacketsTrend: 'Packets Per Second',
-  udpBytesTrend: 'Bytes Per Second',
-  udpFixedPayload: 'With a fixed packet size, bytes/s naturally follows the packets/s trend.',
-  collectingUdpStats: 'Collecting UDP per-second statistics. Keep this page open for a few seconds.',
+  restartProcess: 'Restart Agent',
   waveformsEyebrow: 'Waveforms',
   waveformsTitle: '6 Independent Charts',
-  waveformsCopy: 'Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is not active, the backend stops packaging waveform history for the browser but keeps UDP broadcast alive. When preview is active, cached waveform data is refreshed to the browser once per second.',
+  waveformsCopy: 'Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is not active, the backend stops packaging waveform history for the browser. When preview is active, cached waveform data is refreshed to the browser once per second.',
   rawScale: 'Raw',
   voltageScale: 'Voltage',
   voltageEstimate: 'Voltage view assumes a +/-10V full-scale input.',
@@ -187,11 +171,15 @@ const en = {
   stopped: 'Stopped',
   waitingForOperatorAction: 'Waiting for operator action',
   frames: 'Frames',
+  frameRate: 'FPS',
+  throughputMBps: 'Throughput',
   lastFrame: (value) => `Last frame ${value}`,
   noFramesYet: 'No frames yet',
   recoveries: 'Recoveries',
   noRecoveryWarning: 'No recovery warning',
   queue: 'Queue',
+  statPerSecond: 'Last 60 seconds',
+  statUpdatedAt: (value) => `Updated ${value}`,
   previewCacheActive: 'Preview cache active',
   previewCachePaused: 'Preview cache paused',
   hz: 'Hz',
@@ -204,14 +192,16 @@ const en = {
   applyingDivider: (divider, output) => `Applying divider ${divider} to ${output}...`,
   dividerUpdateComplete: 'Divider update complete.',
   dividerUpdateFailed: 'Divider update failed.',
+  savingClockConfig: 'Saving external reference clock...',
+  clockConfigSaved: 'External reference clock saved.',
+  unableSaveClockConfig: 'Unable to save external reference clock.',
   startingCapture: 'Starting AD7606 capture...',
   stoppingCapture: 'Stopping AD7606 capture...',
+  restartingCaptureProcess: 'Restarting the acquisition process...',
   captureStarted: 'Capture started.',
   captureStopped: 'Capture stopped.',
+  captureProcessRestarted: 'Acquisition process restarted.',
   captureControlFailed: 'Capture control failed.',
-  savingUdpConfig: 'Saving UDP broadcast configuration...',
-  udpConfigSaved: 'UDP configuration saved.',
-  unableSaveUdpConfig: 'Unable to save UDP configuration.',
   welcome: (username) => `Welcome ${username}. JNDM123 hardware state is synchronizing.`,
   documentTitle: 'MyIoT JNDM123 Acquisition'
 }
@@ -238,9 +228,10 @@ const channelOptions = computed(() => [
   { title: 'CH8', value: '7' },
 ])
 const chartPlot = Object.freeze({ left: 14, right: 96, top: 10, bottom: 74 })
-const udpRateHistoryLimit = 30
 const adcFullScaleVoltage = 10
 const adcCodeFullScale = 32768
+const framePayloadBytes = 96
+const performanceHistoryLimit = 60
 
 const banner = ref({
   type: 'info',
@@ -248,13 +239,17 @@ const banner = ref({
 })
 const devicePath = ref('/dev/i2c-0')
 const dividerBusy = ref(false)
+const clockBusy = ref(false)
 const acquisitionBusy = ref(false)
-const udpBusy = ref(false)
 const pollInFlight = ref(false)
 const dividerStatus = ref({ outputs: [] })
-const acquisitionState = ref({ chips: [], udp: { enabled: true, host: '255.255.255.255', port: 19048 } })
+const acquisitionState = ref({ chips: [] })
+const frameRateHistory = ref([])
+const throughputHistory = ref([])
+const previousPerformanceSnapshot = ref(null)
 const selectedOutputIndices = ref([0])
 const selectedDivider = ref('1')
+const referenceClockHz = ref('')
 const activeView = ref('preview')
 const channelSelection = reactive({
   0: 'all',
@@ -272,13 +267,6 @@ const waveformValueModeByChip = reactive({
   4: 'raw',
   5: 'raw'
 })
-const udpForm = reactive({
-  enabled: true,
-  host: '255.255.255.255',
-  port: 19048
-})
-const udpRateHistory = ref([])
-const udpRateBaseline = ref(null)
 
 let pollTimer = null
 
@@ -315,12 +303,6 @@ const selectionHasMixedDividers = computed(() => {
 })
 
 const waveformTimelineUs = computed(() => Array.isArray(acquisitionState.value?.timelineUs) ? acquisitionState.value.timelineUs : [])
-const udpTimelineMs = computed(() => udpRateHistory.value.map((point) => point.timeMs))
-const udpPacketSeries = computed(() => udpRateHistory.value.map((point) => point.packetsPerSecond))
-const udpByteSeries = computed(() => udpRateHistory.value.map((point) => point.bytesPerSecond))
-const udpPacketRange = computed(() => rateChartRange(udpPacketSeries.value))
-const udpByteRange = computed(() => rateChartRange(udpByteSeries.value))
-const latestUdpRatePoint = computed(() => udpRateHistory.value[udpRateHistory.value.length - 1] ?? null)
 
 const acquisitionMetrics = computed(() => [
   {
@@ -344,26 +326,33 @@ const acquisitionMetrics = computed(() => [
     helper: acquisitionState.value?.previewActive ? text.value.previewCacheActive : text.value.previewCachePaused
   }
 ])
-const udpMetrics = computed(() => [
+
+const runtimeCharts = computed(() => [
   {
-    label: text.value.udpPacketsRate,
-    value: formatPacketRate(latestUdpRatePoint.value?.packetsPerSecond),
-    helper: acquisitionState.value?.udp?.lastBroadcastAt ? formatDateTime(acquisitionState.value.udp.lastBroadcastAt) : text.value.none
+    key: 'fps',
+    label: text.value.frameRate,
+    value: frameRateHistory.value.length
+      ? `${formatDecimal(frameRateHistory.value[frameRateHistory.value.length - 1].value, 1)} fps`
+      : '0 fps',
+    helper: frameRateHistory.value.length
+      ? text.value.statUpdatedAt(formatDateTime(frameRateHistory.value[frameRateHistory.value.length - 1].timestampIso))
+      : text.value.statPerSecond,
+    history: frameRateHistory.value,
+    color: '#57d2ff',
+    formatter: (value) => `${formatDecimal(value, 1)}`
   },
   {
-    label: text.value.udpBytesRate,
-    value: formatBytesRate(latestUdpRatePoint.value?.bytesPerSecond),
-    helper: acquisitionState.value?.udp?.enabled ? `${acquisitionState.value?.udp?.host || udpForm.host}:${acquisitionState.value?.udp?.port || udpForm.port}` : text.value.none
-  },
-  {
-    label: text.value.udpPackets,
-    value: formatInteger(acquisitionState.value?.udp?.packetsSent),
-    helper: acquisitionState.value?.udp?.lastBroadcastAt ? formatDateTime(acquisitionState.value.udp.lastBroadcastAt) : text.value.none
-  },
-  {
-    label: text.value.udpBytes,
-    value: formatBytes(acquisitionState.value?.udp?.bytesSent),
-    helper: acquisitionState.value?.udp?.enabled ? text.value.running : text.value.stopped
+    key: 'mbps',
+    label: text.value.throughputMBps,
+    value: throughputHistory.value.length
+      ? `${formatDecimal(throughputHistory.value[throughputHistory.value.length - 1].value, 3)} MB/s`
+      : '0 MB/s',
+    helper: throughputHistory.value.length
+      ? text.value.statUpdatedAt(formatDateTime(throughputHistory.value[throughputHistory.value.length - 1].timestampIso))
+      : text.value.statPerSecond,
+    history: throughputHistory.value,
+    color: '#8cf2b2',
+    formatter: (value) => formatDecimal(value, 3)
   }
 ])
 
@@ -390,6 +379,86 @@ function formatFrequency(value) {
   return `${numeric.toFixed(0)} ${text.value.hz}`
 }
 
+function appendPerformancePoint(targetRef, point) {
+  const next = [...targetRef.value, point]
+  if (next.length > performanceHistoryLimit) {
+    next.splice(0, next.length - performanceHistoryLimit)
+  }
+  targetRef.value = next
+}
+
+function resetPerformanceHistory() {
+  frameRateHistory.value = []
+  throughputHistory.value = []
+  previousPerformanceSnapshot.value = null
+}
+
+function updatePerformanceHistory(payload) {
+  const totalFrames = Number(payload?.totalFrames)
+  const updatedAtMs = Date.parse(payload?.updatedAt ?? '')
+  if (!Number.isFinite(totalFrames) || !Number.isFinite(updatedAtMs)) {
+    return
+  }
+
+  const previous = previousPerformanceSnapshot.value
+  if (previous && totalFrames < previous.totalFrames) {
+    resetPerformanceHistory()
+  }
+
+  const effectivePrevious = previousPerformanceSnapshot.value
+  if (effectivePrevious) {
+    const deltaFrames = Math.max(0, totalFrames - effectivePrevious.totalFrames)
+    const deltaSeconds = Math.max((updatedAtMs - effectivePrevious.updatedAtMs) / 1000, 0)
+    if (deltaSeconds >= 0.25) {
+      const fps = deltaFrames / deltaSeconds
+      const throughputMbps = (deltaFrames * framePayloadBytes) / deltaSeconds / 1000 / 1000
+      const point = {
+        timestampMs: updatedAtMs,
+        timestampIso: payload.updatedAt,
+        fps,
+        throughputMbps
+      }
+      appendPerformancePoint(frameRateHistory, {
+        timestampMs: point.timestampMs,
+        timestampIso: point.timestampIso,
+        value: point.fps
+      })
+      appendPerformancePoint(throughputHistory, {
+        timestampMs: point.timestampMs,
+        timestampIso: point.timestampIso,
+        value: point.throughputMbps
+      })
+    }
+  }
+
+  previousPerformanceSnapshot.value = {
+    totalFrames,
+    updatedAtMs
+  }
+}
+
+function metricTimeline(history) {
+  return history.map((point) => point.timestampMs)
+}
+
+function metricValues(history) {
+  return history.map((point) => Number(point.value) || 0)
+}
+
+function metricRange(history) {
+  const values = metricValues(history)
+  if (!values.length) return { min: 0, max: 1 }
+
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  if (min === max) {
+    return { min: Math.max(0, min - 1), max: max + 1 }
+  }
+
+  const padding = Math.max((max - min) * 0.15, 0.1)
+  return { min: Math.max(0, min - padding), max: max + padding }
+}
+
 function formatDateTime(value) {
   if (!value) return text.value.notUpdated
   return new Date(value).toLocaleString(uiLocale.value, { hour12: false })
@@ -403,30 +472,6 @@ function formatTimelineLabel(value, unit = 'us') {
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const seconds = String(date.getSeconds()).padStart(2, '0')
   return `${minutes}:${seconds}`
-}
-
-function formatBytes(value) {
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric <= 0) return '0 B'
-
-  const units = ['B', 'KB', 'MB', 'GB']
-  let scaled = numeric
-  let unitIndex = 0
-  while (scaled >= 1024 && unitIndex < units.length - 1) {
-    scaled /= 1024
-    unitIndex += 1
-  }
-
-  const digits = scaled >= 100 || unitIndex === 0 ? 0 : 1
-  return `${formatDecimal(scaled, digits)} ${units[unitIndex]}`
-}
-
-function formatPacketRate(value) {
-  return `${formatDecimal(value, 1)} /s`
-}
-
-function formatBytesRate(value) {
-  return `${formatBytes(value)}/s`
 }
 
 function rawToVoltage(rawValue) {
@@ -461,15 +506,6 @@ function formatWaveformLegendValue(rawValue, mode = 'raw') {
   return mode === 'voltage'
     ? formatVoltageValue(rawToVoltage(rawValue))
     : formatInteger(rawValue)
-}
-
-function formatPacketAxisValue(value) {
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric === 0) return '0'
-
-  const exponent = Math.floor(Math.log10(Math.abs(numeric)))
-  const mantissa = numeric / (10 ** exponent)
-  return `${formatDecimal(mantissa, 1)}x10^${exponent}`
 }
 
 function formatAxisValue(value, formatter = formatInteger) {
@@ -517,6 +553,12 @@ function parseSelectedDivider() {
   return divider
 }
 
+function parseReferenceClockHz() {
+  const value = Number.parseInt(String(referenceClockHz.value ?? '').trim(), 10)
+  if (!Number.isInteger(value) || value <= 0 || value > 1000000000) return null
+  return value
+}
+
 function toggleOutputSelection(outputIndex, enabled) {
   if (enabled) {
     selectedOutputIndices.value = [...new Set([...selectedOutputIndices.value, outputIndex])].sort((left, right) => left - right)
@@ -526,50 +568,9 @@ function toggleOutputSelection(outputIndex, enabled) {
   selectedOutputIndices.value = selectedOutputIndices.value.filter((value) => value !== outputIndex)
 }
 
-function syncUdpForm() {
-  const udp = acquisitionState.value?.udp
-  if (!udp) return
-  udpForm.enabled = Boolean(udp.enabled)
-  udpForm.host = udp.host || '255.255.255.255'
-  udpForm.port = Number(udp.port) || 19048
-}
-
 function syncAcquisitionState(payload) {
+  updatePerformanceHistory(payload)
   acquisitionState.value = payload
-  syncUdpForm()
-  updateUdpRateHistory(payload)
-}
-
-function updateUdpRateHistory(payload) {
-  const udp = payload?.udp
-  if (!udp) return
-
-  const packetsSent = Number(udp.packetsSent) || 0
-  const bytesSent = Number(udp.bytesSent) || 0
-  const timeMs = Date.parse(payload.updatedAt || udp.lastBroadcastAt || new Date().toISOString())
-  const previous = udpRateBaseline.value
-
-  if (!Number.isFinite(timeMs)) return
-
-  if (!previous || packetsSent < previous.packetsSent || bytesSent < previous.bytesSent) {
-    udpRateBaseline.value = { timeMs, packetsSent, bytesSent }
-    udpRateHistory.value = []
-    return
-  }
-
-  let elapsedMs = timeMs - previous.timeMs
-  if (!(elapsedMs > 0)) elapsedMs = 1000
-
-  udpRateHistory.value = [
-    ...udpRateHistory.value,
-    {
-      timeMs,
-      packetsPerSecond: Math.max(0, ((packetsSent - previous.packetsSent) * 1000) / elapsedMs),
-      bytesPerSecond: Math.max(0, ((bytesSent - previous.bytesSent) * 1000) / elapsedMs)
-    }
-  ].slice(-udpRateHistoryLimit)
-
-  udpRateBaseline.value = { timeMs, packetsSent, bytesSent }
 }
 
 async function requestJson(url, options = {}) {
@@ -600,10 +601,19 @@ async function requestJson(url, options = {}) {
   return payload
 }
 
-async function loadDividerStatus() {
+async function loadDividerStatus(useCurrentDevicePath = true) {
   try {
-    const payload = await requestJson(`/myiot/jndm123/divider.json?devicePath=${encodeURIComponent(devicePath.value)}`)
+    const query = useCurrentDevicePath
+      ? `?devicePath=${encodeURIComponent(devicePath.value)}`
+      : ''
+    const payload = await requestJson(`/myiot/jndm123/divider.json${query}`)
     dividerStatus.value = payload
+    if (payload?.devicePath) {
+      devicePath.value = payload.devicePath
+    }
+    if (payload?.referenceClockHz) {
+      referenceClockHz.value = String(payload.referenceClockHz)
+    }
     syncSelectedOutputs()
     syncSelectedDivider()
   } catch (error) {
@@ -650,6 +660,15 @@ async function applyDivider() {
     return
   }
 
+  const parsedReferenceClockHz = parseReferenceClockHz()
+  if (parsedReferenceClockHz === null) {
+    banner.value = {
+      type: 'error',
+      text: `${text.value.referenceClockHz} must be in 1..1000000000.`
+    }
+    return
+  }
+
   dividerBusy.value = true
   banner.value = {
     type: 'info',
@@ -659,6 +678,7 @@ async function applyDivider() {
   try {
     const body = new URLSearchParams()
     body.set('devicePath', devicePath.value)
+    body.set('referenceClockHz', String(parsedReferenceClockHz))
     body.set('outputIndices', selectedOutputIndices.value.join(','))
     body.set('divider', String(divider))
     const payload = await requestJson('/myiot/jndm123/divider.json', {
@@ -684,11 +704,65 @@ async function applyDivider() {
   }
 }
 
+async function saveReferenceClock() {
+  const parsedReferenceClockHz = parseReferenceClockHz()
+  if (parsedReferenceClockHz === null) {
+    banner.value = {
+      type: 'error',
+      text: `${text.value.referenceClockHz} must be in 1..1000000000.`
+    }
+    return
+  }
+
+  clockBusy.value = true
+  banner.value = {
+    type: 'info',
+    text: text.value.savingClockConfig
+  }
+
+  try {
+    const body = new URLSearchParams()
+    body.set('devicePath', devicePath.value)
+    body.set('referenceClockHz', String(parsedReferenceClockHz))
+    const payload = await requestJson('/myiot/jndm123/divider.json', {
+      method: 'POST',
+      body
+    })
+
+    dividerStatus.value = payload
+    if (payload?.devicePath) {
+      devicePath.value = payload.devicePath
+    }
+    if (payload?.referenceClockHz) {
+      referenceClockHz.value = String(payload.referenceClockHz)
+    }
+    syncSelectedOutputs()
+    syncSelectedDivider()
+
+    banner.value = {
+      type: 'success',
+      text: payload.message || text.value.clockConfigSaved
+    }
+  } catch (error) {
+    banner.value = {
+      type: 'error',
+      text: error.message || text.value.unableSaveClockConfig
+    }
+  } finally {
+    clockBusy.value = false
+  }
+}
+
 async function setAcquisition(action) {
   acquisitionBusy.value = true
   banner.value = {
     type: 'info',
-    text: action === 'start' ? text.value.startingCapture : text.value.stoppingCapture
+    text:
+      action === 'start'
+        ? text.value.startingCapture
+        : action === 'restart-process'
+          ? text.value.restartingCaptureProcess
+          : text.value.stoppingCapture
   }
 
   try {
@@ -702,7 +776,13 @@ async function setAcquisition(action) {
     syncAcquisitionState(payload)
     banner.value = {
       type: 'success',
-      text: payload.message || (action === 'start' ? text.value.captureStarted : text.value.captureStopped)
+      text:
+        payload.message ||
+        (action === 'start'
+          ? text.value.captureStarted
+          : action === 'restart-process'
+            ? text.value.captureProcessRestarted
+            : text.value.captureStopped)
     }
   } catch (error) {
     banner.value = {
@@ -711,38 +791,6 @@ async function setAcquisition(action) {
     }
   } finally {
     acquisitionBusy.value = false
-  }
-}
-
-async function saveUdpConfig() {
-  udpBusy.value = true
-  banner.value = {
-    type: 'info',
-    text: text.value.savingUdpConfig
-  }
-
-  try {
-    const body = new URLSearchParams()
-    body.set('udpEnabled', udpForm.enabled ? '1' : '0')
-    body.set('udpHost', udpForm.host)
-    body.set('udpPort', String(udpForm.port))
-    if (previewEnabled.value) body.set('includeWaveform', '1')
-    const payload = await requestJson('/myiot/jndm123/acquisition.json', {
-      method: 'POST',
-      body
-    })
-    syncAcquisitionState(payload)
-    banner.value = {
-      type: 'success',
-      text: payload.message || text.value.udpConfigSaved
-    }
-  } catch (error) {
-    banner.value = {
-      type: 'error',
-      text: error.message || text.value.unableSaveUdpConfig
-    }
-  } finally {
-    udpBusy.value = false
   }
 }
 
@@ -772,14 +820,6 @@ function chartRange(chip, mode = waveformModeForChip(chip?.index)) {
 
   const padding = Math.max((max - min) * 0.1, 1)
   return { min: min - padding, max: max + padding }
-}
-
-function rateChartRange(values) {
-  if (!values.length) return { min: 0, max: 1 }
-
-  const max = Math.max(...values)
-  const paddedMax = max <= 0 ? 1 : max + Math.max(max * 0.12, 1)
-  return { min: 0, max: paddedMax }
 }
 
 function normalizeY(value, minValue, maxValue) {
@@ -976,7 +1016,7 @@ onMounted(async () => {
     text: text.value.welcome(sessionState.username)
   }
 
-  await loadDividerStatus()
+  await loadDividerStatus(false)
   await loadAcquisitionSnapshot()
   resetPolling()
   document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -1070,11 +1110,25 @@ onBeforeUnmount(() => {
                   persistent-hint
                 />
 
+                <v-text-field
+                  v-model="referenceClockHz"
+                  :label="text.referenceClockHz"
+                  prepend-inner-icon="mdi-sine-wave"
+                  type="number"
+                  min="1"
+                  max="1000000000"
+                  :hint="text.referenceClockHint"
+                  persistent-hint
+                />
+
                 <div class="panel-actions">
                   <v-btn color="primary" block :loading="dividerBusy" :disabled="dividerBusy || !outputs.length || !selectedOutputIndices.length" @click="applyDivider">
                     {{ text.execute }}
                   </v-btn>
-                  <v-btn variant="outlined" color="secondary" block :disabled="dividerBusy" @click="loadDividerStatus">
+                  <v-btn variant="tonal" color="secondary" block :loading="clockBusy" :disabled="dividerBusy || clockBusy" @click="saveReferenceClock">
+                    {{ text.saveClock }}
+                  </v-btn>
+                  <v-btn variant="outlined" color="secondary" block :disabled="dividerBusy || clockBusy" @click="loadDividerStatus">
                     {{ text.refresh }}
                   </v-btn>
                 </div>
@@ -1085,6 +1139,11 @@ onBeforeUnmount(() => {
                   <div class="meta-copy">{{ text.device }}</div>
                   <div class="metric-value">{{ dividerStatus?.deviceType || '--' }}</div>
                   <div class="meta-copy small">{{ dividerStatus?.address || '--' }} / {{ dividerStatus?.inputClock || '--' }}</div>
+                </article>
+                <article class="metric-card">
+                  <div class="meta-copy">{{ text.referenceClock }}</div>
+                  <div class="metric-value">{{ formatFrequency(dividerStatus?.referenceClockHz) }}</div>
+                  <div class="meta-copy small">{{ dividerStatus?.referenceClockHz || '--' }} Hz</div>
                 </article>
                 <article class="metric-card">
                   <div class="meta-copy">{{ text.selectedOutput }}</div>
@@ -1145,6 +1204,9 @@ onBeforeUnmount(() => {
                   <v-btn color="warning" variant="outlined" :loading="acquisitionBusy" :disabled="acquisitionBusy || !acquisitionRunning" @click="setAcquisition('stop')">
                     {{ text.stop }}
                   </v-btn>
+                  <v-btn color="secondary" variant="outlined" :loading="acquisitionBusy" :disabled="acquisitionBusy" @click="setAcquisition('restart-process')">
+                    {{ text.restartProcess }}
+                  </v-btn>
                 </div>
               </div>
 
@@ -1155,224 +1217,93 @@ onBeforeUnmount(() => {
                   <div class="meta-copy small">{{ metric.helper }}</div>
                 </article>
               </div>
-            </section>
 
-            <section class="lab-panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">{{ text.broadcastEyebrow }}</p>
-                  <h2>{{ text.broadcastTitle }}</h2>
-                  <p class="panel-copy">{{ text.broadcastCopy }}</p>
+              <div class="runtime-charts-block">
+                <div class="meta-copy">{{ text.runtimeChartsTitle }}</div>
+                <div class="meta-copy runtime-charts-copy">{{ text.runtimeChartsCopy }}</div>
+                <div class="runtime-charts-grid">
+                  <article v-for="chart in runtimeCharts" :key="chart.key" class="runtime-chart-card">
+                    <div class="chart-head runtime-chart-head">
+                      <div class="chart-title">
+                        <strong>{{ chart.label }}</strong>
+                        <span>{{ chart.value }}</span>
+                      </div>
+                      <span class="chart-mode-chip">{{ chart.helper }}</span>
+                    </div>
+
+                    <div class="chart-surface runtime-chart-surface">
+                      <div
+                        v-for="tick in chartYTicks(metricRange(chart.history), chart.formatter, 3)"
+                        :key="`${chart.key}-y-${tick.key}`"
+                        class="chart-axis chart-axis-y-tick"
+                        :style="{ top: `${tick.position}%` }"
+                      >
+                        {{ tick.label }}
+                      </div>
+                      <div
+                        v-for="tick in chartXTicks(metricTimeline(chart.history), 'ms', 3)"
+                        :key="`${chart.key}-x-${tick.key}`"
+                        class="chart-axis chart-axis-x-tick"
+                        :style="{ left: `${tick.position}%` }"
+                      >
+                        {{ tick.label }}
+                      </div>
+
+                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-svg">
+                        <line
+                          v-for="tick in chartYTicks(metricRange(chart.history), chart.formatter, 3)"
+                          :key="`${chart.key}-grid-y-${tick.key}`"
+                          :x1="chartPlot.left"
+                          :x2="chartPlot.right"
+                          :y1="tick.position"
+                          :y2="tick.position"
+                          class="chart-grid-line"
+                        />
+                        <line
+                          v-for="tick in chartXTicks(metricTimeline(chart.history), 'ms', 3)"
+                          :key="`${chart.key}-grid-x-${tick.key}`"
+                          :x1="tick.position"
+                          :x2="tick.position"
+                          :y1="chartPlot.top"
+                          :y2="chartPlot.bottom"
+                          class="chart-grid-line chart-grid-line-vertical"
+                        />
+                        <line
+                          :x1="chartPlot.left"
+                          :x2="chartPlot.right"
+                          :y1="chartPlot.top"
+                          :y2="chartPlot.top"
+                          class="chart-boundary-line"
+                        />
+                        <line
+                          :x1="chartPlot.left"
+                          :x2="chartPlot.right"
+                          :y1="chartPlot.bottom"
+                          :y2="chartPlot.bottom"
+                          class="chart-boundary-line chart-boundary-line-strong"
+                        />
+                        <polyline
+                          v-if="chart.history.length"
+                          :points="linePoints(metricValues(chart.history), metricRange(chart.history).min, metricRange(chart.history).max, metricTimeline(chart.history))"
+                          fill="none"
+                          :stroke="chart.color"
+                          stroke-width="0.9"
+                          vector-effect="non-scaling-stroke"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="chart-signal-line"
+                        />
+                      </svg>
+
+                      <div v-if="!chart.history.length" class="chart-placeholder runtime-chart-placeholder">
+                        {{ text.statPerSecond }}
+                      </div>
+                    </div>
+                  </article>
                 </div>
               </div>
-
-              <div class="config-grid">
-                <v-switch v-model="udpForm.enabled" color="primary" inset :label="text.enableUdp" />
-                <v-text-field v-model="udpForm.host" :label="text.udpHost" prepend-inner-icon="mdi-access-point-network" />
-                <v-text-field v-model="udpForm.port" type="number" :label="text.udpPort" prepend-inner-icon="mdi-connection" />
-                <div class="panel-actions">
-                  <v-btn color="primary" block :loading="udpBusy" @click="saveUdpConfig">
-                    {{ text.saveUdp }}
-                  </v-btn>
-                </div>
-              </div>
-
-              <div class="legend-row">
-                <span class="legend-chip">{{ text.lastUdp }}: {{ acquisitionState?.udp?.lastBroadcastAt ? formatDateTime(acquisitionState.udp.lastBroadcastAt) : text.none }}</span>
-                <span class="legend-chip">{{ text.target }}: {{ acquisitionState?.udp?.host || udpForm.host }}:{{ acquisitionState?.udp?.port || udpForm.port }}</span>
-              </div>
-
-              <div class="metrics-grid udp-metrics-grid">
-                <article v-for="metric in udpMetrics" :key="metric.label" class="metric-card">
-                  <div class="meta-copy">{{ metric.label }}</div>
-                  <div class="metric-value">{{ metric.value }}</div>
-                  <div class="meta-copy small">{{ metric.helper }}</div>
-                </article>
-              </div>
-
-              <div class="udp-rate-grid">
-                <article class="chart-card compact-chart-card">
-                  <div class="chart-head compact-chart-head">
-                    <div class="chart-title">
-                      <strong>{{ text.udpPacketsTrend }}</strong>
-                      <span>{{ udpRateHistory.length ? text.visibleLines(1, udpPacketSeries.length) : text.collectingUdpStats }}</span>
-                    </div>
-                  </div>
-
-                  <div v-if="udpPacketSeries.length" class="chart-surface chart-surface-cool compact-chart-surface">
-                    <div
-                      v-for="tick in chartYTicks(udpPacketRange, formatPacketAxisValue)"
-                      :key="`udp-packet-y-${tick.key}`"
-                      class="chart-axis chart-axis-y-tick"
-                      :style="{ top: `${tick.position}%` }"
-                    >
-                      {{ tick.label }}
-                    </div>
-                    <div
-                      v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
-                      :key="`udp-packet-x-${tick.key}`"
-                      class="chart-axis chart-axis-x-tick"
-                      :style="{ left: `${tick.position}%` }"
-                    >
-                      {{ tick.label }}
-                    </div>
-
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-svg compact-chart-svg">
-                      <line
-                        v-for="tick in chartYTicks(udpPacketRange, formatPacketAxisValue)"
-                        :key="`udp-packet-grid-y-${tick.key}`"
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.right"
-                        :y1="tick.position"
-                        :y2="tick.position"
-                        class="chart-grid-line"
-                      />
-                      <line
-                        v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
-                        :key="`udp-packet-grid-x-${tick.key}`"
-                        :x1="tick.position"
-                        :x2="tick.position"
-                        :y1="chartPlot.top"
-                        :y2="chartPlot.bottom"
-                        class="chart-grid-line chart-grid-line-vertical"
-                      />
-                      <line
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.right"
-                        :y1="chartPlot.top"
-                        :y2="chartPlot.top"
-                        class="chart-boundary-line"
-                      />
-                      <line
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.right"
-                        :y1="chartPlot.bottom"
-                        :y2="chartPlot.bottom"
-                        class="chart-boundary-line chart-boundary-line-strong"
-                      />
-                      <line
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.left"
-                        :y1="chartPlot.top"
-                        :y2="chartPlot.bottom"
-                        class="chart-boundary-line"
-                      />
-                      <polyline
-                        :points="linePoints(udpPacketSeries, udpPacketRange.min, udpPacketRange.max, udpTimelineMs)"
-                        fill="none"
-                        stroke="#8cf2b2"
-                        stroke-width="0.92"
-                        vector-effect="non-scaling-stroke"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        class="chart-signal-line chart-signal-line-packet"
-                      />
-                    </svg>
-                  </div>
-
-                  <div v-else class="chart-placeholder compact-chart-placeholder">
-                    {{ text.collectingUdpStats }}
-                  </div>
-                </article>
-
-                <article class="chart-card compact-chart-card">
-                  <div class="chart-head compact-chart-head">
-                    <div class="chart-title">
-                      <strong>{{ text.udpBytesTrend }}</strong>
-                      <span>{{ udpRateHistory.length ? text.visibleLines(1, udpByteSeries.length) : text.collectingUdpStats }}</span>
-                      <span class="chart-note">{{ text.udpFixedPayload }}</span>
-                    </div>
-                  </div>
-
-                  <div v-if="udpByteSeries.length" class="chart-surface chart-surface-warm compact-chart-surface">
-                    <div
-                      v-for="tick in chartYTicks(udpByteRange, formatBytes)"
-                      :key="`udp-byte-y-${tick.key}`"
-                      class="chart-axis chart-axis-y-tick"
-                      :style="{ top: `${tick.position}%` }"
-                    >
-                      {{ tick.label }}
-                    </div>
-                    <div
-                      v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
-                      :key="`udp-byte-x-${tick.key}`"
-                      class="chart-axis chart-axis-x-tick"
-                      :style="{ left: `${tick.position}%` }"
-                    >
-                      {{ tick.label }}
-                    </div>
-
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-svg compact-chart-svg">
-                      <defs>
-                        <linearGradient id="udp-byte-fill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stop-color="#f7a94a" stop-opacity="0.44" />
-                          <stop offset="72%" stop-color="#f7a94a" stop-opacity="0.14" />
-                          <stop offset="100%" stop-color="#f7a94a" stop-opacity="0.03" />
-                        </linearGradient>
-                      </defs>
-                      <line
-                        v-for="tick in chartYTicks(udpByteRange, formatBytes)"
-                        :key="`udp-byte-grid-y-${tick.key}`"
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.right"
-                        :y1="tick.position"
-                        :y2="tick.position"
-                        class="chart-grid-line"
-                      />
-                      <line
-                        v-for="tick in chartXTicks(udpTimelineMs, 'ms')"
-                        :key="`udp-byte-grid-x-${tick.key}`"
-                        :x1="tick.position"
-                        :x2="tick.position"
-                        :y1="chartPlot.top"
-                        :y2="chartPlot.bottom"
-                        class="chart-grid-line chart-grid-line-vertical"
-                      />
-                      <line
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.right"
-                        :y1="chartPlot.top"
-                        :y2="chartPlot.top"
-                        class="chart-boundary-line"
-                      />
-                      <line
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.right"
-                        :y1="chartPlot.bottom"
-                        :y2="chartPlot.bottom"
-                        class="chart-boundary-line chart-boundary-line-strong"
-                      />
-                      <line
-                        :x1="chartPlot.left"
-                        :x2="chartPlot.left"
-                        :y1="chartPlot.top"
-                        :y2="chartPlot.bottom"
-                        class="chart-boundary-line"
-                      />
-                      <polygon
-                        :points="areaPoints(udpByteSeries, udpByteRange.min, udpByteRange.max, udpTimelineMs)"
-                        fill="url(#udp-byte-fill)"
-                        class="chart-signal-area"
-                      />
-                      <polyline
-                        :points="linePoints(udpByteSeries, udpByteRange.min, udpByteRange.max, udpTimelineMs)"
-                        fill="none"
-                        stroke="#f7a94a"
-                        stroke-width="1.02"
-                        vector-effect="non-scaling-stroke"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        class="chart-signal-line chart-signal-line-byte"
-                      />
-                    </svg>
-                  </div>
-
-                  <div v-else class="chart-placeholder compact-chart-placeholder">
-                    {{ text.collectingUdpStats }}
-                  </div>
-                </article>
-              </div>
             </section>
+
           </div>
 
           <div class="right-stack">
@@ -1563,6 +1494,40 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.runtime-charts-block {
+  margin-top: 22px;
+}
+
+.runtime-charts-copy {
+  margin-bottom: 12px;
+}
+
+.runtime-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.runtime-chart-card {
+  border: 1px solid rgba(104, 146, 227, 0.18);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(13, 23, 40, 0.96), rgba(9, 17, 31, 0.98));
+  overflow: hidden;
+}
+
+.runtime-chart-head {
+  padding-top: 16px;
+}
+
+.runtime-chart-surface {
+  min-height: 220px;
+  margin-top: 10px;
+}
+
+.runtime-chart-placeholder {
+  min-height: 220px;
+}
+
 .waveform-note {
   padding: 8px 12px;
   border: 1px solid rgba(91, 141, 239, 0.18);
@@ -1583,10 +1548,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.compact-chart-card {
-  min-height: 360px;
-}
-
 .chart-head {
   display: flex;
   flex-wrap: wrap;
@@ -1594,10 +1555,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   padding: 18px 20px 0;
-}
-
-.compact-chart-head {
-  padding-bottom: 6px;
 }
 
 .chart-title {
@@ -1657,10 +1614,6 @@ onBeforeUnmount(() => {
     radial-gradient(circle at top, rgba(255, 194, 107, 0.12), transparent 46%);
 }
 
-.compact-chart-surface {
-  min-height: 260px;
-}
-
 .chart-surface::before {
   content: "";
   position: absolute;
@@ -1676,10 +1629,6 @@ onBeforeUnmount(() => {
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.compact-chart-svg {
-  opacity: 0.96;
 }
 
 .chart-axis {
@@ -1732,14 +1681,6 @@ onBeforeUnmount(() => {
   filter: drop-shadow(0 0 6px rgba(113, 209, 255, 0.22));
 }
 
-.chart-signal-line-packet {
-  filter: drop-shadow(0 0 8px rgba(140, 242, 178, 0.24));
-}
-
-.chart-signal-line-byte {
-  filter: drop-shadow(0 0 10px rgba(247, 169, 74, 0.28));
-}
-
 .chart-signal-area {
   opacity: 0.96;
 }
@@ -1751,10 +1692,6 @@ onBeforeUnmount(() => {
   padding: 32px;
   text-align: center;
   color: rgba(214, 225, 245, 0.68);
-}
-
-.compact-chart-placeholder {
-  min-height: 260px;
 }
 
 .legend-row {
@@ -1798,13 +1735,16 @@ onBeforeUnmount(() => {
     margin-right: 14px;
   }
 
-  .compact-chart-surface,
-  .compact-chart-placeholder {
+  .chart-placeholder {
+    min-height: 280px;
+  }
+
+  .runtime-chart-surface {
     min-height: 240px;
   }
 
-  .chart-placeholder {
-    min-height: 280px;
+  .runtime-chart-placeholder {
+    min-height: 240px;
   }
 }
 </style>

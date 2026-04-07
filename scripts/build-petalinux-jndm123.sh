@@ -5,8 +5,19 @@ set -euo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd "${script_dir}/.." && pwd)
 
+default_build_dir() {
+    local webui_dir="${repo_root}/build-petalinux-jndm123-webui"
+    local legacy_dir="${repo_root}/build-petalinux-jndm123"
+
+    if command -v npm >/dev/null 2>&1; then
+        printf '%s\n' "${webui_dir}"
+    else
+        printf '%s\n' "${legacy_dir}"
+    fi
+}
+
 petalinux_project=${MYIOT_PETALINUX_PROJECT:-/home/ph/work/proj/JNDM123}
-build_dir=${MYIOT_BUILD_DIR:-"${repo_root}/build-petalinux-jndm123"}
+build_dir=${MYIOT_BUILD_DIR:-$(default_build_dir)}
 build_type=${CMAKE_BUILD_TYPE:-Release}
 parallel_jobs=${CMAKE_BUILD_PARALLEL_LEVEL:-$(nproc)}
 

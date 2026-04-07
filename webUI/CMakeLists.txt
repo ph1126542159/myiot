@@ -43,6 +43,7 @@ function(myiot_add_webui_package)
         ${ui_manifest_files}
         "${WEBUI_UI_DIR}/vite.config.mjs"
         "${MYIOT_WEBUI_ROOT_DIR}/*/bundle.json"
+        "${MYIOT_WEBUI_ROOT_DIR}/*/*/bundle.json"
     )
 
     set(MYIOT_WEBUI_PACKAGE_BUNDLE_NAME "${WEBUI_BUNDLE_NAME}")

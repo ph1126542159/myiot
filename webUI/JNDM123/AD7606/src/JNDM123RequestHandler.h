@@ -9,7 +9,7 @@ namespace MyIoT {
 namespace WebUI {
 namespace JNDM123 {
 
-void initializeJNDM123Runtime();
+void initializeJNDM123Runtime(Poco::OSP::BundleContext::Ptr pContext);
 void stopJNDM123Runtime();
 
 class DividerRequestHandler: public Poco::Net::HTTPRequestHandler

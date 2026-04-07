@@ -1,25 +1,11 @@
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(Threads REQUIRED)
+    file(GLOB child_entries RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/*")
+    list(SORT child_entries)
 
-    myiot_add_webui_package(
-        TARGET_NAME MyIoTJNDM123
-        BUNDLE_NAME io.myiot.webui.jndm123
-        PACKAGE_VERSION 0.1.0
-        UI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ui
-        NATIVE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
-        BUNDLE_SPEC_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/JNDM123.bndlspec.in
-        SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/BundleActivator.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123RequestHandler.cpp
-        LINK_LIBS
-            Poco::OSP
-            Poco::OSPWeb
-            Poco::JSON
-            Poco::Net
-            Poco::Util
-            Poco::Foundation
-            Threads::Threads
-        INCLUDE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
+    foreach(child_entry IN LISTS child_entries)
+        set(child_dir "${CMAKE_CURRENT_SOURCE_DIR}/${child_entry}")
+        if(IS_DIRECTORY "${child_dir}" AND EXISTS "${child_dir}/CMakeLists.txt")
+            add_subdirectory("${child_dir}" "${CMAKE_CURRENT_BINARY_DIR}/${child_entry}")
+        endif()
+    endforeach()
 endif()

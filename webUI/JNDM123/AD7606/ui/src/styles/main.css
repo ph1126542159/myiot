@@ -248,9 +248,7 @@ a {
 .outputs-grid,
 .metrics-grid,
 .charts-grid,
-.config-grid,
-.detail-grid,
-.udp-rate-grid {
+.detail-grid {
   display: grid;
   gap: 16px;
 }
@@ -267,14 +265,6 @@ a {
 .outputs-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 18px;
-}
-
-.config-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.udp-rate-grid {
-  margin-top: 16px;
 }
 
 .output-card,
@@ -354,10 +344,6 @@ a {
   overflow: hidden;
 }
 
-.compact-chart-surface {
-  min-height: 172px;
-}
-
 .chart-surface::before {
   content: "";
   position: absolute;
@@ -374,10 +360,6 @@ a {
   z-index: 1;
   width: 100%;
   height: 220px;
-}
-
-.compact-chart-svg {
-  height: 172px;
 }
 
 .chart-guide-line {
@@ -435,24 +417,8 @@ a {
   text-align: right;
 }
 
-.compact-chart-card {
-  padding: 16px;
-}
-
-.compact-chart-head {
-  margin-bottom: 12px;
-}
-
-.compact-chart-placeholder {
-  min-height: 172px;
-}
-
 .legend-row {
   margin-top: 14px;
-}
-
-.udp-metrics-grid {
-  margin-top: 16px;
 }
 
 .value-grid {
@@ -522,7 +488,6 @@ a {
   .status-grid,
   .outputs-grid,
   .metrics-grid,
-  .config-grid,
   .detail-grid {
     grid-template-columns: 1fr;
   }

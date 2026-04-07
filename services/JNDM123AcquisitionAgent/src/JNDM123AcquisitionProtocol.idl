@@ -1,0 +1,79 @@
+module MyIoT
+{
+    module Services
+    {
+        module JNDM123AcquisitionAgent
+        {
+            enum AcquisitionCommandKind
+            {
+                None,
+                Status,
+                Start,
+                Stop,
+                ApplyDividers,
+                UpdateReferenceClock
+            };
+
+            struct AcquisitionDdsCommand
+            {
+                string clientId;
+                unsigned long long requestId;
+                AcquisitionCommandKind kind;
+                string devicePath;
+                unsigned long long referenceClockHz;
+                unsigned long outputMask;
+                long divider;
+                string message;
+            };
+
+            struct AcquisitionDdsSnapshot
+            {
+                unsigned long long sequence;
+                string updatedAt;
+                boolean ok;
+                string message;
+                boolean running;
+                boolean previewActive;
+                unsigned long historyLimit;
+                unsigned long long queueDepth;
+                unsigned long long totalFrames;
+                unsigned long long droppedFrames;
+                unsigned long long recoveries;
+                unsigned long long lastFrameSequence;
+                string lastFrameAt;
+                string waveformUpdatedAt;
+                string lastError;
+                string devicePath;
+                unsigned long long referenceClockHz;
+                string deviceType;
+                string address;
+                string inputClock;
+                long revisionId;
+                boolean eepBusy;
+                boolean eepLock;
+                boolean powerDown;
+                long dividerValues[7];
+                double dividerFrequenciesHz[7];
+                boolean dividerEnabled[7];
+                boolean latestValueValid[48];
+                long latestValues[48];
+                sequence<long long> timelineUs;
+                sequence<long> historySamples;
+            };
+
+            struct AcquisitionDdsCommandResult
+            {
+                string clientId;
+                unsigned long long requestId;
+                boolean ok;
+                string message;
+                AcquisitionDdsSnapshot snapshot;
+            };
+
+            // Hand-maintained IDL mirror of the typed DDS protocol used by
+            // JNDM123AcquisitionDds.h/.cpp. It documents the intended wire
+            // contract even though this repository currently serializes the
+            // types manually instead of generating code from IDL.
+        };
+    };
+};
