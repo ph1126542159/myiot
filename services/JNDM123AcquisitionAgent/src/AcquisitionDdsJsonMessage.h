@@ -28,6 +28,9 @@ struct AcquisitionDdsJsonMessage
     std::string payload;
 };
 
+const char* acquisitionSnapshotTopicName();
+const char* acquisitionControlTopicName();
+
 class AcquisitionDdsJsonMessagePubSubType: public eprosima::fastdds::dds::TopicDataType
 {
 public:
@@ -69,7 +72,7 @@ public:
     AcquisitionDdsPublisher();
     ~AcquisitionDdsPublisher();
 
-    void start(int domainId);
+    void start(int domainId, const std::string& topicName = acquisitionSnapshotTopicName());
     void stop();
     bool publish(const AcquisitionDdsJsonMessage& message);
 
@@ -79,13 +82,14 @@ private:
     eprosima::fastdds::dds::Topic* _topic = nullptr;
     eprosima::fastdds::dds::DataWriter* _writer = nullptr;
     eprosima::fastdds::dds::TypeSupport _type;
+    std::string _topicName;
 };
 
 class AcquisitionDdsSubscriberListener
 {
 public:
     virtual ~AcquisitionDdsSubscriberListener() = default;
-    virtual void onSnapshot(const AcquisitionDdsJsonMessage& message) = 0;
+    virtual void onMessage(const AcquisitionDdsJsonMessage& message) = 0;
 };
 
 class AcquisitionDdsSubscriber
@@ -94,7 +98,10 @@ public:
     AcquisitionDdsSubscriber();
     ~AcquisitionDdsSubscriber();
 
-    void start(int domainId, AcquisitionDdsSubscriberListener* listener);
+    void start(
+        int domainId,
+        const std::string& topicName,
+        AcquisitionDdsSubscriberListener* listener);
     void stop();
 
 private:
@@ -106,6 +113,7 @@ private:
     eprosima::fastdds::dds::DataReader* _reader = nullptr;
     eprosima::fastdds::dds::TypeSupport _type;
     std::unique_ptr<ReaderListener> _listener;
+    std::string _topicName;
 };
 
 } } } // namespace MyIoT::Services::JNDM123AcquisitionAgent

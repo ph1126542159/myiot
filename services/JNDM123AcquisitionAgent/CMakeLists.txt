@@ -1,4 +1,5 @@
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 set(myiot_fastdds_prefix "/home/ph/work/myiot/build/install")
 set(myiot_fastdds_dir "${myiot_fastdds_prefix}/share/fastdds/cmake")
@@ -19,8 +20,8 @@ if(NOT fastdds_FOUND)
 endif()
 
 set(myiot_jndm123_agent_sources
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionDds.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionRuntime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionAgentSupport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDdsJsonMessage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionService.cpp
 )
 
@@ -30,6 +31,8 @@ set(myiot_jndm123_agent_link_libs
     Poco::Net
     Poco::Foundation
     fastdds
+    OpenSSL::SSL
+    OpenSSL::Crypto
     Threads::Threads
 )
 
@@ -49,13 +52,20 @@ myiot_add_service_bundle(
 
 add_executable(myiot-jndm123-acquisition-agent
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionAgentApp.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionDds.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionRuntime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionAgentSupport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDivider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDividerState.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDdsJsonMessage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionRuntime.cpp
 )
 target_link_libraries(myiot-jndm123-acquisition-agent PRIVATE
+    Poco::JSON
+    Poco::Net
     Poco::Util
     Poco::Foundation
     fastdds
+    OpenSSL::SSL
+    OpenSSL::Crypto
     Threads::Threads
 )
 target_include_directories(myiot-jndm123-acquisition-agent PRIVATE
@@ -69,7 +79,6 @@ install(TARGETS myiot-jndm123-acquisition-agent
 install(FILES
     "${myiot_fastdds_prefix}/lib/libfastdds.so.3.6.0.0"
     "${myiot_fastdds_prefix}/lib/libfastcdr.so.2.3.5"
-    "${myiot_fastdds_prefix}/lib/libfoonathan_memory-0.7.4.so"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 

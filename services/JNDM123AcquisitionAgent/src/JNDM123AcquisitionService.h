@@ -6,8 +6,6 @@
 #include "Poco/OSP/BundleContext.h"
 #include "Poco/OSP/Service.h"
 
-#include <vector>
-
 namespace MyIoT {
 namespace Services {
 namespace JNDM123AcquisitionAgent {
@@ -19,16 +17,6 @@ public:
 
     static const std::string SERVICE_NAME;
 
-    virtual Poco::JSON::Object::Ptr latestSnapshot() = 0;
-    virtual Poco::JSON::Object::Ptr readDividerStatus(const std::string& devicePath = std::string()) = 0;
-    virtual Poco::JSON::Object::Ptr applyDividers(
-        const std::string& devicePath,
-        const std::vector<int>& outputIndices,
-        int divider,
-        Poco::UInt64 referenceClockHz) = 0;
-    virtual Poco::JSON::Object::Ptr updateReferenceClock(const std::string& devicePath, Poco::UInt64 referenceClockHz) = 0;
-    virtual Poco::JSON::Object::Ptr startAcquisition() = 0;
-    virtual Poco::JSON::Object::Ptr stopAcquisition(const std::string& message = std::string()) = 0;
     virtual Poco::JSON::Object::Ptr restartProcess() = 0;
     virtual Poco::JSON::Object::Ptr serviceStatus() = 0;
 };

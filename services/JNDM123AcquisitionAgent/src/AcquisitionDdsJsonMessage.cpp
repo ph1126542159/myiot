@@ -10,9 +10,20 @@ namespace JNDM123AcquisitionAgent {
 namespace {
 
 constexpr const char* kAcquisitionSnapshotTopicName = "MyIoT.JNDM123.AcquisitionSnapshot";
+constexpr const char* kAcquisitionControlTopicName = "MyIoT.JNDM123.AcquisitionControl";
 constexpr const char* kAcquisitionSnapshotTypeName = "MyIoT.JNDM123.AcquisitionSnapshot.Json";
 
 } // namespace
+
+const char* acquisitionSnapshotTopicName()
+{
+    return kAcquisitionSnapshotTopicName;
+}
+
+const char* acquisitionControlTopicName()
+{
+    return kAcquisitionControlTopicName;
+}
 
 AcquisitionDdsJsonMessagePubSubType::AcquisitionDdsJsonMessagePubSubType()
 {
@@ -115,9 +126,10 @@ AcquisitionDdsPublisher::~AcquisitionDdsPublisher()
     stop();
 }
 
-void AcquisitionDdsPublisher::start(int domainId)
+void AcquisitionDdsPublisher::start(int domainId, const std::string& topicName)
 {
     if (_participant) return;
+    _topicName = topicName.empty() ? acquisitionSnapshotTopicName() : topicName;
 
     auto participantQos = eprosima::fastdds::dds::PARTICIPANT_QOS_DEFAULT;
     _participant = eprosima::fastdds::dds::DomainParticipantFactory::get_instance()->create_participant(domainId, participantQos);
@@ -128,7 +140,7 @@ void AcquisitionDdsPublisher::start(int domainId)
 
     _type.register_type(_participant);
     _topic = _participant->create_topic(
-        kAcquisitionSnapshotTopicName,
+        _topicName,
         kAcquisitionSnapshotTypeName,
         eprosima::fastdds::dds::TOPIC_QOS_DEFAULT);
     if (!_topic)
@@ -179,6 +191,7 @@ void AcquisitionDdsPublisher::stop()
         eprosima::fastdds::dds::DomainParticipantFactory::get_instance()->delete_participant(_participant);
         _participant = nullptr;
     }
+    _topicName.clear();
 }
 
 bool AcquisitionDdsPublisher::publish(const AcquisitionDdsJsonMessage& message)
@@ -205,7 +218,7 @@ public:
         {
             if (sampleInfo.valid_data)
             {
-                _listener->onSnapshot(message);
+                _listener->onMessage(message);
             }
         }
     }
@@ -224,9 +237,13 @@ AcquisitionDdsSubscriber::~AcquisitionDdsSubscriber()
     stop();
 }
 
-void AcquisitionDdsSubscriber::start(int domainId, AcquisitionDdsSubscriberListener* listener)
+void AcquisitionDdsSubscriber::start(
+        int domainId,
+        const std::string& topicName,
+        AcquisitionDdsSubscriberListener* listener)
 {
     if (_participant) return;
+    _topicName = topicName.empty() ? acquisitionSnapshotTopicName() : topicName;
 
     auto participantQos = eprosima::fastdds::dds::PARTICIPANT_QOS_DEFAULT;
     _participant = eprosima::fastdds::dds::DomainParticipantFactory::get_instance()->create_participant(domainId, participantQos);
@@ -237,7 +254,7 @@ void AcquisitionDdsSubscriber::start(int domainId, AcquisitionDdsSubscriberListe
 
     _type.register_type(_participant);
     _topic = _participant->create_topic(
-        kAcquisitionSnapshotTopicName,
+        _topicName,
         kAcquisitionSnapshotTypeName,
         eprosima::fastdds::dds::TOPIC_QOS_DEFAULT);
     if (!_topic)
@@ -291,6 +308,7 @@ void AcquisitionDdsSubscriber::stop()
         _participant = nullptr;
     }
     _listener.reset();
+    _topicName.clear();
 }
 
 } } } // namespace MyIoT::Services::JNDM123AcquisitionAgent
