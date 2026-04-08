@@ -2,7 +2,6 @@
 
 #include "Poco/DateTimeFormat.h"
 #include "Poco/DateTimeFormatter.h"
-#include "Poco/Exception.h"
 #include "Poco/File.h"
 #include "Poco/JSON/Object.h"
 #include "Poco/Logger.h"
@@ -22,8 +21,6 @@
 namespace MyIoT {
 namespace Services {
 namespace JNDM123AcquisitionAgent {
-
-const std::string JNDM123AcquisitionService::SERVICE_NAME("io.myiot.services.jndm123acquisition");
 
 namespace {
 
@@ -106,18 +103,6 @@ public:
         ensureProcessRunningLocked();
     }
 
-    ~AcquisitionServiceImpl() override
-    {
-        try
-        {
-            Poco::FastMutex::ScopedLock lock(_mutex);
-            terminateProcessLocked();
-        }
-        catch (...)
-        {
-        }
-    }
-
     Object::Ptr restartProcess() override
     {
         Poco::FastMutex::ScopedLock lock(_mutex);
@@ -135,6 +120,19 @@ public:
             processRunning(_handle)
                 ? "Acquisition process is running."
                 : "Acquisition process is not running.");
+    }
+
+protected:
+    ~AcquisitionServiceImpl() override
+    {
+        try
+        {
+            Poco::FastMutex::ScopedLock lock(_mutex);
+            terminateProcessLocked();
+        }
+        catch (...)
+        {
+        }
     }
 
 private:

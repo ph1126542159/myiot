@@ -2,9 +2,9 @@
 #define MyIoT_WebUI_JNDM123_JNDM123Support_INCLUDED
 
 #include "AcquisitionDdsJsonMessage.h"
-#include "JNDM123AcquisitionService.h"
 
 #include "Poco/JSON/Object.h"
+#include "Poco/Logger.h"
 #include "Poco/Net/HTTPServerRequest.h"
 #include "Poco/Net/HTTPServerResponse.h"
 #include "Poco/OSP/BundleContext.h"
@@ -32,7 +32,7 @@ constexpr std::size_t kAd7606Count = 6;
 constexpr std::size_t kChannelsPerChip = 8;
 constexpr std::size_t kHistoryLimit = 240;
 constexpr Poco::UInt64 kFallbackReferenceClockHz = 1000000ULL;
-constexpr Poco::UInt64 kMaxSafeAcquisitionClockHz = 50000ULL;
+constexpr Poco::UInt64 kMaxSafeAcquisitionClockHz = 100000ULL;
 constexpr int kAcquisitionDdsDomain = 37;
 constexpr int kAcquisitionCommandTimeoutMs = 5000;
 constexpr Poco::Int64 kPreviewLeaseUs = 2 * 1000 * 1000;
@@ -104,7 +104,6 @@ bool isAuthenticated(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServ
 void sendJSON(Poco::Net::HTTPServerResponse& response, Object::Ptr payload, Poco::Net::HTTPResponse::HTTPStatus status = Poco::Net::HTTPResponse::HTTP_OK);
 Object::Ptr createUnauthorizedPayload(const std::string& message);
 Object::Ptr createErrorPayload(const std::string& message);
-MyIoT::Services::JNDM123AcquisitionAgent::JNDM123AcquisitionService::Ptr acquisitionServiceOrThrow();
 void stripWaveformSamples(Object::Ptr payload);
 
 bool parseIntStrict(const std::string& text, int& value);

@@ -22,7 +22,7 @@ endif()
 set(myiot_jndm123_agent_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionAgentSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDdsJsonMessage.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionServiceImpl.cpp
 )
 
 set(myiot_jndm123_agent_link_libs
@@ -36,6 +36,21 @@ set(myiot_jndm123_agent_link_libs
     Threads::Threads
 )
 
+add_library(MyIoTJNDM123AcquisitionApi SHARED
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionServiceApi.cpp
+)
+target_link_libraries(MyIoTJNDM123AcquisitionApi PUBLIC
+    Poco::OSP
+    Poco::JSON
+    Poco::Foundation
+)
+target_include_directories(MyIoTJNDM123AcquisitionApi PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+set_target_properties(MyIoTJNDM123AcquisitionApi PROPERTIES
+    OUTPUT_NAME myiot-jndm123-acquisition-api
+)
+
 myiot_add_service_bundle(
     TARGET_NAME MyIoTJNDM123AcquisitionService
     BUNDLE_NAME io.myiot.services.jndm123acquisition
@@ -45,6 +60,7 @@ myiot_add_service_bundle(
         ${CMAKE_CURRENT_SOURCE_DIR}/src/BundleActivator.cpp
         ${myiot_jndm123_agent_sources}
     LINK_LIBS
+        MyIoTJNDM123AcquisitionApi
         ${myiot_jndm123_agent_link_libs}
     INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -74,6 +90,12 @@ target_include_directories(myiot-jndm123-acquisition-agent PRIVATE
 
 install(TARGETS myiot-jndm123-acquisition-agent
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS MyIoTJNDM123AcquisitionApi
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 install(FILES

@@ -1,6 +1,7 @@
 #include "JNDM123RequestHandler.h"
 
 #include "JNDM123DdsBridge.h"
+#include "JNDM123AgentManager.h"
 #include "JNDM123Runtime.h"
 
 #include "Poco/Exception.h"
@@ -191,7 +192,7 @@ void AcquisitionRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& requ
             if (action == "restart-process")
             {
                 DdsAcquisitionBridge::instance().resetSnapshotCache();
-                Object::Ptr payload = acquisitionServiceOrThrow()->restartProcess();
+                Object::Ptr payload = restartAcquisitionProcessOrThrow();
                 try
                 {
                     Object::Ptr snapshotPayload = DdsAcquisitionBridge::instance().latestSnapshot();

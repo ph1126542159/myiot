@@ -16,7 +16,12 @@ constexpr std::size_t kAd7606Count = 6;
 constexpr std::size_t kChannelsPerChip = 8;
 constexpr std::size_t kFrameWords = 24;
 constexpr std::size_t kFrameColumns = kAd7606Count * kChannelsPerChip;
-constexpr std::size_t kHistoryLimit = 240;
+constexpr std::size_t kHistoryLimit = 960;
+constexpr std::size_t kMaxPendingFrames = 120000;
+constexpr int kWaveformPublishIntervalMs = 1000;
+constexpr Poco::Int64 kFrameBatchWindowUs = 1000 * 1000;
+constexpr Poco::Int64 kHistorySampleIntervalUs = 100;
+constexpr Poco::Int64 kReaderDrainIntervalUs = 5 * 1000;
 constexpr int kDefaultDdsDomain = 37;
 
 #if defined(__linux__)
@@ -46,6 +51,7 @@ void exportGpio(int gpio);
 void setGpioDirection(int gpio, const std::string& direction);
 void setGpioValue(int gpio, bool high);
 bool activeMaskValue(bool active);
+void elevateCurrentThreadPriority();
 #endif
 
 } } } // namespace MyIoT::Services::JNDM123AcquisitionAgent

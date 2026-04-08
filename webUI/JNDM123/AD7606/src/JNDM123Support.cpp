@@ -140,19 +140,6 @@ Object::Ptr createErrorPayload(const std::string& message)
     return payload;
 }
 
-MyIoT::Services::JNDM123AcquisitionAgent::JNDM123AcquisitionService::Ptr acquisitionServiceOrThrow()
-{
-    Poco::OSP::BundleContext::Ptr pContext = runtimeBundleContextStorage();
-    if (!pContext)
-    {
-        throw Poco::IllegalStateException("JNDM123 bundle context is not initialized.");
-    }
-
-    return Poco::OSP::ServiceFinder::findByName<MyIoT::Services::JNDM123AcquisitionAgent::JNDM123AcquisitionService>(
-        pContext,
-        MyIoT::Services::JNDM123AcquisitionAgent::JNDM123AcquisitionService::SERVICE_NAME);
-}
-
 void stripWaveformSamples(Object::Ptr payload)
 {
     if (!payload) return;
@@ -602,7 +589,16 @@ DividerSnapshot dividerSnapshotFromPayload(Object::Ptr payload)
     Array::Ptr outputs = divider->getArray("outputs");
     if (!outputs)
     {
-        throw Poco::InvalidArgumentException("Divider snapshot is missing outputs.");
+        std::string message = divider->optValue("message", payload->optValue("message", std::string()));
+        if (message.empty())
+        {
+            message = divider->optValue("lastError", payload->optValue("lastError", std::string()));
+        }
+        if (message.empty())
+        {
+            message = "Divider snapshot is missing outputs.";
+        }
+        throw Poco::InvalidArgumentException(message);
     }
 
     snapshot.outputs.reserve(outputs->size());

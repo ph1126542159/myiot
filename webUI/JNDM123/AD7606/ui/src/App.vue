@@ -45,7 +45,7 @@ const zh = {
   actualReadback: '下方每个输出卡片都会展示实际回读结果。',
   acquisitionEyebrow: '采集',
   acquisitionTitle: 'AD7606 采集运行态',
-  acquisitionCopy: '读取线程只负责搬运整帧数据进入 `Poco::NotificationQueue`，波形缓存交给消费侧处理。浏览器预览每秒刷新一次缓存快照。',
+  acquisitionCopy: '读取线程只负责搬运整帧数据进入 `Poco::NotificationQueue`，波形缓存交给消费侧处理。浏览器预览按 100ms 刷新缓存快照。',
   runtimeChartsTitle: '实时性能',
   runtimeChartsCopy: '基于运行态快照的累计帧数差值，按秒估算当前帧率和浏览器看到的数据吞吐。',
   start: '启动',
@@ -53,7 +53,7 @@ const zh = {
   restartProcess: '重启采集进程',
   waveformsEyebrow: '波形',
   waveformsTitle: '6 组独立图表',
-  waveformsCopy: '每张图对应一个 AD7606 芯片。可选择“全部”或单独 `CH1~CH8`。预览关闭时，后端会停止为浏览器打包历史波形；预览开启时，缓存波形每秒刷新一次。',
+  waveformsCopy: '每张图对应一个 AD7606 芯片。可选择“全部”或单独 `CH1~CH8`。采集线程将整帧数据先放入队列，再由发送线程按 100ms 节奏整理并通过 DDS 推送给页面。',
   rawScale: '原始值',
   voltageScale: '电压值',
   voltageEstimate: '电压视图按 +/-10V 满量程估算。',
@@ -145,7 +145,7 @@ const en = {
   actualReadback: 'Actual readback is shown in every output card below.',
   acquisitionEyebrow: 'Acquisition',
   acquisitionTitle: 'AD7606 Capture Runtime',
-  acquisitionCopy: 'The reader thread stays lean, pushes full frames into `Poco::NotificationQueue`, and leaves waveform caching to the consumer side. Browser preview snapshots are published from cache once per second.',
+  acquisitionCopy: 'The reader thread stays lean, pushes full 96-byte frames into `Poco::NotificationQueue`, and a sender thread batches cached waveform data into 100 ms DDS updates for the browser.',
   runtimeChartsTitle: 'Live Performance',
   runtimeChartsCopy: 'Based on cumulative frame deltas from runtime snapshots, the UI estimates current FPS and browser-visible throughput once per second.',
   start: 'Start',
@@ -153,7 +153,7 @@ const en = {
   restartProcess: 'Restart Agent',
   waveformsEyebrow: 'Waveforms',
   waveformsTitle: '6 Independent Charts',
-  waveformsCopy: 'Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. When preview is not active, the backend stops packaging waveform history for the browser. When preview is active, cached waveform data is refreshed to the browser once per second.',
+  waveformsCopy: 'Each chart maps one AD7606 chip. Choose `All` or a single channel from `CH1~CH8`. The reader thread queues each 96-byte frame immediately, and a sender thread publishes cached waveform data to the browser over DDS every 100 ms.',
   rawScale: 'Raw',
   voltageScale: 'Voltage',
   voltageEstimate: 'Voltage view assumes a +/-10V full-scale input.',
@@ -269,6 +269,7 @@ const waveformValueModeByChip = reactive({
 })
 
 let pollTimer = null
+let debugSnapshotCount = 0
 
 const currentDeviceAddress = computed(() =>
   sessionState.serverAddress ||
@@ -409,7 +410,7 @@ function updatePerformanceHistory(payload) {
   if (effectivePrevious) {
     const deltaFrames = Math.max(0, totalFrames - effectivePrevious.totalFrames)
     const deltaSeconds = Math.max((updatedAtMs - effectivePrevious.updatedAtMs) / 1000, 0)
-    if (deltaSeconds >= 0.25) {
+    if (deltaSeconds >= 0.1) {
       const fps = deltaFrames / deltaSeconds
       const throughputMbps = (deltaFrames * framePayloadBytes) / deltaSeconds / 1000 / 1000
       const point = {
@@ -474,10 +475,24 @@ function formatTimelineLabel(value, unit = 'us') {
   return `${minutes}:${seconds}`
 }
 
-function rawToVoltage(rawValue) {
+function formatRelativeWaveformLabel(value, start) {
+  const current = Number(value)
+  const origin = Number(start)
+  if (!Number.isFinite(current) || !Number.isFinite(origin)) return '--'
+
+  const deltaMs = (current - origin) / 1000
+  if (Math.abs(deltaMs) >= 1000) return `${formatDecimal(deltaMs / 1000, 3)} s`
+  return `${formatDecimal(deltaMs, 1)} ms`
+}
+
+function normalizeSignedSample(rawValue) {
   const numeric = Number(rawValue)
   if (!Number.isFinite(numeric)) return 0
-  return (numeric / adcCodeFullScale) * adcFullScaleVoltage
+  return Math.max(-adcCodeFullScale, Math.min(adcCodeFullScale - 1, numeric))
+}
+
+function rawToVoltage(rawValue) {
+  return (normalizeSignedSample(rawValue) / adcCodeFullScale) * adcFullScaleVoltage
 }
 
 function waveformModeForChip(chipIndex) {
@@ -485,7 +500,7 @@ function waveformModeForChip(chipIndex) {
 }
 
 function waveformDisplayValue(rawValue, mode = 'raw') {
-  return mode === 'voltage' ? rawToVoltage(rawValue) : Number(rawValue)
+  return mode === 'voltage' ? rawToVoltage(rawValue) : normalizeSignedSample(rawValue)
 }
 
 function formatVoltageValue(value) {
@@ -569,6 +584,18 @@ function toggleOutputSelection(outputIndex, enabled) {
 }
 
 function syncAcquisitionState(payload) {
+  debugSnapshotCount += 1
+  if (payload?.debug && (debugSnapshotCount <= 5 || debugSnapshotCount % 20 === 0)) {
+    const chip0 = Array.isArray(payload?.chips) ? payload.chips[0] : null
+    const channelValues = Array.isArray(chip0?.channels)
+      ? chip0.channels.slice(0, 4).map((channel) => Number(channel?.value ?? 0))
+      : []
+    console.info('[JNDM123 debug] snapshot', {
+      count: debugSnapshotCount,
+      debug: payload.debug,
+      chip0Values: channelValues
+    })
+  }
   updatePerformanceHistory(payload)
   acquisitionState.value = payload
 }
@@ -842,7 +869,9 @@ function chartXTicks(timeline, unit = 'us', segments = 4) {
     return {
       key: `${unit}-${index}-${start}-${end}`,
       position,
-      label: Number.isFinite(tickValue) ? formatTimelineLabel(tickValue, unit) : '--'
+      label: Number.isFinite(tickValue)
+        ? (unit === 'us' ? formatRelativeWaveformLabel(tickValue, start) : formatTimelineLabel(tickValue, unit))
+        : '--'
     }
   })
 }
@@ -916,11 +945,17 @@ function zeroLineY(minValue, maxValue) {
 }
 
 function chartStartLabel(timeline, unit = 'us') {
-  return timeline.length ? formatTimelineLabel(timeline[0], unit) : '--'
+  if (!timeline.length) return '--'
+  return unit === 'us'
+    ? formatRelativeWaveformLabel(timeline[0], timeline[0])
+    : formatTimelineLabel(timeline[0], unit)
 }
 
 function chartEndLabel(timeline, unit = 'us') {
-  return timeline.length ? formatTimelineLabel(timeline[timeline.length - 1], unit) : '--'
+  if (!timeline.length) return '--'
+  return unit === 'us'
+    ? formatRelativeWaveformLabel(timeline[timeline.length - 1], timeline[0])
+    : formatTimelineLabel(timeline[timeline.length - 1], unit)
 }
 
 function chipTimeline(chip) {
@@ -945,7 +980,7 @@ function resetPolling() {
 
   pollTimer = window.setInterval(() => {
     loadAcquisitionSnapshot()
-  }, previewEnabled.value ? 1000 : 1200)
+  }, previewEnabled.value ? 100 : 400)
 }
 
 function handleVisibilityChange() {

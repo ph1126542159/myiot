@@ -18,7 +18,7 @@ constexpr const char* kDividerStateFile = "/var/lib/myiot/jndm123-divider-state.
 constexpr std::size_t kDividerOutputCount = 7;
 constexpr std::size_t kDividerStartupOutputCount = 6;
 constexpr Poco::UInt64 kFallbackReferenceClockHz = 1000000ULL;
-constexpr Poco::UInt64 kMaxSafeAcquisitionClockHz = 50000ULL;
+constexpr Poco::UInt64 kMaxSafeAcquisitionClockHz = 100000ULL;
 
 #if defined(__linux__)
 constexpr std::uint8_t kCdce937RegId = 0x00;

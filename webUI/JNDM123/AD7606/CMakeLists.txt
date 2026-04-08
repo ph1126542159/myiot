@@ -28,12 +28,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         BUNDLE_SPEC_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/JNDM123.bndlspec.in
         SOURCES
             ${CMAKE_CURRENT_SOURCE_DIR}/src/BundleActivator.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AgentManager.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123DdsBridge.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123RequestHandler.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123Runtime.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123Support.cpp
             ${CMAKE_SOURCE_DIR}/services/JNDM123AcquisitionAgent/src/AcquisitionDdsJsonMessage.cpp
         LINK_LIBS
+            MyIoTJNDM123AcquisitionApi
             Poco::OSP
             Poco::OSPWeb
             Poco::JSON

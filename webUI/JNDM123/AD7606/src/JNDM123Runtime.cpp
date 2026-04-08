@@ -5,9 +5,15 @@
 #include "Poco/Exception.h"
 #include "Poco/JSON/Array.h"
 
+#include <algorithm>
+#include <atomic>
+#include <sstream>
+
 namespace MyIoT {
 namespace WebUI {
 namespace JNDM123 {
+
+using Poco::JSON::Array;
 
 namespace {
 
@@ -17,6 +23,47 @@ Object::Ptr createDividerRequestPayload(const std::string& devicePath, Poco::UIn
     payload->set("devicePath", devicePath);
     payload->set("referenceClockHz", referenceClockHz);
     return payload;
+}
+
+std::string httpSnapshotDebugSummary(Object::Ptr payload)
+{
+    if (!payload) return std::string("no payload");
+
+    std::ostringstream stream;
+    Object::Ptr debug = payload->getObject("debug");
+    if (debug)
+    {
+        stream << "seq=" << debug->optValue<Poco::UInt64>("sequence", 0);
+        if (Array::Ptr hiLo = debug->getArray("hiLoUnsigned"))
+        {
+            stream << " hiLo=";
+            for (std::size_t index = 0; index < hiLo->size(); ++index)
+            {
+                if (index > 0) stream << ',';
+                stream << hiLo->getElement<Poco::UInt64>(index);
+            }
+        }
+    }
+
+    Array::Ptr chips = payload->getArray("chips");
+    if (chips && chips->size() > 0)
+    {
+        Object::Ptr chip = chips->getObject(0);
+        Array::Ptr channels = chip ? chip->getArray("channels") : nullptr;
+        if (channels && channels->size() > 0)
+        {
+            stream << " chip0=";
+            const std::size_t count = std::min<std::size_t>(channels->size(), 4);
+            for (std::size_t index = 0; index < count; ++index)
+            {
+                if (index > 0) stream << ',';
+                Object::Ptr channel = channels->getObject(index);
+                stream << (channel ? channel->optValue("value", 0) : 0);
+            }
+        }
+    }
+
+    return stream.str();
 }
 
 } // namespace
@@ -147,11 +194,17 @@ void JNDM123Runtime::touchPreviewLease()
 
 Object::Ptr JNDM123Runtime::acquisitionSnapshot(bool includeWaveform)
 {
+    static std::atomic<Poco::UInt64> sSnapshotCount{0};
     Object::Ptr payload = DdsAcquisitionBridge::instance().latestSnapshot();
     payload->set("authenticated", true);
     if (!includeWaveform)
     {
         stripWaveformSamples(payload);
+    }
+    const Poco::UInt64 count = ++sSnapshotCount;
+    if (count <= 5 || (count % 20) == 0)
+    {
+        logger().information("HTTP acquisition snapshot: " + httpSnapshotDebugSummary(payload));
     }
     return payload;
 }

@@ -16,6 +16,10 @@ public:
     using Ptr = Poco::AutoPtr<JNDM123AcquisitionService>;
 
     static const std::string SERVICE_NAME;
+    ~JNDM123AcquisitionService() override;
+
+    const std::type_info& type() const override;
+    bool isA(const std::type_info& otherType) const override;
 
     virtual Poco::JSON::Object::Ptr restartProcess() = 0;
     virtual Poco::JSON::Object::Ptr serviceStatus() = 0;

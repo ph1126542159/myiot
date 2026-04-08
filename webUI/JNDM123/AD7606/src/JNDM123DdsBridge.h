@@ -4,6 +4,9 @@
 #include "JNDM123Support.h"
 
 #include "Poco/Mutex.h"
+#include "Poco/NotificationQueue.h"
+
+#include <deque>
 
 namespace MyIoT {
 namespace WebUI {
@@ -32,14 +35,19 @@ public:
 private:
     DdsAcquisitionBridge();
     void ensureStarted();
+    void drainPendingSnapshotsLocked();
 
     Poco::FastMutex _mutex;
     MyIoT::Services::JNDM123AcquisitionAgent::AcquisitionDdsPublisher _publisher;
     MyIoT::Services::JNDM123AcquisitionAgent::AcquisitionDdsSubscriber _subscriber;
     bool _started = false;
+    Poco::NotificationQueue _snapshotQueue;
     std::string _latestPayloadText;
     std::string _lastSnapshotUpdatedAt;
+    std::deque<std::string> _recentPayloadTexts;
+    std::size_t _pendingSnapshotCount = 0;
     Poco::UInt64 _lastCommandSequenceSeen = 0;
+    Poco::UInt64 _debugSnapshotCount = 0;
     std::atomic<Poco::UInt64> _nextCommandSequence{0};
 };
 

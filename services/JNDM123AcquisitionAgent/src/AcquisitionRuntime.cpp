@@ -5,7 +5,10 @@
 #include "Poco/JSON/Parser.h"
 #include "Poco/JSON/Stringifier.h"
 
+#include <algorithm>
+#include <iomanip>
 #include <sstream>
+#include <vector>
 
 #if defined(__linux__)
 #include <fcntl.h>
@@ -66,6 +69,128 @@ void attachDividerPayload(Object::Ptr payload, const std::string& dividerPayload
     }
 }
 
+template <typename Value>
+Array::Ptr toJsonArray(const Value* values, std::size_t count)
+{
+    Array::Ptr array = new Array;
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        array->add(static_cast<Poco::UInt64>(values[index]));
+    }
+    return array;
+}
+
+Array::Ptr toSignedJsonArray(const std::uint16_t* values, std::size_t count)
+{
+    Array::Ptr array = new Array;
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        array->add(static_cast<int>(static_cast<std::int16_t>(values[index])));
+    }
+    return array;
+}
+
+Array::Ptr toHexJsonArray(const std::uint32_t* values, std::size_t count)
+{
+    Array::Ptr array = new Array;
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        std::ostringstream stream;
+        stream << "0x"
+               << std::uppercase
+               << std::hex
+               << std::setw(8)
+               << std::setfill('0')
+               << values[index];
+        array->add(stream.str());
+    }
+    return array;
+}
+
+void unpackFrameLoHiPreview(
+    const std::array<std::uint32_t, kFrameWords>& words,
+    std::array<std::uint16_t, 8>& preview)
+{
+    preview.fill(0);
+    const std::size_t pairCount = std::min<std::size_t>(words.size(), preview.size() / 2);
+    for (std::size_t index = 0; index < pairCount; ++index)
+    {
+        const std::uint32_t word = words[index];
+        preview[index * 2] = static_cast<std::uint16_t>(word & 0xFFFFu);
+        preview[index * 2 + 1] = static_cast<std::uint16_t>((word >> 16) & 0xFFFFu);
+    }
+}
+
+void copyHiLoPreview(
+    const std::array<std::int16_t, kFrameColumns>& samples,
+    std::array<std::uint16_t, 8>& preview)
+{
+    preview.fill(0);
+    const std::size_t count = std::min(preview.size(), samples.size());
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        preview[index] = static_cast<std::uint16_t>(samples[index]);
+    }
+}
+
+std::string buildDebugSummary(
+    Poco::UInt64 sequence,
+    const std::array<std::uint32_t, 4>& rawWords,
+    const std::array<std::uint16_t, 8>& hiLo,
+    const std::array<std::uint16_t, 8>& loHi)
+{
+    std::ostringstream stream;
+    stream << "seq=" << sequence << " raw=[";
+    for (std::size_t index = 0; index < rawWords.size(); ++index)
+    {
+        if (index > 0) stream << ", ";
+        stream << "0x"
+               << std::uppercase
+               << std::hex
+               << std::setw(8)
+               << std::setfill('0')
+               << rawWords[index];
+    }
+    stream << std::dec << "] hiLo=[";
+    for (std::size_t index = 0; index < hiLo.size(); ++index)
+    {
+        if (index > 0) stream << ", ";
+        stream << hiLo[index];
+    }
+    stream << "] loHi=[";
+    for (std::size_t index = 0; index < loHi.size(); ++index)
+    {
+        if (index > 0) stream << ", ";
+        stream << loHi[index];
+    }
+    stream << ']';
+    return stream.str();
+}
+
+struct FramePacket
+{
+    Poco::UInt64 sequence = 0;
+    Poco::Timestamp capturedAt;
+    std::array<std::uint32_t, kFrameWords> words{};
+};
+
+class FrameBatchNotification: public Poco::Notification
+{
+public:
+    explicit FrameBatchNotification(std::vector<FramePacket> frames):
+        _frames(std::move(frames))
+    {
+    }
+
+    const std::vector<FramePacket>& frames() const
+    {
+        return _frames;
+    }
+
+private:
+    std::vector<FramePacket> _frames;
+};
+
 } // namespace
 
 ReaderRunnable::ReaderRunnable(AcquisitionRuntime& owner): _owner(owner) {}
@@ -122,6 +247,11 @@ Object::Ptr AcquisitionRuntime::snapshot()
     std::string statusMessage;
     std::string lastError;
     std::string dividerPayloadText;
+    std::array<std::uint32_t, 4> debugWords{};
+    std::array<std::uint16_t, 8> debugHiLo{};
+    std::array<std::uint16_t, 8> debugLoHi{};
+    Poco::UInt64 debugSequence = 0;
+    std::string debugCapturedAt;
     bool hasLatestFrame = false;
 
     {
@@ -136,6 +266,11 @@ Object::Ptr AcquisitionRuntime::snapshot()
             : _statusMessage;
         lastError = _lastError;
         dividerPayloadText = _latestDividerPayloadText;
+        debugWords = _lastDebugWords;
+        debugHiLo = _lastDebugHiLo;
+        debugLoHi = _lastDebugLoHi;
+        debugSequence = _lastDebugSequence;
+        debugCapturedAt = _lastDebugCapturedAt;
         hasLatestFrame = _hasLatestFrame;
     }
 
@@ -147,7 +282,7 @@ Object::Ptr AcquisitionRuntime::snapshot()
     payload->set("running", _running.load());
     payload->set("previewActive", true);
     payload->set("historyLimit", static_cast<int>(kHistoryLimit));
-    payload->set("queueDepth", 0);
+    payload->set("queueDepth", static_cast<Poco::UInt64>(_queueDepth.load()));
     payload->set("totalFrames", static_cast<Poco::UInt64>(_totalFrames.load()));
     payload->set("droppedFrames", static_cast<Poco::UInt64>(_droppedFrames.load()));
     payload->set("recoveries", static_cast<Poco::UInt64>(_recoveries.load()));
@@ -160,6 +295,16 @@ Object::Ptr AcquisitionRuntime::snapshot()
     payload->set("commandAction", _lastCommandAction);
     payload->set("commandUpdatedAt", _lastCommandUpdatedAt);
     attachDividerPayload(payload, dividerPayloadText);
+
+    Object::Ptr debug = new Object;
+    debug->set("sequence", debugSequence);
+    debug->set("capturedAt", debugCapturedAt);
+    debug->set("rawWordsHex", toHexJsonArray(debugWords.data(), debugWords.size()));
+    debug->set("hiLoUnsigned", toJsonArray(debugHiLo.data(), debugHiLo.size()));
+    debug->set("hiLoSigned", toSignedJsonArray(debugHiLo.data(), debugHiLo.size()));
+    debug->set("loHiUnsigned", toJsonArray(debugLoHi.data(), debugLoHi.size()));
+    debug->set("loHiSigned", toSignedJsonArray(debugLoHi.data(), debugLoHi.size()));
+    payload->set("debug", debug);
 
     Array::Ptr timelineUs = new Array;
     for (const auto value: timelineCopy) timelineUs->add(static_cast<Poco::Int64>(value));
@@ -199,49 +344,173 @@ Object::Ptr AcquisitionRuntime::snapshot()
 void AcquisitionRuntime::readerLoop()
 {
 #if defined(__linux__)
+    elevateCurrentThreadPriority();
+
     std::array<std::uint32_t, kFrameWords> words{};
+    std::vector<FramePacket> batch;
+    Poco::UInt64 sequence = _totalFrames.load();
+    Poco::Int64 batchStartedAtUs = 0;
+
+    auto flushBatch = [&]() {
+        if (batch.empty()) return;
+
+        const Poco::UInt64 batchSize = static_cast<Poco::UInt64>(batch.size());
+        if ((_queueDepth.load() + batchSize) > kMaxPendingFrames)
+        {
+            _droppedFrames.fetch_add(batchSize);
+            batch.clear();
+            batchStartedAtUs = 0;
+            return;
+        }
+
+        _frameQueue.enqueueNotification(new FrameBatchNotification(std::move(batch)));
+        _queueDepth.fetch_add(batchSize);
+        batch = std::vector<FramePacket>();
+        batchStartedAtUs = 0;
+    };
+
     while (_readerShouldRun.load() && !_shutdown.load())
     {
-        const int result = readOneFramePacket(words);
-        if (result == 0)
+        ::usleep(static_cast<useconds_t>(kReaderDrainIntervalUs));
+
+        Poco::Timestamp loopTimestamp;
+        loopTimestamp.update();
+        const Poco::Int64 loopNowUs = loopTimestamp.epochMicroseconds();
+        if (batchStartedAtUs != 0 && (loopNowUs - batchStartedAtUs) >= kFrameBatchWindowUs)
         {
-            ::usleep(1000);
-            continue;
-        }
-        if (result < 0)
-        {
-            ++_recoveries;
-            _lastError = "RX FIFO recovered after a packet error.";
-            recoverRxFifo();
-            ::usleep(1000);
-            continue;
+            flushBatch();
         }
 
-        std::array<std::int16_t, kFrameColumns> samples{};
-        unpackFrame(words, samples);
-        const Poco::Timestamp now;
-        const Poco::Int64 capturedAtUs = now.epochMicroseconds();
-
+        while (_readerShouldRun.load() && !_shutdown.load())
         {
-            Poco::FastMutex::ScopedLock lock(_stateMutex);
-            _latestSamples = samples;
-            _hasLatestFrame = true;
-            appendHistoryLocked(samples, capturedAtUs);
-            _lastFrameAt = isoTimestamp(now);
-        }
+            const int result = readOneFramePacket(words);
+            if (result == 0)
+            {
+                break;
+            }
+            if (result < 0)
+            {
+                ++_recoveries;
+                _lastError = "RX FIFO recovered after a packet error.";
+                recoverRxFifo();
+                break;
+            }
 
-        _totalFrames.fetch_add(1);
-        _lastFrameSequence.store(_totalFrames.load());
+            Poco::Timestamp capturedAt;
+            capturedAt.update();
+            FramePacket packet;
+            packet.sequence = sequence;
+            packet.capturedAt = capturedAt;
+            packet.words = words;
+            batch.push_back(std::move(packet));
+            if (batchStartedAtUs == 0)
+            {
+                batchStartedAtUs = capturedAt.epochMicroseconds();
+            }
+
+            ++sequence;
+
+            const Poco::Int64 batchAgeUs = capturedAt.epochMicroseconds() - batchStartedAtUs;
+            if (batchAgeUs >= kFrameBatchWindowUs)
+            {
+                flushBatch();
+            }
+        }
     }
+
+    flushBatch();
 #endif
 }
 
 void AcquisitionRuntime::publisherLoop()
 {
-    while (!_shutdown.load())
+    while (true)
     {
-        _publishWake.tryWait(1000);
-        if (_shutdown.load()) break;
+        if (_shutdown.load() && _queueDepth.load() == 0)
+        {
+            break;
+        }
+
+        Poco::AutoPtr<Poco::Notification> notification(_frameQueue.waitDequeueNotification(200));
+        if (!notification)
+        {
+            if (_shutdown.load()) continue;
+            continue;
+        }
+
+        FrameBatchNotification* pBatchNotification = dynamic_cast<FrameBatchNotification*>(notification.get());
+        if (!pBatchNotification) continue;
+
+        const std::vector<FramePacket>& frames = pBatchNotification->frames();
+        if (frames.empty()) continue;
+
+        const Poco::UInt64 batchSize = static_cast<Poco::UInt64>(frames.size());
+        if (_queueDepth.load() >= batchSize)
+        {
+            _queueDepth.fetch_sub(batchSize);
+        }
+        else
+        {
+            _queueDepth.store(0);
+        }
+
+        std::array<std::int16_t, kFrameColumns> samples{};
+        std::array<std::uint16_t, 8> debugHiLo{};
+        std::array<std::uint16_t, 8> debugLoHi{};
+        std::array<std::uint32_t, 4> debugWords{};
+        Poco::UInt64 lastSequence = 0;
+        std::string lastCapturedAt;
+        Poco::Int64 lastCapturedAtUs = 0;
+        bool shouldLogDebug = false;
+
+        {
+            Poco::FastMutex::ScopedLock lock(_stateMutex);
+            for (const auto& packet: frames)
+            {
+                unpackFrame(packet.words, samples);
+                copyHiLoPreview(samples, debugHiLo);
+                unpackFrameLoHiPreview(packet.words, debugLoHi);
+                for (std::size_t index = 0; index < debugWords.size(); ++index)
+                {
+                    debugWords[index] = packet.words[index];
+                }
+
+                lastSequence = packet.sequence;
+                lastCapturedAtUs = packet.capturedAt.epochMicroseconds();
+                lastCapturedAt = isoTimestamp(packet.capturedAt);
+
+                _latestSamples = samples;
+                _lastDebugWords = debugWords;
+                _lastDebugHiLo = debugHiLo;
+                _lastDebugLoHi = debugLoHi;
+                _lastDebugSequence = packet.sequence;
+                _lastDebugCapturedAt = lastCapturedAt;
+                _hasLatestFrame = true;
+                _lastFrameSequence.store(packet.sequence);
+                _totalFrames.store(packet.sequence + 1);
+                _lastFrameAt = lastCapturedAt;
+
+                const bool shouldAppendHistory =
+                    (_lastHistorySampleAtUs == 0) ||
+                    ((lastCapturedAtUs - _lastHistorySampleAtUs) >= kHistorySampleIntervalUs);
+                if (shouldAppendHistory)
+                {
+                    appendHistoryLocked(samples, lastCapturedAtUs);
+                    _lastHistorySampleAtUs = lastCapturedAtUs;
+                }
+            }
+
+            _lastWaveformPublishAtUs = lastCapturedAtUs;
+            ++_debugPublishCount;
+            shouldLogDebug = (_debugPublishCount <= 3) || (_debugPublishCount % 100 == 0);
+        }
+
+        if (shouldLogDebug)
+        {
+            logger().information(
+                "Waveform publish debug: frames=" + std::to_string(batchSize) + " " +
+                buildDebugSummary(lastSequence, debugWords, debugHiLo, debugLoHi));
+        }
         publishSnapshot();
     }
 }
@@ -290,29 +559,46 @@ void AcquisitionRuntime::handleControlMessage(const AcquisitionDdsJsonMessage& m
     catch (const Poco::Exception& exc)
     {
         Poco::FastMutex::ScopedLock lock(_stateMutex);
-        _lastError = "Invalid DDS acquisition command payload: " + exc.displayText();
-        _statusMessage = _lastError;
-        _lastCommandOk = false;
-    }
-
-    {
-        Poco::FastMutex::ScopedLock lock(_stateMutex);
         _lastCommandSequence.store(message.sequence);
         _lastCommandAction = action;
         _lastCommandUpdatedAt = message.updatedAt;
+        _lastError = "Invalid DDS acquisition command payload: " + exc.displayText();
+        _statusMessage = _lastError;
+        _lastCommandOk = false;
     }
 
     try
     {
         if (action == "start")
         {
-            startAcquisition();
+            {
+                Poco::FastMutex::ScopedLock lock(_controlMutex);
+                startAcquisitionLocked();
+            }
+            {
+                Poco::FastMutex::ScopedLock lock(_stateMutex);
+                _lastCommandSequence.store(message.sequence);
+                _lastCommandAction = action;
+                _lastCommandUpdatedAt = message.updatedAt;
+            }
+            publishSnapshot();
             return;
         }
 
         if (action == "stop")
         {
-            stopAcquisition(requestMessage);
+            {
+                Poco::FastMutex::ScopedLock lock(_controlMutex);
+                stopAcquisitionLocked(requestMessage);
+            }
+            {
+                Poco::FastMutex::ScopedLock lock(_stateMutex);
+                _lastCommandSequence.store(message.sequence);
+                _lastCommandAction = action;
+                _lastCommandUpdatedAt = message.updatedAt;
+                _lastCommandOk = true;
+            }
+            publishSnapshot();
             return;
         }
 
@@ -327,6 +613,9 @@ void AcquisitionRuntime::handleControlMessage(const AcquisitionDdsJsonMessage& m
 
             {
                 Poco::FastMutex::ScopedLock lock(_stateMutex);
+                _lastCommandSequence.store(message.sequence);
+                _lastCommandAction = action;
+                _lastCommandUpdatedAt = message.updatedAt;
                 updateDividerSnapshotLocked(dividerSnapshot);
                 _statusMessage = dividerSnapshot.message;
                 _lastError.clear();
@@ -342,6 +631,9 @@ void AcquisitionRuntime::handleControlMessage(const AcquisitionDdsJsonMessage& m
             const DividerSnapshot dividerSnapshot = initializeHardwareFromSavedConfiguration();
             {
                 Poco::FastMutex::ScopedLock lock(_stateMutex);
+                _lastCommandSequence.store(message.sequence);
+                _lastCommandAction = action;
+                _lastCommandUpdatedAt = message.updatedAt;
                 updateDividerSnapshotLocked(dividerSnapshot);
                 _statusMessage = dividerSnapshot.message;
                 _lastError.clear();
@@ -367,6 +659,9 @@ void AcquisitionRuntime::handleControlMessage(const AcquisitionDdsJsonMessage& m
                 requestPayload->getValue<int>("divider"),
                 requestReferenceClockHz(requestPayload));
 
+            _lastCommandSequence.store(message.sequence);
+            _lastCommandAction = action;
+            _lastCommandUpdatedAt = message.updatedAt;
             updateDividerSnapshotLocked(dividerSnapshot);
             _statusMessage = dividerSnapshot.message;
             _lastError.clear();
@@ -396,6 +691,9 @@ void AcquisitionRuntime::handleControlMessage(const AcquisitionDdsJsonMessage& m
     catch (const Poco::Exception& exc)
     {
         Poco::FastMutex::ScopedLock lock(_stateMutex);
+        _lastCommandSequence.store(message.sequence);
+        _lastCommandAction = action;
+        _lastCommandUpdatedAt = message.updatedAt;
         _statusMessage = exc.displayText();
         _lastError = _statusMessage;
         _lastCommandOk = false;
@@ -403,9 +701,22 @@ void AcquisitionRuntime::handleControlMessage(const AcquisitionDdsJsonMessage& m
     catch (const std::exception& exc)
     {
         Poco::FastMutex::ScopedLock lock(_stateMutex);
+        _lastCommandSequence.store(message.sequence);
+        _lastCommandAction = action;
+        _lastCommandUpdatedAt = message.updatedAt;
         _statusMessage = exc.what();
         _lastError = _statusMessage;
         _lastCommandOk = false;
+    }
+
+    {
+        Poco::FastMutex::ScopedLock lock(_stateMutex);
+        if (_lastCommandSequence.load() != message.sequence)
+        {
+            _lastCommandSequence.store(message.sequence);
+            _lastCommandAction = action;
+            _lastCommandUpdatedAt = message.updatedAt;
+        }
     }
 
     publishSnapshot();
@@ -427,6 +738,16 @@ void AcquisitionRuntime::publishSnapshot()
     _lastPublishedAt = message.updatedAt;
 }
 
+void AcquisitionRuntime::drainQueue()
+{
+    while (true)
+    {
+        Poco::AutoPtr<Poco::Notification> notification(_frameQueue.dequeueNotification());
+        if (!notification) break;
+    }
+    _queueDepth.store(0);
+}
+
 void AcquisitionRuntime::stopAcquisitionLocked(const std::string& message)
 {
     _readerShouldRun.store(false);
@@ -435,6 +756,9 @@ void AcquisitionRuntime::stopAcquisitionLocked(const std::string& message)
         _readerThread.join();
         _readerStarted = false;
     }
+
+    _frameQueue.wakeUpAll();
+    drainQueue();
 
 #if defined(__linux__)
     if (_hardware.fifoCtrl && _hardware.fifoData)
@@ -447,6 +771,7 @@ void AcquisitionRuntime::stopAcquisitionLocked(const std::string& message)
     _running.store(false);
     _statusMessage = message;
     _lastCommandOk = true;
+    _lastWaveformPublishAtUs = 0;
 }
 
 Object::Ptr AcquisitionRuntime::startAcquisitionLocked()
@@ -486,10 +811,11 @@ Object::Ptr AcquisitionRuntime::startAcquisitionLocked()
         stopAdcLocked();
         resetFifoLocked();
         clearHistoryLocked();
+        drainQueue();
         _readerShouldRun.store(true);
+        startAdcLocked();
         _readerThread.start(_readerRunnable);
         _readerStarted = true;
-        startAdcLocked();
         _running.store(true);
         _statusMessage = "Acquisition started.";
         _lastError.clear();
@@ -548,7 +874,22 @@ void AcquisitionRuntime::clearHistoryLocked()
     for (auto& series: _history) series.clear();
     _timelineUs.clear();
     _hasLatestFrame = false;
+    _latestSamples.fill(0);
+    _lastDebugWords.fill(0);
+    _lastDebugHiLo.fill(0);
+    _lastDebugLoHi.fill(0);
+    _lastDebugSequence = 0;
+    _lastDebugCapturedAt.clear();
+    _debugPublishCount = 0;
+    _totalFrames.store(0);
+    _droppedFrames.store(0);
+    _recoveries.store(0);
+    _lastFrameSequence.store(0);
+    _queueDepth.store(0);
     _lastFrameAt.clear();
+    _lastPublishedAt.clear();
+    _lastWaveformPublishAtUs = 0;
+    _lastHistorySampleAtUs = 0;
 }
 
 void AcquisitionRuntime::unpackFrame(
@@ -558,8 +899,8 @@ void AcquisitionRuntime::unpackFrame(
     for (std::size_t index = 0; index < words.size(); ++index)
     {
         const std::uint32_t word = words[index];
-        samples[index * 2] = static_cast<std::int16_t>(word & 0xFFFFu);
-        samples[index * 2 + 1] = static_cast<std::int16_t>((word >> 16) & 0xFFFFu);
+        samples[index * 2] = static_cast<std::int16_t>(static_cast<std::uint16_t>((word >> 16) & 0xFFFFu));
+        samples[index * 2 + 1] = static_cast<std::int16_t>(static_cast<std::uint16_t>(word & 0xFFFFu));
     }
 }
 
@@ -659,19 +1000,25 @@ void AcquisitionRuntime::recoverRxFifo()
 
 int AcquisitionRuntime::readOneFramePacket(std::array<std::uint32_t, kFrameWords>& frame)
 {
+    constexpr std::uint32_t kFrameBytes = static_cast<std::uint32_t>(kFrameWords * sizeof(std::uint32_t));
     const std::uint32_t isr = _hardware.fifoCtrl[kIsr / 4];
     if (isr & (kIsrRpue | kIsrRpore | kIsrRpure)) return -2;
 
     const std::uint32_t occupancy = _hardware.fifoCtrl[kRdfo / 4];
-    if (occupancy == 0) return 0;
+    if (occupancy < kFrameWords) return 0;
 
     const std::uint32_t rlr = _hardware.fifoCtrl[kRlr / 4];
     if (rlr & 0x80000000u) return 0;
 
     const std::uint32_t bytes = rlr & 0x007FFFFFu;
-    if (bytes != kFrameWords * sizeof(std::uint32_t)) return -3;
+    if (bytes < kFrameBytes) return 0;
+    if ((bytes % sizeof(std::uint32_t)) != 0) return -3;
+    if ((bytes % kFrameBytes) != 0) return -3;
 
-    for (std::size_t index = 0; index < frame.size(); ++index) frame[index] = _hardware.fifoData[0];
+    for (std::size_t index = 0; index < frame.size(); ++index)
+    {
+        frame[index] = _hardware.fifoData[0];
+    }
     return 1;
 }
 #endif

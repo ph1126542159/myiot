@@ -9,6 +9,8 @@
 
 #if defined(__linux__)
 #include <fcntl.h>
+#include <pthread.h>
+#include <sched.h>
 #include <unistd.h>
 #endif
 
@@ -67,6 +69,20 @@ void setGpioValue(int gpio, bool high)
 bool activeMaskValue(bool active)
 {
     return kMaskStartActiveLow ? !active : active;
+}
+
+void elevateCurrentThreadPriority()
+{
+    const int policy = SCHED_FIFO;
+    sched_param params{};
+    params.sched_priority = sched_get_priority_max(policy);
+    if (params.sched_priority <= 0) return;
+
+    const int result = pthread_setschedparam(pthread_self(), policy, &params);
+    if (result != 0)
+    {
+        logger().warning("Unable to elevate acquisition reader thread priority.");
+    }
 }
 #endif
 

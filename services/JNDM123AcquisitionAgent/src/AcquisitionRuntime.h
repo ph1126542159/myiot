@@ -8,6 +8,7 @@
 #include "Poco/Event.h"
 #include "Poco/JSON/Object.h"
 #include "Poco/Mutex.h"
+#include "Poco/NotificationQueue.h"
 #include "Poco/Runnable.h"
 #include "Poco/Thread.h"
 
@@ -82,6 +83,7 @@ private:
     void publishSnapshot();
     Poco::JSON::Object::Ptr startAcquisitionLocked();
     void stopAcquisitionLocked(const std::string& message);
+    void drainQueue();
     void appendHistoryLocked(const std::array<std::int16_t, kFrameColumns>& samples, Poco::Int64 capturedAtUs);
     void clearHistoryLocked();
     void updateDividerSnapshotLocked(const DividerSnapshot& snapshot);
@@ -113,13 +115,23 @@ private:
     std::atomic<Poco::UInt64> _droppedFrames{0};
     std::atomic<Poco::UInt64> _recoveries{0};
     std::atomic<Poco::UInt64> _lastFrameSequence{0};
+    std::atomic<Poco::UInt64> _queueDepth{0};
     Poco::FastMutex _controlMutex;
     Poco::FastMutex _stateMutex;
     Poco::Event _publishWake;
+    Poco::NotificationQueue _frameQueue;
     std::array<std::deque<std::int16_t>, kFrameColumns> _history;
     std::deque<Poco::Int64> _timelineUs;
     std::array<std::int16_t, kFrameColumns> _latestSamples{};
+    std::array<std::uint32_t, 4> _lastDebugWords{};
+    std::array<std::uint16_t, 8> _lastDebugHiLo{};
+    std::array<std::uint16_t, 8> _lastDebugLoHi{};
+    Poco::UInt64 _lastDebugSequence = 0;
+    std::string _lastDebugCapturedAt;
+    Poco::UInt64 _debugPublishCount = 0;
     bool _hasLatestFrame = false;
+    Poco::Int64 _lastWaveformPublishAtUs = 0;
+    Poco::Int64 _lastHistorySampleAtUs = 0;
     std::string _statusMessage = "Acquisition agent ready.";
     std::string _lastError;
     bool _lastCommandOk = true;
