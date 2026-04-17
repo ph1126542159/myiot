@@ -1,4 +1,13 @@
-﻿find_program(MYIOT_NPM_EXECUTABLE npm REQUIRED)
+if(DEFINED MYIOT_NPM_EXECUTABLE AND NOT EXISTS "${MYIOT_NPM_EXECUTABLE}")
+    unset(MYIOT_NPM_EXECUTABLE CACHE)
+endif()
+
+find_program(MYIOT_NPM_EXECUTABLE NAMES npm
+    HINTS
+        "$ENV{HOME}/.local/node-v20.19.0-linux-x64-glibc-217/bin"
+        "$ENV{HOME}/.local/node-v24.14.1-linux-x64/bin"
+    REQUIRED
+)
 
 set(MYIOT_WEBUI_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -36,14 +45,20 @@ function(myiot_add_webui_package)
         list(APPEND ui_manifest_files "${WEBUI_UI_DIR}/package-lock.json")
     endif()
 
-    file(GLOB_RECURSE frontend_sources CONFIGURE_DEPENDS
+    file(GLOB_RECURSE frontend_source_files CONFIGURE_DEPENDS
         "${WEBUI_UI_DIR}/src/*"
         "${WEBUI_UI_DIR}/public/*"
+    )
+    file(GLOB webui_bundle_manifest_files CONFIGURE_DEPENDS
+        "${MYIOT_WEBUI_ROOT_DIR}/*/bundle.json"
+        "${MYIOT_WEBUI_ROOT_DIR}/*/*/bundle.json"
+    )
+    set(frontend_sources
+        ${frontend_source_files}
         "${WEBUI_UI_DIR}/index.html"
         ${ui_manifest_files}
         "${WEBUI_UI_DIR}/vite.config.mjs"
-        "${MYIOT_WEBUI_ROOT_DIR}/*/bundle.json"
-        "${MYIOT_WEBUI_ROOT_DIR}/*/*/bundle.json"
+        ${webui_bundle_manifest_files}
     )
 
     set(MYIOT_WEBUI_PACKAGE_BUNDLE_NAME "${WEBUI_BUNDLE_NAME}")

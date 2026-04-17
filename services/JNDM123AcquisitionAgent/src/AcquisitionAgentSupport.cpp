@@ -5,6 +5,8 @@
 #include "Poco/Environment.h"
 #include "Poco/NumberParser.h"
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 #if defined(__linux__)
@@ -35,6 +37,41 @@ int parseIntEnv(const char* name, int fallback)
     {
         if (!Poco::Environment::has(name)) return fallback;
         return Poco::NumberParser::parse(Poco::Environment::get(name));
+    }
+    catch (...)
+    {
+        return fallback;
+    }
+}
+
+bool parseBoolEnv(const char* name, bool fallback)
+{
+    try
+    {
+        if (!Poco::Environment::has(name)) return fallback;
+
+        std::string value = Poco::Environment::get(name);
+        std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+
+        if (value == "1" || value == "true" || value == "yes" || value == "on") return true;
+        if (value == "0" || value == "false" || value == "no" || value == "off") return false;
+        return fallback;
+    }
+    catch (...)
+    {
+        return fallback;
+    }
+}
+
+std::string parseStringEnv(const char* name, const std::string& fallback)
+{
+    try
+    {
+        if (!Poco::Environment::has(name)) return fallback;
+        const std::string value = Poco::Environment::get(name);
+        return value.empty() ? fallback : value;
     }
     catch (...)
     {

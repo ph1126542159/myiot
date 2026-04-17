@@ -21,7 +21,7 @@ const zh = {
   clockCopy: '可同时勾选多个输出一次性下发同一个分频值。点击执行后，后端会暂停采集线程、写入分频、回读结果，并在成功后恢复采集。',
   i2cDevice: 'I2C 设备',
   referenceClockHz: '外部时钟 Hz',
-  referenceClockHint: '例如 25000000 表示 25 MHz。',
+  referenceClockHint: '例如 1000000 表示 1 MHz。',
   output: '输出选择',
   divider: '分频值',
   execute: '执行',
@@ -121,7 +121,7 @@ const en = {
   clockCopy: 'Select one or more outputs to push the same divider in one shot. The backend pauses acquisition threads, writes the divider, reads back the actual state, and restarts capture on success.',
   i2cDevice: 'I2C Device',
   referenceClockHz: 'External Clock Hz',
-  referenceClockHint: 'For example, 25000000 means 25 MHz.',
+  referenceClockHint: 'For example, 1000000 means 1 MHz.',
   output: 'Outputs',
   divider: 'Divider',
   execute: 'Execute',
@@ -870,7 +870,7 @@ function chartXTicks(timeline, unit = 'us', segments = 4) {
       key: `${unit}-${index}-${start}-${end}`,
       position,
       label: Number.isFinite(tickValue)
-        ? (unit === 'us' ? formatRelativeWaveformLabel(tickValue, start) : formatTimelineLabel(tickValue, unit))
+        ? formatTimelineLabel(tickValue, unit)
         : '--'
     }
   })
@@ -946,16 +946,12 @@ function zeroLineY(minValue, maxValue) {
 
 function chartStartLabel(timeline, unit = 'us') {
   if (!timeline.length) return '--'
-  return unit === 'us'
-    ? formatRelativeWaveformLabel(timeline[0], timeline[0])
-    : formatTimelineLabel(timeline[0], unit)
+  return formatTimelineLabel(timeline[0], unit)
 }
 
 function chartEndLabel(timeline, unit = 'us') {
   if (!timeline.length) return '--'
-  return unit === 'us'
-    ? formatRelativeWaveformLabel(timeline[timeline.length - 1], timeline[0])
-    : formatTimelineLabel(timeline[timeline.length - 1], unit)
+  return formatTimelineLabel(timeline[timeline.length - 1], unit)
 }
 
 function chipTimeline(chip) {

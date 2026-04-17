@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -24,6 +25,29 @@ using Poco::JSON::Array;
 using Poco::JSON::Object;
 
 namespace {
+
+std::string requestStringField(Object::Ptr payload, const std::string& name)
+{
+    if (!payload || !payload->has(name)) return std::string();
+
+    try
+    {
+        return payload->getValue<std::string>(name);
+    }
+    catch (...)
+    {
+    }
+
+    try
+    {
+        return payload->get(name).convert<std::string>();
+    }
+    catch (...)
+    {
+    }
+
+    return std::string();
+}
 
 std::vector<int> parseOutputIndices(Object::Ptr payload)
 {
@@ -44,14 +68,33 @@ std::vector<int> parseOutputIndices(Object::Ptr payload)
 
 Poco::UInt64 requestReferenceClockHz(Object::Ptr payload)
 {
-    return resolvePreferredReferenceClockHz(
-        payload ? payload->optValue("referenceClockHz", std::string()) : std::string());
+    if (!payload || !payload->has("referenceClockHz"))
+    {
+        return resolvePreferredReferenceClockHz(std::string());
+    }
+
+    try
+    {
+        const Poco::UInt64 value = payload->getValue<Poco::UInt64>("referenceClockHz");
+        validateReferenceClockHzOrThrow(value);
+        return value;
+    }
+    catch (...)
+    {
+    }
+
+    const std::string text = requestStringField(payload, "referenceClockHz");
+    if (!text.empty())
+    {
+        return resolvePreferredReferenceClockHz(text);
+    }
+
+    throw Poco::InvalidArgumentException("referenceClockHz must be numeric.");
 }
 
 std::string requestDevicePath(Object::Ptr payload)
 {
-    return resolvePreferredDevicePath(
-        payload ? payload->optValue("devicePath", std::string()) : std::string());
+    return resolvePreferredDevicePath(requestStringField(payload, "devicePath"));
 }
 
 void attachDividerPayload(Object::Ptr payload, const std::string& dividerPayloadText)
@@ -208,10 +251,27 @@ AcquisitionRuntime::AcquisitionRuntime(int ddsDomain):
     _ddsDomain(ddsDomain),
     _controlListener(*this)
 {
+    AcquisitionUdpStreamSettings udpSettings;
+    udpSettings.enabled = parseBoolEnv("MYIOT_JNDM123_AGENT_UDP_ENABLE", true);
+    udpSettings.host = parseStringEnv("MYIOT_JNDM123_AGENT_UDP_HOST", "192.168.16.255");
+    udpSettings.port = parseIntEnv("MYIOT_JNDM123_AGENT_UDP_PORT", 50000);
+    udpSettings.maxFramesPerPacket = parseIntEnv("MYIOT_JNDM123_AGENT_UDP_MAX_FRAMES_PER_PACKET", 10);
+
+    _udpConfigured = udpSettings.enabled;
+    _udpHost = udpSettings.host;
+    _udpPort = udpSettings.port;
+    _udpMaxFramesPerPacket = udpSettings.maxFramesPerPacket;
+    _udpPublisher.reset(new AcquisitionUdpStreamPublisher(udpSettings));
+
     _publisher.start(_ddsDomain, acquisitionSnapshotTopicName());
     _commandSubscriber.start(_ddsDomain, acquisitionControlTopicName(), &_controlListener);
     _publisherThread.start(_publisherRunnable);
     _publisherStarted = true;
+    logger().information(
+        std::string("JNDM123 UDP stream ") +
+        (_udpPublisher && _udpPublisher->enabled() ? "enabled" : "disabled") +
+        " target=" + _udpHost + ":" + std::to_string(_udpPort) +
+        " framesPerPacket=" + std::to_string(_udpMaxFramesPerPacket));
     publishSnapshot();
 }
 
@@ -247,6 +307,12 @@ Object::Ptr AcquisitionRuntime::snapshot()
     std::string statusMessage;
     std::string lastError;
     std::string dividerPayloadText;
+    std::string udpHost;
+    std::string udpLastError;
+    int udpPort = 0;
+    int udpMaxFramesPerPacket = 0;
+    bool udpConfigured = false;
+    bool udpActive = false;
     std::array<std::uint32_t, 4> debugWords{};
     std::array<std::uint16_t, 8> debugHiLo{};
     std::array<std::uint16_t, 8> debugLoHi{};
@@ -266,6 +332,12 @@ Object::Ptr AcquisitionRuntime::snapshot()
             : _statusMessage;
         lastError = _lastError;
         dividerPayloadText = _latestDividerPayloadText;
+        udpConfigured = _udpConfigured;
+        udpActive = _udpPublisher && _udpPublisher->enabled();
+        udpHost = _udpHost;
+        udpPort = _udpPort;
+        udpMaxFramesPerPacket = _udpMaxFramesPerPacket;
+        udpLastError = _udpLastError;
         debugWords = _lastDebugWords;
         debugHiLo = _lastDebugHiLo;
         debugLoHi = _lastDebugLoHi;
@@ -295,6 +367,18 @@ Object::Ptr AcquisitionRuntime::snapshot()
     payload->set("commandAction", _lastCommandAction);
     payload->set("commandUpdatedAt", _lastCommandUpdatedAt);
     attachDividerPayload(payload, dividerPayloadText);
+
+    Object::Ptr udp = new Object;
+    udp->set("configured", udpConfigured);
+    udp->set("active", udpActive);
+    udp->set("host", udpHost);
+    udp->set("port", udpPort);
+    udp->set("maxFramesPerPacket", udpMaxFramesPerPacket);
+    udp->set("packetsSent", static_cast<Poco::UInt64>(_udpPacketsSent.load()));
+    udp->set("framesSent", static_cast<Poco::UInt64>(_udpFramesSent.load()));
+    udp->set("sendErrors", static_cast<Poco::UInt64>(_udpSendErrors.load()));
+    udp->set("lastError", udpLastError);
+    payload->set("udp", udp);
 
     Object::Ptr debug = new Object;
     debug->set("sequence", debugSequence);
@@ -462,12 +546,17 @@ void AcquisitionRuntime::publisherLoop()
         std::string lastCapturedAt;
         Poco::Int64 lastCapturedAtUs = 0;
         bool shouldLogDebug = false;
+        AcquisitionUdpStreamPublisher* udpPublisher = _udpPublisher.get();
 
         {
             Poco::FastMutex::ScopedLock lock(_stateMutex);
             for (const auto& packet: frames)
             {
                 unpackFrame(packet.words, samples);
+                if (udpPublisher && udpPublisher->enabled())
+                {
+                    udpPublisher->pushFrame(packet.sequence, packet.capturedAt.epochMicroseconds(), samples);
+                }
                 copyHiLoPreview(samples, debugHiLo);
                 unpackFrameLoHiPreview(packet.words, debugLoHi);
                 for (std::size_t index = 0; index < debugWords.size(); ++index)
@@ -503,6 +592,18 @@ void AcquisitionRuntime::publisherLoop()
             _lastWaveformPublishAtUs = lastCapturedAtUs;
             ++_debugPublishCount;
             shouldLogDebug = (_debugPublishCount <= 3) || (_debugPublishCount % 100 == 0);
+        }
+
+        if (udpPublisher && udpPublisher->enabled())
+        {
+            udpPublisher->flush();
+            const AcquisitionUdpStreamStats& stats = udpPublisher->stats();
+            _udpPacketsSent.store(stats.packetsSent);
+            _udpFramesSent.store(stats.framesSent);
+            _udpSendErrors.store(stats.sendErrors);
+
+            Poco::FastMutex::ScopedLock lock(_stateMutex);
+            _udpLastError = stats.lastError;
         }
 
         if (shouldLogDebug)
@@ -890,6 +991,10 @@ void AcquisitionRuntime::clearHistoryLocked()
     _lastPublishedAt.clear();
     _lastWaveformPublishAtUs = 0;
     _lastHistorySampleAtUs = 0;
+    _udpPacketsSent.store(0);
+    _udpFramesSent.store(0);
+    _udpSendErrors.store(0);
+    _udpLastError.clear();
 }
 
 void AcquisitionRuntime::unpackFrame(

@@ -22,6 +22,7 @@ endif()
 set(myiot_jndm123_agent_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionAgentSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDdsJsonMessage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionUdpStream.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/JNDM123AcquisitionServiceImpl.cpp
 )
 
@@ -72,6 +73,7 @@ add_executable(myiot-jndm123-acquisition-agent
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDivider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDividerState.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionDdsJsonMessage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionUdpStream.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionRuntime.cpp
 )
 target_link_libraries(myiot-jndm123-acquisition-agent PRIVATE

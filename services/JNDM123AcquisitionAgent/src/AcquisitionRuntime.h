@@ -4,6 +4,7 @@
 #include "AcquisitionAgentSupport.h"
 #include "AcquisitionDivider.h"
 #include "AcquisitionDdsJsonMessage.h"
+#include "AcquisitionUdpStream.h"
 
 #include "Poco/Event.h"
 #include "Poco/JSON/Object.h"
@@ -16,6 +17,7 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <string>
 
 namespace MyIoT {
@@ -144,6 +146,15 @@ private:
     AcquisitionDdsPublisher _publisher;
     AcquisitionDdsSubscriber _commandSubscriber;
     std::atomic<Poco::UInt64> _lastCommandSequence{0};
+    std::unique_ptr<AcquisitionUdpStreamPublisher> _udpPublisher;
+    bool _udpConfigured = false;
+    std::string _udpHost = "192.168.16.255";
+    int _udpPort = 50000;
+    int _udpMaxFramesPerPacket = 10;
+    std::atomic<Poco::UInt64> _udpPacketsSent{0};
+    std::atomic<Poco::UInt64> _udpFramesSent{0};
+    std::atomic<Poco::UInt64> _udpSendErrors{0};
+    std::string _udpLastError;
 
 #if defined(__linux__)
     MappedHardware _hardware;

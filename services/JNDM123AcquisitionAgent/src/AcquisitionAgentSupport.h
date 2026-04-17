@@ -44,6 +44,8 @@ constexpr bool kMaskStartActiveLow = false;
 Poco::Logger& logger();
 std::string isoTimestamp(const Poco::Timestamp& timestamp = Poco::Timestamp());
 int parseIntEnv(const char* name, int fallback);
+bool parseBoolEnv(const char* name, bool fallback);
+std::string parseStringEnv(const char* name, const std::string& fallback);
 
 #if defined(__linux__)
 void writeSysfsValue(const std::string& path, const std::string& value);
