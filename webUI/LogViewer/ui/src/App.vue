@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { featurePackages as rawFeaturePackages } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { localizeFeaturePackage } from './core/packageLocalization.js'
@@ -27,6 +27,8 @@ const zh = {
   currentState: '当前状态',
   online: '在线',
   degraded: '异常',
+  pollingMode: '前端轮询',
+  pollingCadence: '每 1 秒主动拉取',
   operatorNotes: '使用建议',
   layout: '布局建议',
   layoutValue: '把这个窗口放在 JNDM123 或诊断页面旁边。',
@@ -39,6 +41,12 @@ const zh = {
   selectProcess: '请先从左侧选择一个进程查看日志。',
   refreshCadence: '刷新频率',
   currentUser: '当前账号',
+  packageSources: '包来源',
+  unifiedTerminal: '主日志终端',
+  unifiedHint: '所有包的日志都按主日志顺序汇总到这一个窗口里，标签仅用于标记来源。',
+  followingLatest: '跟随最新',
+  pausedScroll: '已暂停跟随',
+  jumpToLatest: '回到最新',
   language: 'EN',
   documentTitle: 'MyIoT 实时日志',
   popupMode: '悬浮窗口',
@@ -67,6 +75,8 @@ const en = {
   currentState: 'Current state',
   online: 'Online',
   degraded: 'Degraded',
+  pollingMode: 'Client Polling',
+  pollingCadence: 'Fetch every second',
   operatorNotes: 'Operator Notes',
   layout: 'Layout',
   layoutValue: 'Keep this window beside JNDM123 or diagnostics pages.',
@@ -79,6 +89,12 @@ const en = {
   selectProcess: 'Select a process on the left to review its log output.',
   refreshCadence: 'Refresh cadence',
   currentUser: 'Current User',
+  packageSources: 'Package Sources',
+  unifiedTerminal: 'Main Log Terminal',
+  unifiedHint: 'All package logs are merged into this single main terminal. Tags only indicate the source package.',
+  followingLatest: 'Following Latest',
+  pausedScroll: 'Follow Paused',
+  jumpToLatest: 'Jump to Latest',
   language: '中文',
   documentTitle: 'MyIoT Realtime Logs',
   popupMode: 'Floating Window',
@@ -113,8 +129,90 @@ const logsMessage = ref(text.value.connecting)
 const logsUpdatedAt = ref('')
 const logsLoading = ref(false)
 const logsError = ref('')
+const logConsoleElement = ref(null)
+const autoFollowTail = ref(true)
 let logTimer = null
 let logsRequestInFlight = false
+const logLineLimit = 500
+const logFollowThreshold = 24
+const logSnapshotEndpoint = '/myiot/home/logs.json'
+
+function trimBundleToken(value) {
+  const firstToken = value.split(/[ /,:;]/, 1)[0] || ''
+  return firstToken.replace(/\.+$/, '')
+}
+
+function extractBundleFromMessage(message, marker) {
+  const markerIndex = message.indexOf(marker)
+  if (markerIndex === -1) return ''
+  return trimBundleToken(message.slice(markerIndex + marker.length))
+}
+
+function detectBundleName(source, message) {
+  if (source.startsWith('osp.bundle.')) {
+    return source.slice('osp.bundle.'.length)
+  }
+
+  return (
+    extractBundleFromMessage(message, 'registered by bundle ') ||
+    extractBundleFromMessage(message, 'mapped by bundle ') ||
+    extractBundleFromMessage(message, 'Loaded bundle ') ||
+    extractBundleFromMessage(message, 'Bundle ')
+  )
+}
+
+function parseLogEntry(rawLine, fallbackKey, previousEntry = null) {
+  const entry = {
+    key: fallbackKey,
+    raw: rawLine,
+    timestamp: '',
+    effectiveTimestamp: previousEntry?.effectiveTimestamp ?? '',
+    level: '',
+    source: '',
+    bundle: '',
+    message: rawLine,
+  }
+
+  const levelStart = rawLine.indexOf('[')
+  const levelEnd = levelStart === -1 ? -1 : rawLine.indexOf(']', levelStart + 1)
+
+  if (levelStart > 0 && levelEnd > levelStart) {
+    entry.timestamp = rawLine.slice(0, levelStart).trim()
+    entry.level = rawLine.slice(levelStart + 1, levelEnd).trim()
+
+    const remainder = rawLine.slice(levelEnd + 1).trim()
+    const separatorIndex = remainder.indexOf(': ')
+    if (separatorIndex !== -1) {
+      const sourceWithThread = remainder.slice(0, separatorIndex).trim()
+      const threadMarkerIndex = sourceWithThread.lastIndexOf('<')
+      entry.source =
+        threadMarkerIndex !== -1 && sourceWithThread.endsWith('>')
+          ? sourceWithThread.slice(0, threadMarkerIndex)
+          : sourceWithThread
+      entry.message = remainder.slice(separatorIndex + 2)
+    }
+  }
+
+  if (entry.timestamp) {
+    entry.effectiveTimestamp = entry.timestamp
+  }
+
+  entry.bundle = detectBundleName(entry.source, entry.message)
+  return entry
+}
+
+function parseFileEntries(file) {
+  const entries = []
+  let previousEntry = null
+
+  ;(file.lines ?? []).forEach((line, index) => {
+    const entry = parseLogEntry(line, `${file.path}-${index}`, previousEntry)
+    entries.push(entry)
+    previousEntry = entry
+  })
+
+  return entries
+}
 
 const launchablePackages = computed(() =>
   featurePackages.value.filter((featurePackage) => featurePackage.entryPath)
@@ -129,15 +227,113 @@ const logFiles = computed(() =>
     (process.files ?? []).map((file) => ({
       ...file,
       processName: process.name,
-      processId: process.id
+      processId: process.id,
+      entries: parseFileEntries(file),
     }))
   )
 )
 
-function scrollLogConsoles() {
-  document.querySelectorAll('.log-console').forEach((element) => {
-    element.scrollTop = element.scrollHeight
+const packageSources = computed(() => {
+  const packageCounts = new Map()
+
+  logFiles.value.forEach((file) => {
+    file.entries.forEach((entry) => {
+      if (!entry.bundle) return
+      packageCounts.set(entry.bundle, (packageCounts.get(entry.bundle) ?? 0) + 1)
+    })
   })
+
+  return Array.from(packageCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((left, right) => {
+      if (right.count !== left.count) return right.count - left.count
+      return left.name.localeCompare(right.name)
+    })
+})
+
+const mergedLogEntries = computed(() => {
+  const entries = []
+
+  logFiles.value.forEach((file, fileIndex) => {
+    file.entries.forEach((entry, entryIndex) => {
+      entries.push({
+        ...entry,
+        sequence: `${String(fileIndex).padStart(4, '0')}-${String(entryIndex).padStart(4, '0')}`,
+        processName: file.processName,
+        processId: file.processId,
+        fileName: file.name,
+        filePath: file.path,
+        stream: file.stream ?? 'main',
+      })
+    })
+  })
+
+  return entries.sort((left, right) => {
+    const leftTimestamp = left.effectiveTimestamp || ''
+    const rightTimestamp = right.effectiveTimestamp || ''
+
+    if (leftTimestamp && rightTimestamp && leftTimestamp !== rightTimestamp) {
+      return leftTimestamp.localeCompare(rightTimestamp)
+    }
+
+    if (leftTimestamp && !rightTimestamp) return -1
+    if (!leftTimestamp && rightTimestamp) return 1
+    return left.sequence.localeCompare(right.sequence)
+  })
+})
+
+function isNearBottom(element) {
+  if (!element) return true
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= logFollowThreshold
+}
+
+function captureLogConsoleState() {
+  const element = logConsoleElement.value
+  return {
+    shouldFollow: isNearBottom(element),
+    scrollTop: element?.scrollTop ?? 0,
+  }
+}
+
+function scheduleFollowToLatest() {
+  if (typeof window === 'undefined') return
+
+  const alignToBottom = () => {
+    const element = logConsoleElement.value
+    if (!element || !autoFollowTail.value) return
+    element.scrollTop = element.scrollHeight
+    element.lastElementChild?.scrollIntoView({ block: 'end' })
+  }
+
+  alignToBottom()
+  window.requestAnimationFrame(() => {
+    alignToBottom()
+    window.setTimeout(alignToBottom, 60)
+  })
+}
+
+function restoreLogConsoleState(state) {
+  const element = logConsoleElement.value
+  if (!element) return
+
+  if (state.shouldFollow) {
+    autoFollowTail.value = true
+    scheduleFollowToLatest()
+    return
+  }
+
+  const maxScrollTop = Math.max(element.scrollHeight - element.clientHeight, 0)
+  element.scrollTop = Math.min(state.scrollTop, maxScrollTop)
+  autoFollowTail.value = false
+}
+
+function handleLogConsoleScroll() {
+  autoFollowTail.value = isNearBottom(logConsoleElement.value)
+}
+
+function jumpToLatest() {
+  autoFollowTail.value = true
+  scheduleFollowToLatest()
 }
 
 function openFullPage() {
@@ -148,6 +344,24 @@ function closeWindow() {
   window.close()
 }
 
+async function applyLogsPayload(payload) {
+  const scrollState = captureLogConsoleState()
+  logProcesses.value = payload.processes ?? []
+  const hasLogs = logProcesses.value.length > 0
+  logsMessage.value = hasLogs ? text.value.synced : text.value.noLogs
+  logsUpdatedAt.value = payload.updatedAt ?? ''
+  logsError.value = ''
+  banner.value = {
+    type: hasLogs ? 'success' : 'info',
+    text: hasLogs ? text.value.synced : text.value.noLogs
+  }
+  await nextTick()
+  restoreLogConsoleState(scrollState)
+  if (scrollState.shouldFollow) {
+    scheduleFollowToLatest()
+  }
+}
+
 async function loadLogs() {
   if (logsRequestInFlight) return
 
@@ -155,7 +369,7 @@ async function loadLogs() {
   logsLoading.value = true
 
   try {
-    const response = await fetch(`/myiot/home/logs.json?lines=60&_=${Date.now()}`, {
+    const response = await fetch(`${logSnapshotEndpoint}?lines=${logLineLimit}&locale=${locale.value}&_=${Date.now()}`, {
       credentials: 'same-origin',
       headers: createUiLocaleHeaders({ Accept: 'application/json' })
     })
@@ -168,16 +382,7 @@ async function loadLogs() {
     if (!response.ok) throw new Error(`logs status ${response.status}`)
 
     const payload = await response.json()
-    logProcesses.value = payload.processes ?? []
-    logsMessage.value = payload.message ?? text.value.synced
-    logsUpdatedAt.value = payload.updatedAt ?? ''
-    logsError.value = ''
-    banner.value = {
-      type: 'success',
-      text: payload.message ?? text.value.synced
-    }
-    await nextTick()
-    scrollLogConsoles()
+    await applyLogsPayload(payload)
   } catch (error) {
     logsError.value = text.value.failed
     banner.value = {
@@ -190,7 +395,23 @@ async function loadLogs() {
   }
 }
 
+function stopLogPolling() {
+  if (!logTimer) return
+  window.clearInterval(logTimer)
+  logTimer = null
+}
+
+function startLogPolling() {
+  if (logTimer) return
+
+  void loadLogs()
+  logTimer = window.setInterval(() => {
+    loadLogs()
+  }, 1000)
+}
+
 async function handleSignOut() {
+  stopLogPolling()
   await signOut()
   window.location.replace('/myiot/login/index.html')
 }
@@ -207,17 +428,16 @@ onMounted(async () => {
     text: text.value.synced
   }
 
-  await loadLogs()
-  logTimer = window.setInterval(() => {
-    loadLogs()
-  }, 1000)
+  startLogPolling()
 })
 
 onBeforeUnmount(() => {
-  if (logTimer) {
-    window.clearInterval(logTimer)
-    logTimer = null
-  }
+  stopLogPolling()
+})
+
+watch(locale, () => {
+  if (!sessionState.authenticated) return
+  void loadLogs()
 })
 </script>
 
@@ -311,6 +531,14 @@ onBeforeUnmount(() => {
                   <v-icon icon="mdi-heart-pulse" size="18"></v-icon>
                   <span>{{ logsError ? text.degraded : text.online }}</span>
                 </div>
+                <div class="meta-pill">
+                  <v-icon icon="mdi-refresh-auto" size="18"></v-icon>
+                  <span>{{ text.pollingMode }}</span>
+                </div>
+                <div class="meta-pill">
+                  <v-icon :icon="autoFollowTail ? 'mdi-arrow-collapse-down' : 'mdi-hand-back-right-outline'" size="18"></v-icon>
+                  <span>{{ autoFollowTail ? text.followingLatest : text.pausedScroll }}</span>
+                </div>
                 <div class="meta-pill" v-if="logsUpdatedAt">
                   <v-icon icon="mdi-refresh-circle" size="18"></v-icon>
                   <span>{{ logsUpdatedAt }}</span>
@@ -319,8 +547,21 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="log-window-status">
-              <span>{{ text.sourceEndpoint }}: <code>/myiot/home/logs.json</code></span>
+              <span>{{ text.sourceEndpoint }}: <code>{{ logSnapshotEndpoint }}</code></span>
+              <span>{{ text.pollingCadence }}</span>
               <span>{{ logsError || logsMessage }}</span>
+            </div>
+
+            <div v-if="packageSources.length" class="log-source-row">
+              <span class="log-source-label">{{ text.packageSources }}</span>
+              <div
+                v-for="packageSource in packageSources"
+                :key="packageSource.name"
+                class="package-source-chip"
+              >
+                <strong>{{ packageSource.name }}</strong>
+                <small>{{ packageSource.count }}</small>
+              </div>
             </div>
 
             <v-alert
@@ -331,44 +572,49 @@ onBeforeUnmount(() => {
               {{ logsError || banner.text }}
             </v-alert>
 
-            <div v-if="logFiles.length" class="log-board">
-              <article
-                v-for="file in logFiles"
-                :key="file.path"
-                class="log-file-card"
+            <div class="filter-hint">
+              {{ text.unifiedHint }}
+            </div>
+
+            <div v-if="!autoFollowTail" class="follow-actions">
+              <v-btn variant="outlined" color="primary" size="small" @click="jumpToLatest">
+                {{ text.jumpToLatest }}
+              </v-btn>
+            </div>
+
+            <div v-if="mergedLogEntries.length" class="single-log-shell">
+              <div class="single-log-head">
+                <strong>{{ text.unifiedTerminal }}</strong>
+                <span>{{ mergedLogEntries.length }} {{ text.lines }}</span>
+              </div>
+
+              <div
+                ref="logConsoleElement"
+                class="log-console unified-log-console"
+                :class="{ 'log-console-popup': isPopupMode }"
+                @scroll="handleLogConsoleScroll"
               >
-                <div class="log-file-head">
-                  <div>
-                    <div class="log-file-title">
-                      <strong>{{ file.processName }}</strong>
-                      <span>{{ file.name }}</span>
-                    </div>
-                    <p>{{ file.path }}</p>
+                <div
+                  v-for="entry in mergedLogEntries"
+                  :key="entry.key"
+                  class="log-line"
+                >
+                  <div class="log-line-meta">
+                    <span v-if="entry.timestamp" class="log-tag">{{ entry.timestamp }}</span>
+                    <span v-if="entry.level" class="log-tag log-tag-level">{{ entry.level }}</span>
+                    <span v-if="entry.bundle" class="log-tag log-tag-bundle">{{ entry.bundle }}</span>
+                    <span v-else-if="entry.source" class="log-tag">{{ entry.source }}</span>
+                    <span v-if="entry.stream && entry.stream !== 'main'" class="log-tag">{{ entry.stream }}</span>
                   </div>
-                  <div class="file-chip-group">
-                    <v-chip size="small" variant="tonal" color="info">
-                      {{ file.stream }}
-                    </v-chip>
-                    <v-chip size="small" variant="tonal" color="secondary">
-                      {{ file.lines?.length ?? 0 }} {{ text.lines }}
-                    </v-chip>
-                  </div>
-                </div>
-
-                <div class="log-console" :class="{ 'log-console-popup': isPopupMode }">
-                  <div
-                    v-for="(line, index) in file.lines"
-                    :key="`${file.path}-${index}`"
-                    class="log-line"
+                  <code>{{ entry.message || entry.raw }}</code>
+                  <p
+                    v-if="entry.bundle && entry.source && entry.source !== `osp.bundle.${entry.bundle}`"
+                    class="log-source"
                   >
-                    <code>{{ line }}</code>
-                  </div>
-
-                  <div v-if="!file.lines?.length" class="log-empty">
-                    {{ text.emptyFile }}
-                  </div>
+                    {{ entry.source }}
+                  </p>
                 </div>
-              </article>
+              </div>
             </div>
 
             <div v-else-if="!logsLoading" class="log-empty-state">
@@ -392,11 +638,6 @@ onBeforeUnmount(() => {
 
 .layout-grid-popup {
   grid-template-columns: 1fr;
-}
-
-.log-board {
-  display: grid;
-  gap: 12px;
 }
 
 .feature-panel {
@@ -443,7 +684,7 @@ onBeforeUnmount(() => {
 }
 
 .log-toolbar-pills,
-.file-chip-group {
+.log-source-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -463,58 +704,115 @@ onBeforeUnmount(() => {
   font-size: 0.84rem;
 }
 
-.log-file-card {
-  padding: 14px;
+.log-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
   border: 1px solid rgba(78, 188, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(5, 16, 29, 0.72);
+  border-radius: 12px;
+  background: rgba(5, 16, 29, 0.58);
 }
 
-.log-file-head {
+.log-source-label,
+.filter-hint {
+  color: rgba(210, 232, 255, 0.7);
+}
+
+.filter-hint {
+  font-size: 0.84rem;
+}
+
+.follow-actions {
   display: flex;
-  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.package-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(78, 188, 255, 0.16);
+  background: rgba(8, 22, 40, 0.74);
+  color: #d8ecff;
+}
+
+.package-source-chip small {
+  color: rgba(210, 232, 255, 0.72);
+}
+
+.single-log-head {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
-}
-
-.log-file-title {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.log-file-title span {
-  color: rgba(210, 232, 255, 0.72);
-  font-size: 0.82rem;
-}
-
-.log-file-head p {
-  margin: 4px 0 0;
-  color: rgba(210, 232, 255, 0.56);
-  word-break: break-all;
-  font-size: 0.8rem;
+  padding: 12px 14px;
+  border: 1px solid rgba(78, 188, 255, 0.12);
+  border-radius: 12px 12px 0 0;
+  background: rgba(5, 16, 29, 0.78);
+  color: rgba(214, 235, 255, 0.88);
 }
 
 .log-console {
   display: grid;
   gap: 6px;
-  max-height: 260px;
+  max-height: 58vh;
   overflow: auto;
+  overflow-anchor: none;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 0 0 12px 12px;
   background: rgba(1, 9, 17, 0.88);
   border: 1px solid rgba(78, 188, 255, 0.1);
 }
 
+.single-log-shell .log-console {
+  border-top: 0;
+}
+
 .log-console-popup {
-  max-height: 46vh;
+  max-height: 62vh;
 }
 
 .log-line {
-  display: block;
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(78, 188, 255, 0.08);
   font-size: 0.84rem;
+}
+
+.log-line:last-child {
+  border-bottom: 0;
+}
+
+.log-line-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.log-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(78, 188, 255, 0.12);
+  color: rgba(214, 235, 255, 0.88);
+  font-size: 0.76rem;
+}
+
+.log-tag-level {
+  background: rgba(255, 209, 102, 0.14);
+  color: #ffe29b;
+}
+
+.log-tag-bundle {
+  background: rgba(112, 240, 193, 0.14);
+  color: #70f0c1;
 }
 
 .log-line code {
@@ -522,6 +820,12 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: Consolas, "Courier New", monospace;
+}
+
+.log-source {
+  margin: 0;
+  color: rgba(210, 232, 255, 0.56);
+  font-size: 0.76rem;
 }
 
 .log-empty,
@@ -546,10 +850,9 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 780px) {
-  .log-file-head,
-  .file-chip-group {
+  .single-log-head {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
   }
 }
 </style>

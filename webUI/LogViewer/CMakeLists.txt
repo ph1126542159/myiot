@@ -7,6 +7,7 @@
     BUNDLE_SPEC_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/LogViewer.bndlspec.in
     SOURCES
         src/BundleActivator.cpp
+        src/IndexRequestHandler.cpp
     LINK_LIBS
         Poco::OSP
         Poco::OSPWeb

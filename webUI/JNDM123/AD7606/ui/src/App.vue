@@ -1009,11 +1009,16 @@ function openPopupWindow(url, name, width = 1180, height = 820) {
   return window.open(url, name, features)
 }
 
+function withCacheBust(url) {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}_=${Date.now()}`
+}
+
 function openLogWindow() {
   const baseTarget = '/myiot/logs/index.html'
-  const popup = openPopupWindow(`${baseTarget}?popup=1`, 'myiot-log-viewer')
+  const popup = openPopupWindow(withCacheBust(`${baseTarget}?popup=1`), 'myiot-log-viewer')
   if (!popup) {
-    window.open(baseTarget, '_blank', 'noopener,noreferrer')
+    window.open(withCacheBust(baseTarget), '_blank', 'noopener,noreferrer')
   }
 }
 

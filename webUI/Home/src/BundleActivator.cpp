@@ -12,11 +12,13 @@ class BundleActivator: public Poco::OSP::BundleActivator
 public:
     void start(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        LogStreamRequestLifecycle::beginStartup();
         pContext->logger().information("MyIoT WebUI Home bundle started.");
     }
 
     void stop(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        LogStreamRequestLifecycle::beginShutdown(pContext);
         pContext->logger().information("MyIoT WebUI Home bundle stopped.");
     }
 };
@@ -25,6 +27,7 @@ public:
 
 POCO_BEGIN_NAMED_MANIFEST(WebServer, Poco::OSP::Web::WebRequestHandlerFactory)
     POCO_EXPORT_CLASS(MyIoT::WebUI::Home::LogStreamRequestHandlerFactory)
+    POCO_EXPORT_CLASS(MyIoT::WebUI::Home::LogStreamEventsRequestHandlerFactory)
 POCO_END_MANIFEST
 
 POCO_BEGIN_MANIFEST(Poco::OSP::BundleActivator)

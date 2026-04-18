@@ -1,4 +1,5 @@
-﻿#include "Poco/ClassLibrary.h"
+#include "IndexRequestHandler.h"
+#include "Poco/ClassLibrary.h"
 #include "Poco/OSP/BundleActivator.h"
 #include "Poco/OSP/BundleContext.h"
 
@@ -21,6 +22,10 @@ public:
 };
 
 } } } // namespace MyIoT::WebUI::LogViewer
+
+POCO_BEGIN_NAMED_MANIFEST(WebServer, Poco::OSP::Web::WebRequestHandlerFactory)
+    POCO_EXPORT_CLASS(MyIoT::WebUI::LogViewer::IndexRequestHandlerFactory)
+POCO_END_MANIFEST
 
 POCO_BEGIN_MANIFEST(Poco::OSP::BundleActivator)
     POCO_EXPORT_CLASS(MyIoT::WebUI::LogViewer::BundleActivator)

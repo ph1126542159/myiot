@@ -217,12 +217,17 @@ function openPopupWindow(url, name, width = 1180, height = 820) {
   return window.open(url, name, features)
 }
 
+function withCacheBust(url) {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}_=${Date.now()}`
+}
+
 function openLogViewer() {
   const baseTarget = logViewerPackage.value?.entryPath || '/myiot/logs/index.html'
-  const target = `${baseTarget}${baseTarget.includes('?') ? '&' : '?'}popup=1`
+  const target = withCacheBust(`${baseTarget}${baseTarget.includes('?') ? '&' : '?'}popup=1`)
   const popup = openPopupWindow(target, 'myiot-log-viewer')
   if (!popup) {
-    window.open(baseTarget, '_blank', 'noopener,noreferrer')
+    window.open(withCacheBust(baseTarget), '_blank', 'noopener,noreferrer')
   }
 }
 

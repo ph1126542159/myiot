@@ -653,9 +653,14 @@ function openPopupWindow(url, name, width = 1180, height = 820) {
   return window.open(url, name, features)
 }
 
+function withCacheBust(url) {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}_=${Date.now()}`
+}
+
 function openLogWindow() {
-  const popup = openPopupWindow('/myiot/logs/index.html?popup=1', 'myiot-log-viewer')
-  if (!popup) window.open('/myiot/logs/index.html', '_blank', 'noopener,noreferrer')
+  const popup = openPopupWindow(withCacheBust('/myiot/logs/index.html?popup=1'), 'myiot-log-viewer')
+  if (!popup) window.open(withCacheBust('/myiot/logs/index.html'), '_blank', 'noopener,noreferrer')
 }
 
 async function handleSignOut() {

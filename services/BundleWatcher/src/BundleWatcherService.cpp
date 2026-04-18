@@ -280,6 +280,11 @@ std::string BundleWatcherService::symbolicNameFromPath(const std::string& path) 
     return baseName.substr(0, separator);
 }
 
+bool BundleWatcherService::shouldDeferHotReload(const std::string& symbolicName) const
+{
+    return Poco::startsWith(symbolicName, std::string("io.myiot.webui."));
+}
+
 bool BundleWatcherService::shouldIgnorePath(const std::string& path)
 {
     const std::string normalizedPath = normalizePath(path);
@@ -458,6 +463,14 @@ void BundleWatcherService::handleBundleAvailable(const std::string& path)
 
     const std::string symbolicName = symbolicNameFromPath(path);
     if (symbolicName.empty() || symbolicName == _selfSymbolicName) return;
+    if (shouldDeferHotReload(symbolicName))
+    {
+        ignorePath(path);
+        _pContext->logger().warning(
+            "Bundle watcher deferred hot reload for web UI bundle '" + symbolicName +
+            "'. Restart the server to apply this update safely.");
+        return;
+    }
 
     std::string payload;
     if (!tryReadBundlePayload(path, payload))
@@ -527,6 +540,14 @@ void BundleWatcherService::handleBundleRemoved(const std::string& path)
     }
 
     if (!pBundle || pBundle->symbolicName() == _selfSymbolicName) return;
+    if (shouldDeferHotReload(pBundle->symbolicName()))
+    {
+        ignorePath(path);
+        _pContext->logger().warning(
+            "Bundle watcher deferred unload for web UI bundle '" + pBundle->symbolicName() +
+            "'. Restart the server to remove this bundle safely.");
+        return;
+    }
     if (pBundle->preventUninstall())
     {
         _pContext->logger().warning("Bundle watcher ignored removal of protected bundle: " + pBundle->symbolicName());

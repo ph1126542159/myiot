@@ -49,6 +49,7 @@ private:
     WatchOptions loadOptions() const;
     bool isBundleFile(const std::string& path) const;
     std::string symbolicNameFromPath(const std::string& path) const;
+    bool shouldDeferHotReload(const std::string& symbolicName) const;
     bool shouldIgnorePath(const std::string& path);
     void ignorePath(const std::string& path);
     bool tryReadBundlePayload(const std::string& path, std::string& payload) const;

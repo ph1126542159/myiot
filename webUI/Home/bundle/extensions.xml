@@ -1,4 +1,5 @@
 <extensions>
   <extension point="osp.web.server.requesthandler" path="/myiot/home/logs.json" class="MyIoT::WebUI::Home::LogStreamRequestHandlerFactory" library="io.myiot.webui.home" allowSpecialization="none" hidden="true"/>
+  <extension point="osp.web.server.requesthandler" path="/myiot/home/logs.stream" class="MyIoT::WebUI::Home::LogStreamEventsRequestHandlerFactory" library="io.myiot.webui.home" allowSpecialization="none" hidden="true"/>
   <extension point="osp.web.server.directory" path="/myiot/home" resource="webapp" allowSpecialization="owner" hidden="true"/>
 </extensions>

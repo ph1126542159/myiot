@@ -1,4 +1,5 @@
 #include "SessionJSON.h"
+#include "Poco/Exception.h"
 #include "Poco/JSON/Object.h"
 #include "Poco/JSON/Stringifier.h"
 #include "Poco/Net/IPAddress.h"
@@ -9,14 +10,42 @@
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
 #include "Poco/String.h"
+#include "Poco/URI.h"
 
 namespace {
 
+Poco::OSP::Web::WebSessionManager::Ptr getSessionManager(Poco::OSP::BundleContext::Ptr pContext)
+{
+    return Poco::OSP::ServiceFinder::find<Poco::OSP::Web::WebSessionManager>(pContext);
+}
+
+bool isMissingCSRFTToken(const Poco::Exception& exc)
+{
+    return exc.displayText().find("#csrfToken") != std::string::npos;
+}
+
 Poco::OSP::Web::WebSession::Ptr findSession(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
 {
-    Poco::OSP::Web::WebSessionManager::Ptr pSessionManager =
-        Poco::OSP::ServiceFinder::find<Poco::OSP::Web::WebSessionManager>(pContext);
-    return pSessionManager->find(pContext->thisBundle()->properties().getString("websession.id"), request);
+    Poco::OSP::Web::WebSessionManager::Ptr pSessionManager = getSessionManager(pContext);
+    const std::string sessionId = pContext->thisBundle()->properties().getString("websession.id");
+    const int sessionTimeout = pContext->thisBundle()->properties().getInt("websession.timeout", 7200);
+
+    try
+    {
+        return pSessionManager->find(sessionId, request);
+    }
+    catch (const Poco::NotFoundException& exc)
+    {
+        if (!isMissingCSRFTToken(exc)) throw;
+
+        pContext->logger().warning(
+            "WEB-AUDIT action=session_recover result=recreated user=- client=" +
+            request.clientAddress().host().toString() +
+            " endpoint=" + request.getURI() +
+            " detail=missing_#csrfToken");
+
+        return pSessionManager->create(sessionId, request, sessionTimeout, pContext);
+    }
 }
 
 std::string normalizeLocale(std::string value)
@@ -40,6 +69,57 @@ std::string localized(Poco::Net::HTTPServerRequest& request, const std::string& 
     }
 
     return zh;
+}
+
+std::string requestPath(Poco::Net::HTTPServerRequest& request)
+{
+    try
+    {
+        return Poco::URI(request.getURI()).getPathEtc();
+    }
+    catch (...)
+    {
+        return request.getURI();
+    }
+}
+
+std::string normalizeValue(const std::string& value)
+{
+    return value.empty() ? "-" : value;
+}
+
+std::string refererPath(Poco::Net::HTTPServerRequest& request)
+{
+    const std::string referer = request.get("Referer", "");
+    if (referer.empty()) return "-";
+
+    try
+    {
+        Poco::URI uri(referer);
+        const std::string path = uri.getPathEtc();
+        return path.empty() ? referer : path;
+    }
+    catch (...)
+    {
+        return referer;
+    }
+}
+
+void logSessionProbe(
+    Poco::OSP::BundleContext::Ptr pContext,
+    Poco::Net::HTTPServerRequest& request,
+    const std::string& username,
+    bool authenticated)
+{
+    const std::string message =
+        "WEB-AUDIT action=page_enter" +
+        std::string(" result=") + (authenticated ? "authenticated" : "anonymous") +
+        " user=" + normalizeValue(username) +
+        " client=" + request.clientAddress().host().toString() +
+        " endpoint=" + requestPath(request) +
+        " detail=referer:" + refererPath(request);
+
+    pContext->logger().information(message);
 }
 
 void sendPayload(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Ptr payload)
@@ -115,6 +195,7 @@ void SessionJSON::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net
     payload->set("accessProtocol", request.secure() ? "https" : "http");
     payload->set("accessUrl", buildAccessURL(request));
     payload->set("clientIp", request.clientAddress().host().toString());
+    logSessionProbe(_pContext, request, username, !username.empty());
     sendPayload(response, payload);
 }
 

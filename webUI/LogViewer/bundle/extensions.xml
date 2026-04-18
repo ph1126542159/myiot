@@ -1,3 +1,4 @@
-﻿<extensions>
+<extensions>
+  <extension point="osp.web.server.requesthandler" path="/myiot/logs/index.html" class="MyIoT::WebUI::LogViewer::IndexRequestHandlerFactory" library="io.myiot.webui.logviewer" allowSpecialization="none" hidden="true"/>
   <extension point="osp.web.server.directory" path="/myiot/logs" resource="webapp" allowSpecialization="owner" hidden="true"/>
 </extensions>

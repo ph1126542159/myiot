@@ -31,30 +31,31 @@ function applySession(payload) {
   sessionState.clientIp = payload.clientIp ?? ''
 }
 
-async function fallbackAuthenticate(credentials) {
-  const username = credentials.username.trim()
-  const password = credentials.password.trim()
+async function fallbackAuthenticate() {
   const isZh = getUiLocale() === 'zh'
 
-  await new Promise((resolve) => window.setTimeout(resolve, 900))
+  applySession({
+    authenticated: false,
+    username: '',
+    message: isZh ? '认证服务暂时不可用，请稍后重试。' : 'The authentication service is temporarily unavailable. Please try again.',
+    lastError: isZh ? '认证服务暂时不可用，请稍后重试。' : 'The authentication service is temporarily unavailable. Please try again.'
+  })
+  return { ok: false, message: sessionState.lastError }
+}
 
-  if (!username || !password) {
-    applySession({
-      authenticated: false,
-      username: '',
-      message: isZh ? '请输入用户名和密码后再登录。' : 'Please enter both username and password before signing in.',
-      lastError: isZh ? '请输入用户名和密码后再登录。' : 'Please enter both username and password before signing in.'
-    })
-    return { ok: false, message: sessionState.lastError }
+async function readJsonPayload(response, fallbackMessage) {
+  try {
+    const payload = await response.json()
+    if (payload && typeof payload === 'object') return payload
+  } catch {
   }
 
-  applySession({
-    authenticated: true,
-    username,
-    message: isZh ? `账号 ${username} 验证通过，登录会话已建立。` : `Account ${username} authenticated successfully.`,
-    lastError: ''
-  })
-  return { ok: true, message: sessionState.message }
+  return {
+    authenticated: false,
+    username: '',
+    message: fallbackMessage,
+    lastError: fallbackMessage
+  }
 }
 
 export async function refreshSession() {
@@ -73,6 +74,10 @@ export async function refreshSession() {
 }
 
 export async function authenticate(credentials) {
+  const unavailableMessage = getUiLocale() === 'zh'
+    ? '认证服务暂时不可用，请稍后重试。'
+    : 'The authentication service is temporarily unavailable. Please try again.'
+
   try {
     const body = new URLSearchParams()
     body.set('username', credentials.username)
@@ -86,12 +91,16 @@ export async function authenticate(credentials) {
       }),
       body
     })
-    if (!response.ok) throw new Error(`login status ${response.status}`)
-    const payload = await response.json()
+    const payload = await readJsonPayload(response, unavailableMessage)
     applySession(payload)
-    return { ok: Boolean(payload.authenticated), message: payload.message ?? payload.lastError ?? sessionState.message }
+
+    if (!response.ok || !payload.authenticated) {
+      return { ok: false, message: payload.lastError ?? payload.message ?? unavailableMessage }
+    }
+
+    return { ok: true, message: payload.message ?? sessionState.message }
   } catch {
-    return fallbackAuthenticate(credentials)
+    return fallbackAuthenticate()
   }
 }
 

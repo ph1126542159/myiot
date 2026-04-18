@@ -1,4 +1,5 @@
 #include "AuthRequestHandler.h"
+#include "Poco/Exception.h"
 #include "Poco/JSON/Object.h"
 #include "Poco/JSON/Stringifier.h"
 #include "Poco/Net/HTMLForm.h"
@@ -47,12 +48,33 @@ Poco::OSP::Auth::AuthService::Ptr getAuthService(Poco::OSP::BundleContext::Ptr p
     return Poco::OSP::ServiceFinder::findByName<Poco::OSP::Auth::AuthService>(pContext, authServiceName);
 }
 
+bool isMissingCSRFTToken(const Poco::Exception& exc)
+{
+    return exc.displayText().find("#csrfToken") != std::string::npos;
+}
+
 Poco::OSP::Web::WebSession::Ptr getSession(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
 {
     Poco::OSP::Web::WebSessionManager::Ptr pSessionManager = getSessionManager(pContext);
     const std::string sessionId = pContext->thisBundle()->properties().getString("websession.id");
     const int sessionTimeout = pContext->thisBundle()->properties().getInt("websession.timeout", 7200);
-    return pSessionManager->get(sessionId, request, sessionTimeout, pContext);
+
+    try
+    {
+        return pSessionManager->get(sessionId, request, sessionTimeout, pContext);
+    }
+    catch (const Poco::NotFoundException& exc)
+    {
+        if (!isMissingCSRFTToken(exc)) throw;
+
+        pContext->logger().warning(
+            "WEB-AUDIT action=session_recover result=recreated user=- client=" +
+            request.clientAddress().host().toString() +
+            " endpoint=" + request.getURI() +
+            " detail=missing_#csrfToken");
+
+        return pSessionManager->create(sessionId, request, sessionTimeout, pContext);
+    }
 }
 
 void sendJSON(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Ptr payload)
