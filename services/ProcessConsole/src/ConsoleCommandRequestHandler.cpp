@@ -18,11 +18,30 @@
 
 namespace {
 
+const std::string PROCESS_CONSOLE_CWD_KEY("processConsole.cwd");
+
 Poco::OSP::Web::WebSession::Ptr findSession(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
 {
     Poco::OSP::Web::WebSessionManager::Ptr pSessionManager =
         Poco::OSP::ServiceFinder::find<Poco::OSP::Web::WebSessionManager>(pContext);
     return pSessionManager->find(pContext->thisBundle()->properties().getString("websession.id", "myiot.webui"), request);
+}
+
+std::string currentWorkingDirectory(Poco::OSP::Web::WebSession::Ptr pSession)
+{
+    return pSession ? pSession->getValue<std::string>(PROCESS_CONSOLE_CWD_KEY, "") : "";
+}
+
+void updateWorkingDirectory(Poco::OSP::Web::WebSession::Ptr pSession, Poco::JSON::Object::Ptr payload)
+{
+    if (!pSession || !payload) return;
+
+    const std::string workingDirectory =
+        payload->has("workingDirectory") ? payload->getValue<std::string>("workingDirectory") : "";
+    if (!workingDirectory.empty())
+    {
+        pSession->set(PROCESS_CONSOLE_CWD_KEY, workingDirectory);
+    }
 }
 
 bool isAuthenticated(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServerRequest& request)
@@ -42,7 +61,7 @@ void sendJSON(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Ptr p
 {
     response.setStatus(status);
     response.setChunkedTransferEncoding(true);
-    response.setContentType("application/json");
+    response.setContentType("application/json; charset=utf-8");
     response.set("Cache-Control", "no-cache");
     try
     {
@@ -127,6 +146,14 @@ void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& r
     Poco::Net::HTMLForm form(request, request.stream());
     const std::string command = Poco::trim(form.get("command", "help"));
     const int limit = parseLimit(form);
+    Poco::OSP::Web::WebSession::Ptr pSession;
+    try
+    {
+        pSession = findSession(_pContext, request);
+    }
+    catch (...)
+    {
+    }
 
     ProcessConsoleService::Ptr pConsoleService;
     try
@@ -145,9 +172,10 @@ void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& r
         return;
     }
 
-    Poco::JSON::Object::Ptr payload = pConsoleService->execute(command, limit);
+    Poco::JSON::Object::Ptr payload = pConsoleService->execute(command, limit, currentWorkingDirectory(pSession));
     payload->set("authenticated", true);
     payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
+    updateWorkingDirectory(pSession, payload);
     sendJSON(response, payload);
 }
 

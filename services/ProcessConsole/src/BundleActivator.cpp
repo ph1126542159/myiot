@@ -1,5 +1,6 @@
 #include "ConsoleCommandRequestHandler.h"
 #include "ProcessConsoleService.h"
+#include "TerminalWebSocketRequestHandler.h"
 #include "Poco/ClassLibrary.h"
 #include "Poco/OSP/BundleActivator.h"
 #include "Poco/OSP/BundleContext.h"
@@ -42,6 +43,7 @@ private:
 
 POCO_BEGIN_NAMED_MANIFEST(WebServer, Poco::OSP::Web::WebRequestHandlerFactory)
     POCO_EXPORT_CLASS(MyIoT::Services::ProcessConsole::ConsoleCommandRequestHandlerFactory)
+    POCO_EXPORT_CLASS(MyIoT::Services::ProcessConsole::TerminalWebSocketRequestHandlerFactory)
 POCO_END_MANIFEST
 
 POCO_BEGIN_MANIFEST(Poco::OSP::BundleActivator)

@@ -285,7 +285,9 @@ void sendJSON(
     response.setStatus(status);
     response.setChunkedTransferEncoding(true);
     response.setContentType("application/json");
-    response.set("Cache-Control", "no-cache");
+    response.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    response.set("Pragma", "no-cache");
+    response.set("Expires", "0");
 
     try
     {

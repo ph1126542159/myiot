@@ -13,6 +13,7 @@ const zh = {
   connecting: '正在连接实时日志服务...',
   synced: '实时日志预览连接正常。',
   failed: '实时日志同步失败，请稍后重试。',
+  timedOut: '实时日志拉取超时，正在继续重试。',
   brandEyebrow: 'MYIOT 实时日志',
   title: '独立后端日志窗口',
   copy: '保持这个页面与操作页面并排打开，可以在修改硬件参数、查看系统包或执行诊断命令时持续观察后端输出。',
@@ -61,6 +62,7 @@ const en = {
   connecting: 'Connecting to the realtime log service...',
   synced: 'Realtime log preview is healthy.',
   failed: 'Realtime log synchronization failed. Please retry shortly.',
+  timedOut: 'Realtime log polling timed out and will keep retrying.',
   brandEyebrow: 'MYIOT Realtime Logs',
   title: 'Dedicated Backend Log Window',
   copy: 'Keep this page open beside operation pages to watch backend logs continuously while making hardware changes, checking packages, or using the process console.',
@@ -133,8 +135,12 @@ const logConsoleElement = ref(null)
 const autoFollowTail = ref(true)
 let logTimer = null
 let logsRequestInFlight = false
+let logRequestAbortController = null
+let logRequestTimeout = null
 const logLineLimit = 500
 const logFollowThreshold = 24
+const logPollIntervalMs = 1000
+const logRequestTimeoutMs = 8000
 const logSnapshotEndpoint = '/myiot/home/logs.json'
 
 function trimBundleToken(value) {
@@ -344,6 +350,20 @@ function closeWindow() {
   window.close()
 }
 
+function clearLogRequestTimeout() {
+  if (!logRequestTimeout || typeof window === 'undefined') return
+  window.clearTimeout(logRequestTimeout)
+  logRequestTimeout = null
+}
+
+function abortPendingLogRequest() {
+  clearLogRequestTimeout()
+
+  if (!logRequestAbortController) return
+  logRequestAbortController.abort()
+  logRequestAbortController = null
+}
+
 async function applyLogsPayload(payload) {
   const scrollState = captureLogConsoleState()
   logProcesses.value = payload.processes ?? []
@@ -368,10 +388,21 @@ async function loadLogs() {
   logsRequestInFlight = true
   logsLoading.value = true
 
+  if (typeof AbortController !== 'undefined') {
+    logRequestAbortController = new AbortController()
+  }
+
+  if (typeof window !== 'undefined') {
+    logRequestTimeout = window.setTimeout(() => {
+      logRequestAbortController?.abort()
+    }, logRequestTimeoutMs)
+  }
+
   try {
     const response = await fetch(`${logSnapshotEndpoint}?lines=${logLineLimit}&locale=${locale.value}&_=${Date.now()}`, {
       credentials: 'same-origin',
-      headers: createUiLocaleHeaders({ Accept: 'application/json' })
+      headers: createUiLocaleHeaders({ Accept: 'application/json' }),
+      signal: logRequestAbortController?.signal
     })
 
     if (response.status === 401) {
@@ -384,12 +415,14 @@ async function loadLogs() {
     const payload = await response.json()
     await applyLogsPayload(payload)
   } catch (error) {
-    logsError.value = text.value.failed
+    logsError.value = error?.name === 'AbortError' ? text.value.timedOut : text.value.failed
     banner.value = {
       type: 'error',
-      text: error.message || logsError.value
+      text: error?.name === 'AbortError' ? text.value.timedOut : error.message || logsError.value
     }
   } finally {
+    clearLogRequestTimeout()
+    logRequestAbortController = null
     logsLoading.value = false
     logsRequestInFlight = false
   }
@@ -407,11 +440,29 @@ function startLogPolling() {
   void loadLogs()
   logTimer = window.setInterval(() => {
     loadLogs()
-  }, 1000)
+  }, logPollIntervalMs)
+}
+
+function handleWindowFocus() {
+  void loadLogs()
+}
+
+function handleVisibilityChange() {
+  if (typeof document === 'undefined' || document.hidden) return
+  void loadLogs()
+}
+
+function handlePageShow() {
+  void loadLogs()
+}
+
+function handleNetworkReconnect() {
+  void loadLogs()
 }
 
 async function handleSignOut() {
   stopLogPolling()
+  abortPendingLogRequest()
   await signOut()
   window.location.replace('/myiot/login/index.html')
 }
@@ -429,10 +480,26 @@ onMounted(async () => {
   }
 
   startLogPolling()
+
+  window.addEventListener('focus', handleWindowFocus)
+  window.addEventListener('pageshow', handlePageShow)
+  window.addEventListener('online', handleNetworkReconnect)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onBeforeUnmount(() => {
   stopLogPolling()
+  abortPendingLogRequest()
+
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleWindowFocus)
+    window.removeEventListener('pageshow', handlePageShow)
+    window.removeEventListener('online', handleNetworkReconnect)
+  }
+
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
 })
 
 watch(locale, () => {

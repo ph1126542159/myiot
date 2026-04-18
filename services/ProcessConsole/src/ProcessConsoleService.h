@@ -17,7 +17,10 @@ public:
 
     static const std::string SERVICE_NAME;
 
-    virtual Poco::JSON::Object::Ptr execute(const std::string& commandLine, int limit = -1) = 0;
+    virtual Poco::JSON::Object::Ptr execute(
+        const std::string& commandLine,
+        int limit = -1,
+        const std::string& workingDirectory = std::string()) = 0;
 };
 
 ProcessConsoleService::Ptr createProcessConsoleService(Poco::OSP::BundleContext::Ptr pContext);

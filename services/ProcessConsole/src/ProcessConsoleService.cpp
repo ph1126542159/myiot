@@ -1,15 +1,20 @@
 #include "ProcessConsoleService.h"
 #include "Poco/Environment.h"
+#include "Poco/File.h"
 #include "Poco/Format.h"
 #include "Poco/JSON/Array.h"
 #include "Poco/JSON/Object.h"
 #include "Poco/NumberParser.h"
 #include "Poco/OSP/BundleContext.h"
 #include "Poco/Path.h"
+#include "Poco/Pipe.h"
+#include "Poco/PipeStream.h"
 #include "Poco/Process.h"
 #include "Poco/String.h"
 #include "Poco/Thread.h"
 #include <algorithm>
+#include <cctype>
+#include <filesystem>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -19,6 +24,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #if defined(_WIN32)
@@ -109,6 +115,449 @@ int chooseLimit(const std::vector<std::string>& tokens, int explicitLimit, int d
         }
     }
     return defaultValue;
+}
+
+std::string commandRemainder(const std::string& commandLine)
+{
+    const std::size_t separator = commandLine.find_first_of(" \t");
+    if (separator == std::string::npos) return "";
+    return Poco::trim(commandLine.substr(separator + 1));
+}
+
+std::string stripMatchingQuotes(std::string value)
+{
+    value = Poco::trim(value);
+    if (value.size() >= 2)
+    {
+        const char first = value.front();
+        const char last = value.back();
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
+        {
+            value = value.substr(1, value.size() - 2);
+        }
+    }
+    return value;
+}
+
+std::string filesystemPath(const std::filesystem::path& path)
+{
+    return path.lexically_normal().string();
+}
+
+std::string defaultShellWorkingDirectory()
+{
+    try
+    {
+        return filesystemPath(std::filesystem::current_path());
+    }
+    catch (...)
+    {
+        return Poco::Path::current();
+    }
+}
+
+std::string shellHomeDirectory()
+{
+    try
+    {
+        return filesystemPath(std::filesystem::path(Poco::Path::home()));
+    }
+    catch (...)
+    {
+        return Poco::Path::home();
+    }
+}
+
+std::string effectiveWorkingDirectory(const std::string& workingDirectory)
+{
+    const std::string fallback = defaultShellWorkingDirectory();
+    if (workingDirectory.empty()) return fallback;
+
+    try
+    {
+        std::filesystem::path candidate(workingDirectory);
+        if (candidate.is_relative())
+        {
+            candidate = std::filesystem::path(fallback) / candidate;
+        }
+
+        std::error_code error;
+        std::filesystem::path normalized = std::filesystem::weakly_canonical(candidate, error);
+        if (error) normalized = candidate.lexically_normal();
+
+        if (std::filesystem::exists(normalized, error) &&
+            std::filesystem::is_directory(normalized, error))
+        {
+            return filesystemPath(normalized);
+        }
+    }
+    catch (...)
+    {
+    }
+
+    return fallback;
+}
+
+std::string resolveDirectoryTarget(
+    const std::string& currentWorkingDirectory,
+    const std::string& argument,
+    const std::string& homeDirectory,
+    std::string& detail)
+{
+    const std::string trimmedArgument = stripMatchingQuotes(argument);
+    std::filesystem::path targetPath;
+
+    if (trimmedArgument.empty() || trimmedArgument == "~")
+    {
+        targetPath = std::filesystem::path(homeDirectory);
+    }
+    else if (trimmedArgument == "-")
+    {
+        detail = "暂不支持 cd -，请直接输入目标目录。";
+        return currentWorkingDirectory;
+    }
+    else if (Poco::startsWith(trimmedArgument, std::string("~/")) ||
+             Poco::startsWith(trimmedArgument, std::string("~\\")))
+    {
+        targetPath = std::filesystem::path(homeDirectory) / trimmedArgument.substr(2);
+    }
+    else
+    {
+        targetPath = std::filesystem::path(trimmedArgument);
+    }
+
+    if (targetPath.is_relative())
+    {
+        targetPath = std::filesystem::path(currentWorkingDirectory) / targetPath;
+    }
+
+    std::error_code error;
+    std::filesystem::path normalized = std::filesystem::weakly_canonical(targetPath, error);
+    if (error) normalized = targetPath.lexically_normal();
+
+    if (!std::filesystem::exists(normalized, error) || error)
+    {
+        detail = "目录不存在: " + filesystemPath(normalized);
+        return currentWorkingDirectory;
+    }
+
+    if (!std::filesystem::is_directory(normalized, error) || error)
+    {
+        detail = "目标不是目录: " + filesystemPath(normalized);
+        return currentWorkingDirectory;
+    }
+
+    return filesystemPath(normalized);
+}
+
+std::vector<std::string> splitOutputLines(const std::string& text)
+{
+    std::vector<std::string> lines;
+    std::string current;
+
+    for (char ch: text)
+    {
+        if (ch == '\r') continue;
+
+        if (ch == '\n')
+        {
+            lines.push_back(current);
+            current.clear();
+            continue;
+        }
+
+        current.push_back(ch);
+    }
+
+    if (!current.empty())
+    {
+        lines.push_back(current);
+    }
+
+    while (!lines.empty() && lines.back().empty())
+    {
+        lines.pop_back();
+    }
+
+    return lines;
+}
+
+std::vector<std::string> captureCommandOutput(
+    const std::string& executable,
+    const Poco::Process::Args& args,
+    const std::string& workingDirectory,
+    int timeoutMs,
+    int& exitCode,
+    bool& timedOut)
+{
+    Poco::Pipe outputPipe;
+    std::string buffer;
+    timedOut = false;
+    exitCode = -1;
+
+    Poco::ProcessHandle processHandle =
+        Poco::Process::launch(executable, args, workingDirectory, nullptr, &outputPipe, &outputPipe);
+
+    std::thread reader([&buffer, &outputPipe]()
+    {
+        Poco::PipeInputStream input(outputPipe);
+        char chunk[4096] = {0};
+        while (input.good())
+        {
+            input.read(chunk, sizeof(chunk));
+            const std::streamsize count = input.gcount();
+            if (count > 0)
+            {
+                buffer.append(chunk, static_cast<std::size_t>(count));
+            }
+        }
+    });
+
+    const int pollIntervalMs = 50;
+    int waitedMs = 0;
+
+    while ((exitCode = processHandle.tryWait()) == -1 && waitedMs < timeoutMs)
+    {
+        Poco::Thread::sleep(pollIntervalMs);
+        waitedMs += pollIntervalMs;
+    }
+
+    if (exitCode == -1)
+    {
+        timedOut = true;
+        Poco::Process::kill(processHandle);
+        exitCode = processHandle.wait();
+    }
+
+    if (reader.joinable())
+    {
+        reader.join();
+    }
+
+    return splitOutputLines(buffer);
+}
+
+std::string escapePowerShellCommand(const std::string& commandLine)
+{
+    std::string escaped = commandLine;
+    Poco::replaceInPlace(escaped, std::string("'"), std::string("''"));
+    return escaped;
+}
+
+std::string escapeSingleQuotedShellValue(const std::string& value)
+{
+    std::string escaped = value;
+    Poco::replaceInPlace(escaped, std::string("'"), std::string("'\\''"));
+    return escaped;
+}
+
+enum class ShellBackendKind
+{
+    posixShell,
+    gitBash,
+    wslShell,
+    windowsPowerShell
+};
+
+struct ShellBackendInfo
+{
+    ShellBackendKind kind = ShellBackendKind::windowsPowerShell;
+    std::string id;
+    std::string displayName;
+    std::string executable;
+    bool linuxLike = false;
+};
+
+#if defined(_WIN32)
+
+std::string utf8FromWide(const std::wstring& value)
+{
+    if (value.empty()) return std::string();
+
+    const int utf8Length =
+        WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
+    std::string result(static_cast<std::size_t>(utf8Length), '\0');
+    WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        value.data(),
+        static_cast<int>(value.size()),
+        result.data(),
+        utf8Length,
+        nullptr,
+        nullptr);
+    return result;
+}
+
+std::string searchExecutable(const std::wstring& executableName)
+{
+    const DWORD required = SearchPathW(nullptr, executableName.c_str(), nullptr, 0, nullptr, nullptr);
+    if (required == 0) return std::string();
+
+    std::wstring buffer(static_cast<std::size_t>(required), L'\0');
+    const DWORD length = SearchPathW(nullptr, executableName.c_str(), nullptr, required, buffer.data(), nullptr);
+    if (length == 0 || length >= required) return std::string();
+
+    return utf8FromWide(std::wstring(buffer.c_str(), static_cast<std::size_t>(length)));
+}
+
+std::string firstExistingExecutable(const std::vector<std::string>& candidates)
+{
+    for (const auto& candidate: candidates)
+    {
+        std::error_code error;
+        if (!candidate.empty() && std::filesystem::exists(candidate, error))
+        {
+            return candidate;
+        }
+    }
+    return std::string();
+}
+
+std::string gitBashExecutable()
+{
+    const std::string preferred = firstExistingExecutable({
+        "C:\\Program Files\\Git\\bin\\bash.exe",
+        "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+        "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+        "C:\\Program Files (x86)\\Git\\usr\\bin\\bash.exe"
+    });
+    if (!preferred.empty()) return preferred;
+
+    return searchExecutable(L"bash.exe");
+}
+
+#endif
+
+ShellBackendInfo detectShellBackend()
+{
+#if defined(_WIN32)
+    const std::string gitBash = gitBashExecutable();
+    if (!gitBash.empty())
+    {
+        return {ShellBackendKind::gitBash, "git-bash", "Git Bash", gitBash, true};
+    }
+
+    const std::string wsl = searchExecutable(L"wsl.exe");
+    if (!wsl.empty())
+    {
+        return {ShellBackendKind::wslShell, "wsl", "WSL", wsl, true};
+    }
+
+    const std::string powershell = searchExecutable(L"powershell.exe");
+    if (!powershell.empty())
+    {
+        return {ShellBackendKind::windowsPowerShell, "powershell", "Windows PowerShell", powershell, false};
+    }
+
+    return {ShellBackendKind::windowsPowerShell, "powershell", "Windows PowerShell", "powershell.exe", false};
+#else
+    return {ShellBackendKind::posixShell, "sh", "POSIX Shell", "/bin/sh", true};
+#endif
+}
+
+const ShellBackendInfo& shellBackend()
+{
+    static const ShellBackendInfo backend = detectShellBackend();
+    return backend;
+}
+
+bool isWindowsDrivePath(const std::string& value)
+{
+    return value.size() >= 2 &&
+        std::isalpha(static_cast<unsigned char>(value[0])) &&
+        value[1] == ':';
+}
+
+std::string normalizeSlashPath(std::string value)
+{
+    Poco::replaceInPlace(value, std::string("\\"), std::string("/"));
+    return value;
+}
+
+std::string windowsPathToGitBashPath(const std::string& value)
+{
+    std::string normalized = normalizeSlashPath(value);
+    if (!isWindowsDrivePath(normalized)) return normalized;
+
+    std::string result("/");
+    result += static_cast<char>(std::tolower(static_cast<unsigned char>(normalized[0])));
+    if (normalized.size() > 2)
+    {
+        if (normalized[2] != '/') result += '/';
+        result += normalized.substr(2);
+    }
+    return result;
+}
+
+std::string windowsPathToWslPath(const std::string& value)
+{
+    std::string normalized = normalizeSlashPath(value);
+    if (!isWindowsDrivePath(normalized)) return normalized;
+
+    std::string result("/mnt/");
+    result += static_cast<char>(std::tolower(static_cast<unsigned char>(normalized[0])));
+    if (normalized.size() > 2)
+    {
+        if (normalized[2] != '/') result += '/';
+        result += normalized.substr(2);
+    }
+    return result;
+}
+
+std::string shellDisplayPathForBackend(const std::string& value)
+{
+    if (value.empty()) return value;
+
+    switch (shellBackend().kind)
+    {
+    case ShellBackendKind::gitBash:
+        return windowsPathToGitBashPath(value);
+    case ShellBackendKind::wslShell:
+        return windowsPathToWslPath(value);
+    case ShellBackendKind::posixShell:
+    case ShellBackendKind::windowsPowerShell:
+    default:
+        return value;
+    }
+}
+
+std::string shellCommandWithWorkingDirectory(const std::string& workingDirectory, const std::string& commandLine)
+{
+    const std::string shellWorkingDirectory = shellDisplayPathForBackend(workingDirectory);
+    if (shellWorkingDirectory.empty()) return commandLine;
+
+    return "cd -- '" + escapeSingleQuotedShellValue(shellWorkingDirectory) + "' && " + commandLine;
+}
+
+void setShellContext(
+    Poco::JSON::Object::Ptr payload,
+    const std::string& workingDirectory,
+    const std::string& homeDirectory)
+{
+    const ShellBackendInfo& backend = shellBackend();
+    const std::string displayWorkingDirectory = shellDisplayPathForBackend(workingDirectory);
+    const std::string displayHomeDirectory = shellDisplayPathForBackend(homeDirectory);
+
+    payload->set("workingDirectory", workingDirectory);
+    payload->set("homeDirectory", homeDirectory);
+    payload->set("displayWorkingDirectory", displayWorkingDirectory);
+    payload->set("displayHomeDirectory", displayHomeDirectory);
+    payload->set("shellBackend", backend.id);
+    payload->set("shellBackendDisplayName", backend.displayName);
+    payload->set("shellLinuxLike", backend.linuxLike);
+
+    Poco::JSON::Object::Ptr data = payload->getObject("data");
+    if (data)
+    {
+        data->set("workingDirectory", workingDirectory);
+        data->set("homeDirectory", homeDirectory);
+        data->set("displayWorkingDirectory", displayWorkingDirectory);
+        data->set("displayHomeDirectory", displayHomeDirectory);
+        data->set("shellBackend", backend.id);
+        data->set("shellBackendDisplayName", backend.displayName);
+        data->set("shellLinuxLike", backend.linuxLike);
+    }
 }
 
 std::string executablePath()
@@ -475,20 +924,27 @@ public:
     {
     }
 
-    Poco::JSON::Object::Ptr execute(const std::string& commandLine, int limit = -1) override
+    Poco::JSON::Object::Ptr execute(
+        const std::string& commandLine,
+        int limit = -1,
+        const std::string& workingDirectory = std::string()) override
     {
         const std::string trimmed = Poco::trim(commandLine);
         const std::vector<std::string> tokens = tokenize(trimmed);
         const std::string command = tokens.empty() ? "help" : Poco::toLower(tokens.front());
+        const std::string currentWorkingDirectory = effectiveWorkingDirectory(workingDirectory);
+        const std::string homeDirectory = shellHomeDirectory();
 
-        if (command == "help" || command == "?") return help(trimmed.empty() ? "help" : trimmed);
-        if (command == "summary" || command == "status") return summary(trimmed);
-        if (command == "threads") return threads(trimmed, chooseLimit(tokens, limit, 64));
-        if (command == "modules" || command == "lsmod") return modules(trimmed, chooseLimit(tokens, limit, 48));
-        if (command == "stack" || command == "bt" || command == "where") return stack(trimmed, chooseLimit(tokens, limit, 24));
-        if (command == "functions" || command == "funcs") return functions(trimmed, chooseLimit(tokens, limit, 24));
+        if (command == "help" || command == "?") return help(trimmed.empty() ? "help" : trimmed, currentWorkingDirectory, homeDirectory);
+        if (command == "pwd") return pwd(trimmed.empty() ? "pwd" : trimmed, currentWorkingDirectory, homeDirectory);
+        if (command == "cd") return changeDirectory(trimmed.empty() ? "cd" : trimmed, currentWorkingDirectory, homeDirectory);
+        if (command == "summary" || command == "status") return summary(trimmed, currentWorkingDirectory, homeDirectory);
+        if (command == "threads") return threads(trimmed, currentWorkingDirectory, homeDirectory, chooseLimit(tokens, limit, 64));
+        if (command == "modules" || command == "lsmod") return modules(trimmed, currentWorkingDirectory, homeDirectory, chooseLimit(tokens, limit, 48));
+        if (command == "stack" || command == "bt" || command == "where") return stack(trimmed, currentWorkingDirectory, homeDirectory, chooseLimit(tokens, limit, 24));
+        if (command == "functions" || command == "funcs") return functions(trimmed, currentWorkingDirectory, homeDirectory, chooseLimit(tokens, limit, 24));
 
-        return createErrorResponse(trimmed, "不支持的命令。可用命令: help, summary, threads, modules, stack, functions");
+        return shell(trimmed, currentWorkingDirectory, homeDirectory, clampLimit(limit, 200));
     }
 
     const std::type_info& type() const override
@@ -503,15 +959,25 @@ public:
     }
 
 private:
-    Poco::JSON::Object::Ptr help(const std::string& commandLine)
+    Poco::JSON::Object::Ptr help(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory)
     {
         Poco::JSON::Object::Ptr payload = createResponse(commandLine, "help");
+        setShellContext(payload, workingDirectory, homeDirectory);
         Poco::JSON::Array::Ptr output = payload->getArray("output");
         Poco::JSON::Object::Ptr data = payload->getObject("data");
         Poco::JSON::Array::Ptr commands = new Poco::JSON::Array;
 
         appendLine(output, "MyIoT Process Console");
-        appendLine(output, "help                 显示帮助");
+        appendLine(output, "Shell backend: " + shellBackend().displayName);
+        appendLine(output, "Shell commands:");
+        appendLine(output, "pwd                  显示当前目录");
+        appendLine(output, "cd <dir>             切换当前目录");
+        appendLine(output, "ls / dir / cat       交给系统 shell 执行");
+        appendLine(output, "echo / type / whoami 交给系统 shell 执行");
+        appendLine(output, "Diagnostics:");
         appendLine(output, "summary              当前进程概要");
         appendLine(output, "threads [limit]      当前进程线程列表");
         appendLine(output, "modules [limit]      当前进程模块列表");
@@ -519,6 +985,10 @@ private:
         appendLine(output, "functions [limit]    当前调用栈函数名");
 
         commands->add("help");
+        commands->add("pwd");
+        commands->add("cd");
+        commands->add("ls");
+        commands->add("cat");
         commands->add("summary");
         commands->add("threads");
         commands->add("modules");
@@ -526,19 +996,68 @@ private:
         commands->add("functions");
         data->set("commands", commands);
         data->set("pid", static_cast<Poco::UInt32>(Poco::Process::id()));
+        payload->set("message", "终端帮助已加载。");
         return payload;
     }
 
-    Poco::JSON::Object::Ptr summary(const std::string& commandLine)
+    Poco::JSON::Object::Ptr pwd(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory)
+    {
+        Poco::JSON::Object::Ptr payload = createResponse(commandLine, "pwd");
+        setShellContext(payload, workingDirectory, homeDirectory);
+        const std::string displayWorkingDirectory = shellDisplayPathForBackend(workingDirectory);
+        appendLine(payload->getArray("output"), displayWorkingDirectory);
+        payload->set("message", displayWorkingDirectory);
+        return payload;
+    }
+
+    Poco::JSON::Object::Ptr changeDirectory(
+        const std::string& commandLine,
+        const std::string& currentWorkingDirectory,
+        const std::string& homeDirectory)
+    {
+        Poco::JSON::Object::Ptr payload = createResponse(commandLine, "cd");
+        Poco::JSON::Array::Ptr output = payload->getArray("output");
+        Poco::JSON::Object::Ptr data = payload->getObject("data");
+
+        std::string detail;
+        const std::string resolvedDirectory =
+            resolveDirectoryTarget(currentWorkingDirectory, commandRemainder(commandLine), homeDirectory, detail);
+        setShellContext(payload, detail.empty() ? resolvedDirectory : currentWorkingDirectory, homeDirectory);
+        data->set("changed", detail.empty());
+
+        if (!detail.empty())
+        {
+            payload->set("ok", false);
+            payload->set("message", detail);
+            appendLine(output, "ERROR: " + detail);
+            return payload;
+        }
+
+        const std::string displayWorkingDirectory = shellDisplayPathForBackend(resolvedDirectory);
+        appendLine(output, displayWorkingDirectory);
+        payload->set("message", "当前目录已切换到: " + resolvedDirectory);
+        return payload;
+    }
+
+    Poco::JSON::Object::Ptr summary(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory)
     {
         Poco::JSON::Object::Ptr payload = createResponse(commandLine, "summary");
+        setShellContext(payload, workingDirectory, homeDirectory);
         Poco::JSON::Array::Ptr output = payload->getArray("output");
         Poco::JSON::Object::Ptr data = payload->getObject("data");
 
         data->set("pid", static_cast<Poco::UInt32>(Poco::Process::id()));
         data->set("threadId", static_cast<Poco::UInt64>(Poco::Thread::currentTid()));
         data->set("executable", executablePath());
-        data->set("workingDirectory", Poco::Path::current());
+        data->set("processWorkingDirectory", Poco::Path::current());
+        data->set("shellWorkingDirectory", workingDirectory);
+        data->set("shellDisplayWorkingDirectory", shellDisplayPathForBackend(workingDirectory));
         data->set("osName", Poco::Environment::osDisplayName());
         data->set("osVersion", Poco::Environment::osVersion());
         data->set("osArchitecture", Poco::Environment::osArchitecture());
@@ -547,7 +1066,9 @@ private:
         appendLine(output, Poco::format("PID: %u", static_cast<unsigned>(Poco::Process::id())));
         appendLine(output, Poco::format("Current Thread ID: %Lu", static_cast<Poco::UInt64>(Poco::Thread::currentTid())));
         appendLine(output, "Executable: " + executablePath());
-        appendLine(output, "Working Directory: " + Poco::Path::current());
+        appendLine(output, "Shell Backend: " + shellBackend().displayName);
+        appendLine(output, "Shell Working Directory: " + shellDisplayPathForBackend(workingDirectory));
+        appendLine(output, "Process Working Directory: " + Poco::Path::current());
         appendLine(output, "OS: " + Poco::Environment::osDisplayName() + " " + Poco::Environment::osVersion() + " (" + Poco::Environment::osArchitecture() + ")");
 
 #if defined(_WIN32)
@@ -566,12 +1087,18 @@ private:
         appendLine(output, "Modules: " + std::to_string(moduleList.size()));
 #endif
 
+        payload->set("message", "进程概要已刷新。");
         return payload;
     }
 
-    Poco::JSON::Object::Ptr threads(const std::string& commandLine, int limit)
+    Poco::JSON::Object::Ptr threads(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory,
+        int limit)
     {
         Poco::JSON::Object::Ptr payload = createResponse(commandLine, "threads");
+        setShellContext(payload, workingDirectory, homeDirectory);
         Poco::JSON::Array::Ptr output = payload->getArray("output");
         Poco::JSON::Object::Ptr data = payload->getObject("data");
 
@@ -638,9 +1165,14 @@ private:
         return payload;
     }
 
-    Poco::JSON::Object::Ptr modules(const std::string& commandLine, int limit)
+    Poco::JSON::Object::Ptr modules(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory,
+        int limit)
     {
         Poco::JSON::Object::Ptr payload = createResponse(commandLine, "modules");
+        setShellContext(payload, workingDirectory, homeDirectory);
         Poco::JSON::Array::Ptr output = payload->getArray("output");
         Poco::JSON::Object::Ptr data = payload->getObject("data");
 
@@ -692,12 +1224,18 @@ private:
         appendLine(output, "共发现 " + std::to_string(moduleList.size()) + " 个模块，本次返回 " + std::to_string(returned) + " 个。");
 #endif
 
+        payload->set("message", "模块列表已刷新。");
         return payload;
     }
 
-    Poco::JSON::Object::Ptr stack(const std::string& commandLine, int limit)
+    Poco::JSON::Object::Ptr stack(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory,
+        int limit)
     {
         Poco::JSON::Object::Ptr payload = createResponse(commandLine, "stack");
+        setShellContext(payload, workingDirectory, homeDirectory);
         Poco::JSON::Array::Ptr output = payload->getArray("output");
         Poco::JSON::Object::Ptr data = payload->getObject("data");
 
@@ -746,12 +1284,18 @@ private:
         appendLine(output, "说明: 这里抓取的是当前处理该请求线程的调用栈。");
 #endif
 
+        payload->set("message", "调用栈已刷新。");
         return payload;
     }
 
-    Poco::JSON::Object::Ptr functions(const std::string& commandLine, int limit)
+    Poco::JSON::Object::Ptr functions(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory,
+        int limit)
     {
         Poco::JSON::Object::Ptr payload = createResponse(commandLine, "functions");
+        setShellContext(payload, workingDirectory, homeDirectory);
         Poco::JSON::Array::Ptr output = payload->getArray("output");
         Poco::JSON::Object::Ptr data = payload->getObject("data");
 
@@ -791,6 +1335,126 @@ private:
         appendLine(output, "说明: 函数名来自当前调用栈符号文本。");
 #endif
 
+        payload->set("message", "函数列表已刷新。");
+        return payload;
+    }
+
+    Poco::JSON::Object::Ptr shell(
+        const std::string& commandLine,
+        const std::string& workingDirectory,
+        const std::string& homeDirectory,
+        int limit)
+    {
+        Poco::JSON::Object::Ptr payload = createResponse(commandLine, "shell");
+        setShellContext(payload, workingDirectory, homeDirectory);
+        Poco::JSON::Array::Ptr output = payload->getArray("output");
+        Poco::JSON::Object::Ptr data = payload->getObject("data");
+
+        if (commandLine.empty())
+        {
+            payload->set("message", "请输入命令。");
+            return payload;
+        }
+
+        const int timeoutMs = 10000;
+        const int outputLimit = clampLimit(limit, 200);
+        int exitCode = -1;
+        bool timedOut = false;
+        std::vector<std::string> lines;
+        const ShellBackendInfo& backend = shellBackend();
+
+        try
+        {
+            Poco::Process::Args args;
+            switch (backend.kind)
+            {
+            case ShellBackendKind::gitBash:
+                args.push_back("--noprofile");
+                args.push_back("--norc");
+                args.push_back("-lc");
+                args.push_back(shellCommandWithWorkingDirectory(workingDirectory, commandLine));
+                lines = captureCommandOutput(backend.executable, args, workingDirectory, timeoutMs, exitCode, timedOut);
+                break;
+            case ShellBackendKind::wslShell:
+                args.push_back("sh");
+                args.push_back("-lc");
+                args.push_back(shellCommandWithWorkingDirectory(workingDirectory, commandLine));
+                lines = captureCommandOutput(backend.executable, args, workingDirectory, timeoutMs, exitCode, timedOut);
+                break;
+            case ShellBackendKind::posixShell:
+                args.push_back("-lc");
+                args.push_back(shellCommandWithWorkingDirectory(workingDirectory, commandLine));
+                lines = captureCommandOutput(backend.executable, args, workingDirectory, timeoutMs, exitCode, timedOut);
+                break;
+            case ShellBackendKind::windowsPowerShell:
+            default:
+                args.push_back("-NoLogo");
+                args.push_back("-NoProfile");
+                args.push_back("-NonInteractive");
+                args.push_back("-ExecutionPolicy");
+                args.push_back("Bypass");
+                args.push_back("-Command");
+                args.push_back(
+                    "$ProgressPreference='SilentlyContinue'; "
+                    "$ErrorActionPreference='Continue'; "
+                    "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); "
+                    "Invoke-Expression '" + escapePowerShellCommand(commandLine) + "'");
+                lines = captureCommandOutput(backend.executable, args, workingDirectory, timeoutMs, exitCode, timedOut);
+                break;
+            }
+        }
+        catch (const Poco::Exception& exc)
+        {
+            payload->set("ok", false);
+            payload->set("message", "命令执行失败: " + exc.displayText());
+            appendLine(output, "ERROR: 命令执行失败: " + exc.displayText());
+            return payload;
+        }
+        catch (const std::exception& exc)
+        {
+            payload->set("ok", false);
+            payload->set("message", "命令执行失败: " + std::string(exc.what()));
+            appendLine(output, "ERROR: 命令执行失败: " + std::string(exc.what()));
+            return payload;
+        }
+
+        const int originalLineCount = static_cast<int>(lines.size());
+        if (static_cast<int>(lines.size()) > outputLimit)
+        {
+            lines.resize(static_cast<std::size_t>(outputLimit));
+            lines.push_back("... 输出已截断，请缩小结果范围后重试。");
+        }
+
+        for (const auto& line: lines)
+        {
+            appendLine(output, line);
+        }
+
+        data->set("exitCode", exitCode);
+        data->set("timedOut", timedOut);
+        data->set("lineCount", originalLineCount);
+        data->set("returnedCount", static_cast<int>(lines.size()));
+
+        if (timedOut)
+        {
+            payload->set("ok", false);
+            payload->set("message", "命令执行超时，已终止。");
+            appendLine(output, "ERROR: 命令执行超时，已终止。");
+            return payload;
+        }
+
+        if (exitCode != 0)
+        {
+            payload->set("ok", false);
+            payload->set("message", "命令退出码: " + std::to_string(exitCode));
+            if (lines.empty())
+            {
+                appendLine(output, "ERROR: 命令退出码: " + std::to_string(exitCode));
+            }
+            return payload;
+        }
+
+        payload->set("message", "命令执行完成。");
         return payload;
     }
 

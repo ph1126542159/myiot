@@ -20,6 +20,7 @@ myiot_add_service_bundle(
         ${CMAKE_CURRENT_SOURCE_DIR}/src/BundleActivator.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ConsoleCommandRequestHandler.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ProcessConsoleService.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/TerminalWebSocketRequestHandler.cpp
     LINK_LIBS
         ${myiot_process_console_link_libs}
     INCLUDE_DIRS
