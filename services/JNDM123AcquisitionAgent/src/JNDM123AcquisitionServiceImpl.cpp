@@ -6,6 +6,7 @@
 #include "Poco/JSON/Object.h"
 #include "Poco/Logger.h"
 #include "Poco/Mutex.h"
+#include "Poco/OpenTelemetry/TelemetryClient.h"
 #include "Poco/Path.h"
 #include "Poco/Process.h"
 #include "Poco/Thread.h"
@@ -99,23 +100,34 @@ public:
     explicit AcquisitionServiceImpl(Poco::OSP::BundleContext::Ptr pContext):
         _pContext(std::move(pContext))
     {
+        Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+        auto activity = telemetry.beginActivity("jndm123.agent.manager.init", "service.lifecycle");
         Poco::FastMutex::ScopedLock lock(_mutex);
         ensureProcessRunningLocked();
+        activity.success("acquisition manager ready");
     }
 
     Object::Ptr restartProcess() override
     {
+        Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+        auto activity = telemetry.beginActivity("jndm123.agent.restart", "service.command");
         Poco::FastMutex::ScopedLock lock(_mutex);
         terminateProcessLocked();
         ensureProcessRunningLocked();
         _lastManagerError.clear();
+        activity.success("acquisition process restarted");
         return statusPayloadLocked("Acquisition process restarted.");
     }
 
     Object::Ptr serviceStatus() override
     {
+        Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+        auto activity = telemetry.beginActivity("jndm123.agent.status", "service.command");
         Poco::FastMutex::ScopedLock lock(_mutex);
         ensureProcessRunningLocked();
+        activity.tag("agent.running", processRunning(_handle) ? "true" : "false");
+        activity.tag("agent.pid", std::to_string(currentPidLocked()));
+        activity.success("acquisition process status collected");
         return statusPayloadLocked(
             processRunning(_handle)
                 ? "Acquisition process is running."
@@ -140,9 +152,12 @@ private:
     {
         if (processRunning(_handle)) return;
 
+        Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+        auto activity = telemetry.beginActivity("jndm123.agent.ensure_running", "service.lifecycle");
         const std::string executablePath = agentExecutablePath();
         if (!Poco::File(executablePath).exists())
         {
+            activity.fail("acquisition agent executable not found", executablePath);
             throw Poco::FileNotFoundException("Acquisition agent executable not found", executablePath);
         }
 
@@ -153,12 +168,17 @@ private:
             Poco::Process::launch("/bin/sh", args, Poco::Path(executablePath).parent().toString())));
         ++_restartCount;
         logger().information("Started JNDM123 acquisition process pid=" + std::to_string(_handle->id()));
+        activity.tag("agent.pid", std::to_string(_handle->id()));
+        activity.success("acquisition agent process started");
     }
 
     void terminateProcessLocked()
     {
         if (!_handle) return;
 
+        Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+        auto activity = telemetry.beginActivity("jndm123.agent.terminate", "service.lifecycle");
+        activity.tag("agent.pid", std::to_string(_handle->id()));
         if (Poco::Process::isRunning(*_handle))
         {
             Poco::Process::kill(*_handle);
@@ -170,6 +190,7 @@ private:
         }
 
         logger().information("Stopped JNDM123 acquisition process pid=" + std::to_string(_handle->id()));
+        activity.success("acquisition agent process stopped");
         _handle.reset();
     }
 

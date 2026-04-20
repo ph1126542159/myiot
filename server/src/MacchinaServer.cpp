@@ -23,7 +23,14 @@
 #include "Poco/Environment.h"
 #include "Poco/Format.h"
 #include "Poco/File.h"
+#include "Poco/Logger.h"
+#include "Poco/OSP/Properties.h"
+#include "Poco/OSP/ServiceRef.h"
+#include "Poco/OpenTelemetry/TelemetryClient.h"
+#include "Poco/OpenTelemetry/TelemetryLoggingChannel.h"
+#include "Poco/OpenTelemetry/TelemetryService.h"
 #include "Poco/Path.h"
+#include "Poco/SplitterChannel.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -65,6 +72,143 @@ public:
 	}
 
 protected:
+	void installTelemetryService()
+	{
+		if (_pTelemetryService) return;
+
+		Poco::OpenTelemetry::TelemetryConfiguration configuration;
+		configuration.serviceName = config().getString(
+			"telemetry.service.name",
+			config().getString("application.baseName", "macchina"));
+		configuration.serviceVersion = config().getString(
+			"telemetry.service.version",
+			config().getString("application.version", "0.1.0"));
+		configuration.exportEnabled = config().getBool("telemetry.export.enabled", false);
+		configuration.exportTraces = config().getBool("telemetry.export.traces", true);
+		configuration.exportLogs = config().getBool("telemetry.export.logs", true);
+		configuration.exportMetrics = config().getBool("telemetry.export.metrics", true);
+		configuration.otlpEndpoint = config().getString("telemetry.export.otlp.endpoint", "");
+		configuration.otlpTracesPath = config().getString("telemetry.export.otlp.tracesPath", "/v1/traces");
+		configuration.otlpLogsPath = config().getString("telemetry.export.otlp.logsPath", "/v1/logs");
+		configuration.otlpMetricsPath = config().getString("telemetry.export.otlp.metricsPath", "/v1/metrics");
+		configuration.otlpHeaders = config().getString("telemetry.export.otlp.headers", "");
+		configuration.otlpInsecureSkipVerify = config().getBool("telemetry.export.otlp.insecureSkipVerify", false);
+		configuration.otlpConsoleDebug = config().getBool("telemetry.export.otlp.consoleDebug", false);
+		configuration.exportTimeoutMs = static_cast<std::size_t>(
+			config().getInt("telemetry.export.otlp.timeout", 5000));
+		configuration.exportScheduleDelayMs = static_cast<std::size_t>(
+			config().getInt("telemetry.export.otlp.scheduleDelay", 1000));
+		configuration.metricExportIntervalMs = static_cast<std::size_t>(
+			config().getInt("telemetry.export.metrics.interval", 2000));
+
+		const auto addResourceAttribute = [&](const std::string& key, const std::string& value)
+		{
+			if (!value.empty())
+			{
+				configuration.resourceAttributes.push_back({key, value});
+			}
+		};
+
+		const std::string defaultDeviceName = config().getString("webtunnel.deviceName", Poco::Environment::nodeName());
+		const std::string defaultDeviceId = config().getString("webtunnel.deviceId", defaultDeviceName);
+		addResourceAttribute(
+			"device.id",
+			config().getString("telemetry.resource.device.id", defaultDeviceId));
+		addResourceAttribute(
+			"device.name",
+			config().getString("telemetry.resource.device.name", defaultDeviceName));
+		addResourceAttribute(
+			"service.instance.id",
+			config().getString("telemetry.resource.instance.id", defaultDeviceId));
+		addResourceAttribute(
+			"host.name",
+			config().getString("telemetry.resource.host.name", Poco::Environment::nodeName()));
+
+		_pTelemetryService = Poco::OpenTelemetry::createTelemetryService(configuration);
+		_pTelemetryServiceRef = serviceRegistry().registerService(
+			Poco::OpenTelemetry::TelemetryService::SERVICE_NAME,
+			_pTelemetryService,
+			Poco::OSP::Properties());
+
+		Poco::Logger& rootLogger = Poco::Logger::root();
+		_pOriginalRootChannel = rootLogger.getChannel();
+		_pOriginalApplicationChannel = logger().getChannel();
+
+		Poco::AutoPtr<Poco::SplitterChannel> pSplitter = new Poco::SplitterChannel;
+		if (_pOriginalRootChannel) pSplitter->addChannel(_pOriginalRootChannel);
+		if (_pOriginalApplicationChannel && _pOriginalApplicationChannel.get() != _pOriginalRootChannel.get())
+		{
+			pSplitter->addChannel(_pOriginalApplicationChannel);
+		}
+		pSplitter->addChannel(new Poco::OpenTelemetry::TelemetryLoggingChannel(_pTelemetryService));
+
+		_pTelemetryRootChannel = pSplitter;
+		Poco::Logger::setChannel("", _pTelemetryRootChannel);
+		rootLogger.setChannel(_pTelemetryRootChannel);
+		logger().setChannel(_pTelemetryRootChannel);
+
+		if (configuration.exportEnabled)
+		{
+			logger().information("Telemetry OTLP export enabled: %s", configuration.otlpEndpoint);
+		}
+	}
+
+	void uninstallTelemetryService()
+	{
+		Poco::Logger& rootLogger = Poco::Logger::root();
+		Poco::Logger::setChannel("", _pOriginalRootChannel);
+		rootLogger.setChannel(_pOriginalRootChannel);
+		logger().setChannel(_pOriginalApplicationChannel ? _pOriginalApplicationChannel : _pOriginalRootChannel);
+
+		_pTelemetryRootChannel = nullptr;
+		_pOriginalApplicationChannel = nullptr;
+		_pOriginalRootChannel = nullptr;
+
+		if (_pTelemetryServiceRef)
+		{
+			serviceRegistry().unregisterService(_pTelemetryServiceRef);
+			_pTelemetryServiceRef = nullptr;
+		}
+		_pTelemetryService = nullptr;
+	}
+
+	void emitStartupTelemetry(const std::string& settingsPath)
+	{
+		if (!_pTelemetryService || _showHelp) return;
+
+		Poco::OpenTelemetry::TelemetryClient telemetry(_pTelemetryService);
+		Poco::OpenTelemetry::TelemetryAttributes attributes
+		{
+			{"settings.path", settingsPath.empty() ? "(default)" : settingsPath},
+			{"os.name", Poco::Environment::osDisplayName()},
+			{"os.version", Poco::Environment::osVersion()},
+			{"os.arch", Poco::Environment::osArchitecture()}
+		};
+
+		auto activity = telemetry.beginActivity(
+			"application.startup",
+			"lifecycle",
+			settingsPath,
+			attributes);
+		activity.step("settings.loaded", settingsPath.empty() ? "default configuration" : settingsPath);
+		activity.step("runtime.ready", Poco::Environment::nodeName());
+
+		telemetry.metric(
+			"application.threadpool.capacity",
+			static_cast<double>(Poco::ThreadPool::defaultPool().capacity()),
+			"threads",
+			"Configured default thread pool capacity",
+			{{"source", "startup"}});
+		telemetry.metric(
+			"application.cpu.count",
+			static_cast<double>(Poco::Environment::processorCount()),
+			"count",
+			"Detected CPU core count",
+			{{"source", "startup"}});
+
+		activity.success("startup complete");
+	}
+
 	void configureOpenSSLRuntime()
 	{
 		std::string applicationDir = config().getString("application.dir", "");
@@ -171,6 +315,7 @@ protected:
 		configureOpenSSLRuntime();
 
 		ServerApplication::initialize(self);
+		installTelemetryService();
 
 		if (!settingsPath.empty() && !_showHelp)
 		{
@@ -205,6 +350,14 @@ protected:
 				Poco::Environment::osArchitecture(),
 				Poco::Environment::processorCount());
 		}
+
+		emitStartupTelemetry(settingsPath);
+	}
+
+	void uninitialize()
+	{
+		uninstallTelemetryService();
+		ServerApplication::uninitialize();
 	}
 
 	void defineOptions(OptionSet& options)
@@ -281,6 +434,11 @@ protected:
 private:
 	ErrorHandler _errorHandler;
 	OSPSubsystem* _pOSP;
+	Poco::OSP::ServiceRef::Ptr _pTelemetryServiceRef;
+	Poco::OpenTelemetry::TelemetryService::Ptr _pTelemetryService;
+	Poco::AutoPtr<Poco::Channel> _pOriginalRootChannel;
+	Poco::AutoPtr<Poco::Channel> _pOriginalApplicationChannel;
+	Poco::AutoPtr<Poco::Channel> _pTelemetryRootChannel;
 	bool _showHelp = false;
 	bool _skipDefaultConfig = false;
 	std::vector<std::string> _configs;

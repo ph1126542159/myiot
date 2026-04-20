@@ -33,6 +33,10 @@ function(myiot_add_webui_package)
         set(WEBUI_PACKAGE_VERSION "0.1.0")
     endif()
 
+    if(TARGET Poco::OpenTelemetry)
+        list(APPEND WEBUI_LINK_LIBS Poco::OpenTelemetry)
+    endif()
+
     set(stage_dir "${CMAKE_CURRENT_BINARY_DIR}/stage")
     set(stage_bundle_dir "${stage_dir}/bundle")
     set(stage_webapp_dir "${stage_bundle_dir}/webapp")

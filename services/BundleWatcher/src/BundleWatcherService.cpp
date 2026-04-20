@@ -9,6 +9,7 @@
 #include "Poco/OSP/PreferencesService.h"
 #include "Poco/OSP/ServiceRef.h"
 #include "Poco/OSP/ServiceRegistry.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/Path.h"
 #include "Poco/SAX/InputSource.h"
 #include "Poco/StreamCopier.h"
@@ -155,11 +156,14 @@ BundleWatcherService::Ptr createBundleWatcherService(BundleContext::Ptr pContext
 
 void BundleWatcherService::startWatching()
 {
+    auto activity = Poco::OpenTelemetry::beginBundleActivity(_pContext, "bundlewatcher.startWatching", "service.lifecycle");
     FastMutex::ScopedLock lock(_watcherMutex);
     if (!_watchers.empty()) return;
 
     _options = loadOptions();
     const auto directories = resolveWatchDirectories();
+    activity.tag("bundlewatcher.directory_count", std::to_string(directories.size()));
+    activity.step("directories.resolved", std::to_string(directories.size()));
     for (const auto& directory: directories)
     {
         auto watcher = std::make_unique<DirectoryWatcher>(
@@ -174,13 +178,17 @@ void BundleWatcherService::startWatching()
         watcher->itemModified += Poco::delegate(this, &BundleWatcherService::onItemModified);
         watcher->itemMovedTo += Poco::delegate(this, &BundleWatcherService::onItemMovedTo);
         _pContext->logger().information("Watching bundle repository directory: " + directory);
+        activity.step("watcher.created", directory);
         _watchers.push_back(std::move(watcher));
     }
 }
 
 void BundleWatcherService::stopWatching()
 {
+    auto activity = Poco::OpenTelemetry::beginBundleActivity(_pContext, "bundlewatcher.stopWatching", "service.lifecycle");
     FastMutex::ScopedLock lock(_watcherMutex);
+    activity.tag("bundlewatcher.active_watchers", std::to_string(_watchers.size()));
+    activity.step("watchers.stopping", std::to_string(_watchers.size()));
     for (auto& watcher: _watchers)
     {
         watcher->itemAdded -= Poco::delegate(this, &BundleWatcherService::onItemAdded);
@@ -458,10 +466,18 @@ void BundleWatcherService::handleBundleAvailable(const std::string& path)
 {
     if (!isBundleFile(path) || shouldIgnorePath(path)) return;
 
+    auto activity = Poco::OpenTelemetry::beginBundleActivity(
+        _pContext,
+        "bundlewatcher.bundle.available",
+        "bundle.reload",
+        path,
+        {{"bundlewatcher.path", path}});
+
     FastMutex::ScopedLock operationLock(_operationMutex);
     if (shouldIgnorePath(path)) return;
 
     const std::string symbolicName = symbolicNameFromPath(path);
+    activity.tag("bundle.symbolic_name", symbolicName.empty() ? "-" : symbolicName);
     if (symbolicName.empty() || symbolicName == _selfSymbolicName) return;
     if (shouldDeferHotReload(symbolicName))
     {
@@ -476,6 +492,7 @@ void BundleWatcherService::handleBundleAvailable(const std::string& path)
     if (!tryReadBundlePayload(path, payload))
     {
         _pContext->logger().warning("Bundle watcher skipped unstable bundle file: " + path);
+        activity.fail("unstable bundle payload");
         return;
     }
 
@@ -483,18 +500,21 @@ void BundleWatcherService::handleBundleAvailable(const std::string& path)
     if (!installer)
     {
         _pContext->logger().error("Bundle watcher cannot find osp.core.installer.");
+        activity.fail("installer unavailable");
         return;
     }
 
     try
     {
         ignorePath(path);
+        activity.step("path.ignored", path);
 
         Bundle::Ptr pInstalledBundle;
         Bundle::Ptr pExistingBundle = findBundleBySymbolicName(symbolicName);
         std::istringstream input(payload);
         if (pExistingBundle)
         {
+            activity.step("bundle.replace", symbolicName);
             pInstalledBundle = installer->replaceBundle(symbolicName, input);
             _pContext->logger().information("Bundle watcher replaced bundle: " + symbolicName);
         }
@@ -503,24 +523,30 @@ void BundleWatcherService::handleBundleAvailable(const std::string& path)
             if (!tryRemoveIncomingBundleFile(path))
             {
                 _pContext->logger().warning("Bundle watcher could not normalize incoming bundle file before install: " + path);
+                activity.fail("incoming bundle normalization failed");
                 return;
             }
 
+            activity.step("bundle.install", symbolicName);
             pInstalledBundle = installer->installBundle(input);
             _pContext->logger().information("Bundle watcher installed bundle: " + pInstalledBundle->symbolicName());
         }
 
         if (pInstalledBundle && pInstalledBundle->state() == Bundle::BUNDLE_INSTALLED)
         {
+            activity.step("bundle.resolve", pInstalledBundle->symbolicName());
             pInstalledBundle->resolve();
         }
         if (pInstalledBundle && pInstalledBundle->state() == Bundle::BUNDLE_RESOLVED && !pInstalledBundle->lazyStart())
         {
+            activity.step("bundle.start", pInstalledBundle->symbolicName());
             pInstalledBundle->start();
         }
+        activity.success(symbolicName.empty() ? path : symbolicName);
     }
     catch (Poco::Exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         _pContext->logger().error("Bundle watcher failed to load '" + path + "': " + exc.displayText());
     }
 }
@@ -528,6 +554,13 @@ void BundleWatcherService::handleBundleAvailable(const std::string& path)
 void BundleWatcherService::handleBundleRemoved(const std::string& path)
 {
     if (!isBundleFile(path) || shouldIgnorePath(path)) return;
+
+    auto activity = Poco::OpenTelemetry::beginBundleActivity(
+        _pContext,
+        "bundlewatcher.bundle.removed",
+        "bundle.reload",
+        path,
+        {{"bundlewatcher.path", path}});
 
     FastMutex::ScopedLock operationLock(_operationMutex);
     if (shouldIgnorePath(path)) return;
@@ -540,6 +573,7 @@ void BundleWatcherService::handleBundleRemoved(const std::string& path)
     }
 
     if (!pBundle || pBundle->symbolicName() == _selfSymbolicName) return;
+    activity.tag("bundle.symbolic_name", pBundle->symbolicName());
     if (shouldDeferHotReload(pBundle->symbolicName()))
     {
         ignorePath(path);
@@ -562,6 +596,7 @@ void BundleWatcherService::handleBundleRemoved(const std::string& path)
         phase = "stopping bundle";
         if (pBundle->state() == Bundle::BUNDLE_ACTIVE)
         {
+            activity.step("bundle.stop", pBundle->symbolicName());
             pBundle->stop();
         }
         phase = "checking bundle state";
@@ -570,17 +605,21 @@ void BundleWatcherService::handleBundleRemoved(const std::string& path)
             phase = "unloading bundle";
             if (tryForceUnload(pBundle))
             {
+                activity.step("bundle.unload", pBundle->symbolicName());
                 _pContext->logger().information("Bundle watcher unloaded bundle: " + pBundle->symbolicName());
             }
             else
             {
+                activity.fail("bundle unload failed");
                 _pContext->logger().error(
                     "Bundle watcher could not unload bundle after repository removal: " + pBundle->symbolicName());
             }
         }
+        activity.success(pBundle->symbolicName());
     }
     catch (Poco::Exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         File bundleFile(pBundle->path());
         if (!bundleFile.exists() && !pBundle->isStarted() && tryForceUnload(pBundle))
         {

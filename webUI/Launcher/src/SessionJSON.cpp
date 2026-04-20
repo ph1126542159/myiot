@@ -9,6 +9,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/String.h"
 #include "Poco/URI.h"
 
@@ -172,6 +173,7 @@ SessionJSON::SessionJSON(Poco::OSP::BundleContext::Ptr pContext):
 
 void SessionJSON::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(_pContext, request, "launcher.session");
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     Poco::OSP::Web::WebSession::Ptr pSession;
 
@@ -184,6 +186,8 @@ void SessionJSON::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net
     }
 
     const std::string username = pSession ? pSession->getValue<std::string>("username", "") : "";
+    activity.tag("auth.username", username.empty() ? "-" : username);
+    activity.tag("auth.authenticated", username.empty() ? "false" : "true");
     payload->set("authenticated", !username.empty());
     payload->set("username", username);
     const std::string defaultMessage = localized(request, "登录网关已就绪，请先完成身份验证。", "The session gateway is ready. Please authenticate first.");
@@ -197,6 +201,7 @@ void SessionJSON::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net
     payload->set("clientIp", request.clientAddress().host().toString());
     logSessionProbe(_pContext, request, username, !username.empty());
     sendPayload(response, payload);
+    Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, username.empty() ? "anonymous session" : "authenticated session");
 }
 
 Poco::Net::HTTPRequestHandler* SessionJSONFactory::createRequestHandler(const Poco::Net::HTTPServerRequest&)

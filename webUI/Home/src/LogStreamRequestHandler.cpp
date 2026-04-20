@@ -12,6 +12,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/Path.h"
 #include "Poco/String.h"
 #include "Poco/Thread.h"
@@ -937,9 +938,14 @@ LogStreamRequestHandler::LogStreamRequestHandler(Poco::OSP::BundleContext::Ptr p
 
 void LogStreamRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
-    ScopedLogRequestActivity activity;
-    if (!activity.active())
+    auto telemetryActivity = Poco::OpenTelemetry::beginRequestActivity(
+        _pContext,
+        request,
+        _mode == Mode::stream ? "home.logstream.stream" : "home.logstream.snapshot");
+    ScopedLogRequestActivity requestGuard;
+    if (!requestGuard.active())
     {
+        Poco::OpenTelemetry::failRequest(telemetryActivity, Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE, "log stream lifecycle is shutting down");
         sendServiceUnavailableResponse(_pContext, request, response, _mode == Mode::stream);
         return;
     }
@@ -954,6 +960,7 @@ void LogStreamRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& reques
         {
             sendJSON(response, createUnauthorizedPayload(request), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
         }
+        Poco::OpenTelemetry::failRequest(telemetryActivity, Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED, "user is not authenticated");
         return;
     }
 
@@ -961,11 +968,15 @@ void LogStreamRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& reques
     {
         if (_mode == Mode::stream)
         {
+            telemetryActivity.step("stream.open");
             sendStreamResponse(_pContext, request, response);
+            telemetryActivity.success("stream completed");
         }
         else
         {
+            telemetryActivity.step("snapshot.render");
             sendSnapshotResponse(_pContext, request, response);
+            Poco::OpenTelemetry::succeedRequest(telemetryActivity, Poco::Net::HTTPResponse::HTTP_OK, "snapshot served");
         }
     }
     catch (const Poco::Net::ConnectionResetException&)
@@ -978,24 +989,28 @@ void LogStreamRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& reques
     {
         if (!isDisconnectedMessage(exc.displayText()))
         {
+            Poco::OpenTelemetry::failException(telemetryActivity, exc);
             _pContext->logger().error(
                 "LOG-SNAPSHOT action=error endpoint=" + request.getURI() + " detail=" + exc.displayText());
         }
     }
     catch (const Poco::Exception& exc)
     {
+        Poco::OpenTelemetry::failException(telemetryActivity, exc);
         _pContext->logger().error(
             "LOG-SNAPSHOT action=error endpoint=" + request.getURI() + " detail=" + exc.displayText());
         sendJSON(response, createSnapshotFailurePayload(request), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
     catch (const std::exception& exc)
     {
+        Poco::OpenTelemetry::failException(telemetryActivity, exc);
         _pContext->logger().error(
             "LOG-SNAPSHOT action=error endpoint=" + request.getURI() + " detail=" + exc.what());
         sendJSON(response, createSnapshotFailurePayload(request), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
     catch (...)
     {
+        telemetryActivity.fail("unknown exception");
         _pContext->logger().error(
             "LOG-SNAPSHOT action=error endpoint=" + request.getURI() + " detail=unknown_exception");
         sendJSON(response, createSnapshotFailurePayload(request), Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);

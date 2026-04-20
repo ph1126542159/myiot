@@ -1,4 +1,5 @@
 #include "SystemMetricsRequestHandler.h"
+#include "Poco/OpenTelemetry/TelemetryClient.h"
 #include "Poco/DateTimeFormat.h"
 #include "Poco/DateTimeFormatter.h"
 #include "Poco/JSON/Array.h"
@@ -86,13 +87,16 @@ bool isAuthenticated(Poco::OSP::BundleContext::Ptr pContext, Poco::Net::HTTPServ
 void sendJSON(Poco::Net::HTTPServerResponse& response, Poco::JSON::Object::Ptr payload, Poco::Net::HTTPResponse::HTTPStatus status = Poco::Net::HTTPResponse::HTTP_OK)
 {
     response.setStatus(status);
-    response.setChunkedTransferEncoding(true);
+    response.setChunkedTransferEncoding(false);
     response.setContentType("application/json");
     response.set("Cache-Control", "no-cache");
     try
     {
-        std::ostream& out = response.send();
-        Poco::JSON::Stringifier::stringify(payload, out);
+        std::ostringstream buffer;
+        Poco::JSON::Stringifier::stringify(payload, buffer);
+        const std::string body = buffer.str();
+        response.setContentLength(static_cast<int>(body.size()));
+        response.sendBuffer(body.data(), static_cast<int>(body.size()));
     }
     catch (const Poco::Net::ConnectionResetException&)
     {
@@ -1119,17 +1123,41 @@ SystemMetricsRequestHandler::SystemMetricsRequestHandler(Poco::OSP::BundleContex
 
 void SystemMetricsRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
+    Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+    auto activity = telemetry.beginActivity(
+        "system.monitor.collect",
+        "system.monitor",
+        request.getURI(),
+        {
+            {"endpoint", "/myiot/monitor/metrics.json"},
+            {"method", request.getMethod()}
+        });
+
     if (!isAuthenticated(_pContext, request))
     {
+        activity.fail("user is not authenticated", "HTTP 401");
         sendJSON(response, createUnauthorizedPayload(request), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
         return;
     }
 
-#if defined(_WIN32)
-    sendJSON(response, createSamplePayload(request, metricsSampler().sample()));
-#else
-    sendJSON(response, createSamplePayload(request, metricsSampler().sample()));
-#endif
+    activity.step("session.authenticated");
+
+    const MetricsSample sample = metricsSampler().sample();
+    activity.step("metrics.sampled");
+
+    telemetry.metric("system.cpu.usage_percent", sample.cpuUsagePercent, "%", "Total CPU usage percent");
+    telemetry.metric("system.memory.usage_percent", sample.memoryUsagePercent, "%", "Memory usage percent");
+    telemetry.metric("system.process.count", sample.processCount, "count", "Total process count");
+    telemetry.metric("system.thread.count", sample.threadCount, "count", "Total thread count");
+    telemetry.metric("system.network.receive_bytes_per_sec", sample.networkReceiveBytesPerSec, "By/s", "Network receive throughput");
+    telemetry.metric("system.network.send_bytes_per_sec", sample.networkSendBytesPerSec, "By/s", "Network send throughput");
+    telemetry.metric("system.disk.read_bytes_per_sec", sample.diskReadBytesPerSec, "By/s", "Disk read throughput");
+    telemetry.metric("system.disk.write_bytes_per_sec", sample.diskWriteBytesPerSec, "By/s", "Disk write throughput");
+
+    Poco::JSON::Object::Ptr payload = createSamplePayload(request, sample);
+    activity.step("payload.rendered");
+    activity.output("HTTP 200");
+    sendJSON(response, payload);
 }
 
 Poco::Net::HTTPRequestHandler* SystemMetricsRequestHandlerFactory::createRequestHandler(const Poco::Net::HTTPServerRequest&)

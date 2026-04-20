@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import TelemetryPanel from './components/TelemetryPanel.vue'
 import { featurePackages as rawFeaturePackages, getPackageStatusTone } from './core/packageRegistry'
 import { useUiLocale } from './core/locale'
 import { formatPackageStatus as formatLocalizedPackageStatus, localizeFeaturePackage } from './core/packageLocalization.js'
@@ -570,6 +571,8 @@ async function handleSignOut() {
               {{ text.noCharts }}
             </div>
           </section>
+
+          <TelemetryPanel />
 
           <section class="feature-panel">
             <div class="feature-frame"></div>

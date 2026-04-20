@@ -14,6 +14,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(MSVC)
     add_compile_options(/FS /utf-8)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Use the DLL runtime for protobuf on MSVC" FORCE)
 endif()
 
 add_compile_definitions(POCO_NO_AUTOMATIC_LIBS)
@@ -74,10 +76,20 @@ set(MYIOT_DEPS_DIR
     CACHE PATH "Directory used to download and build third-party dependencies")
 
 option(MYIOT_ENABLE_FASTDDS_BOOTSTRAP "Download and build Fast-DDS when it is not available locally" OFF)
+option(MYIOT_ENABLE_OPENTELEMETRY "Enable OpenTelemetry C++ integration targets" OFF)
+option(MYIOT_ENABLE_OPENTELEMETRY_BOOTSTRAP "Download and build official OpenTelemetry C++ when it is not available locally" OFF)
 
 set(MYIOT_FASTDDS_VERSION "v3.3.0" CACHE STRING "Fast-DDS version to bootstrap when missing")
 set(MYIOT_FASTCDR_VERSION "v2.3.0" CACHE STRING "Fast-CDR version paired with the selected Fast-DDS version")
 set(MYIOT_FOONATHAN_MEMORY_VENDOR_VERSION "v1.3.1" CACHE STRING "foonathan_memory_vendor version paired with the selected Fast-DDS version")
+set(MYIOT_OPENTELEMETRY_VERSION "v1.26.0" CACHE STRING "Official OpenTelemetry C++ tag to bootstrap when missing")
+set(MYIOT_OPENTELEMETRY_PACKAGE_VERSION "1.26.0" CACHE STRING "Official OpenTelemetry C++ package version paired with the selected source tag")
+set(MYIOT_OPENTELEMETRY_SOURCE_DIR
+    "${MYIOT_DEPS_DIR}/opentelemetry-cpp"
+    CACHE PATH "Directory used to download the official OpenTelemetry C++ source tree")
+option(MYIOT_OPENTELEMETRY_ENABLE_OSTREAM_EXPORTER "Enable OpenTelemetry ostream exporters" ON)
+option(MYIOT_OPENTELEMETRY_ENABLE_RESOURCE_DETECTORS "Enable OpenTelemetry resource detectors" ON)
+option(MYIOT_OPENTELEMETRY_ENABLE_OTLP_HTTP_EXPORTER "Enable OpenTelemetry OTLP HTTP exporters" ON)
 
 list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}")
 
@@ -327,6 +339,342 @@ function(myiot_normalize_imported_target_locations target_name)
     endif()
 endfunction()
 
+if(MYIOT_ENABLE_OPENTELEMETRY)
+    set(_myiot_local_opentelemetry_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/opentelemetry-cpp")
+    if(EXISTS "${_myiot_local_opentelemetry_config_dir}/opentelemetry-cpp-config.cmake"
+       AND (
+            NOT EXISTS "${_myiot_local_opentelemetry_config_dir}/component-definitions.cmake"
+            OR NOT EXISTS "${_myiot_local_opentelemetry_config_dir}/thirdparty-dependency-definitions.cmake"
+            OR NOT EXISTS "${_myiot_local_opentelemetry_config_dir}/find-package-support-functions.cmake"
+       ))
+        message(STATUS
+            "Removing incomplete OpenTelemetry C++ package metadata from install prefix: "
+            "${_myiot_local_opentelemetry_config_dir}"
+        )
+        file(REMOVE_RECURSE "${_myiot_local_opentelemetry_config_dir}")
+    endif()
+
+    if(EXISTS "${_myiot_local_opentelemetry_config_dir}/component-definitions.cmake")
+        set(_myiot_required_local_opentelemetry_components)
+        if(MYIOT_OPENTELEMETRY_ENABLE_OTLP_HTTP_EXPORTER)
+            list(APPEND _myiot_required_local_opentelemetry_components exporters_otlp_http)
+        endif()
+
+        if(_myiot_required_local_opentelemetry_components)
+            file(READ
+                "${_myiot_local_opentelemetry_config_dir}/component-definitions.cmake"
+                _myiot_local_opentelemetry_component_definitions
+            )
+
+            foreach(_myiot_required_component IN LISTS _myiot_required_local_opentelemetry_components)
+                string(FIND
+                    "${_myiot_local_opentelemetry_component_definitions}"
+                    "${_myiot_required_component}"
+                    _myiot_required_component_index
+                )
+                if(_myiot_required_component_index EQUAL -1)
+                    message(STATUS
+                        "Installed OpenTelemetry package is missing requested component "
+                        "${_myiot_required_component}. Removing local package metadata so it can be rebuilt."
+                    )
+                    file(REMOVE_RECURSE "${_myiot_local_opentelemetry_config_dir}")
+                    break()
+                endif()
+            endforeach()
+        endif()
+    endif()
+
+    set(_myiot_opentelemetry_core_components
+        api
+        sdk
+    )
+    set(_myiot_opentelemetry_optional_components)
+    set(_myiot_opentelemetry_imported_targets
+        opentelemetry-cpp::api
+        opentelemetry-cpp::sdk
+        opentelemetry-cpp::version
+        opentelemetry-cpp::common
+        opentelemetry-cpp::resources
+        opentelemetry-cpp::trace
+        opentelemetry-cpp::metrics
+        opentelemetry-cpp::logs
+    )
+
+    if(MYIOT_OPENTELEMETRY_ENABLE_OSTREAM_EXPORTER)
+        list(APPEND _myiot_opentelemetry_optional_components exporters_ostream)
+        list(APPEND _myiot_opentelemetry_imported_targets
+            opentelemetry-cpp::ostream_span_exporter
+            opentelemetry-cpp::ostream_metrics_exporter
+            opentelemetry-cpp::ostream_log_record_exporter
+        )
+    endif()
+
+    if(MYIOT_OPENTELEMETRY_ENABLE_RESOURCE_DETECTORS)
+        list(APPEND _myiot_opentelemetry_optional_components resource_detectors)
+        list(APPEND _myiot_opentelemetry_imported_targets
+            opentelemetry-cpp::resource_detectors
+        )
+    endif()
+
+    if(MYIOT_OPENTELEMETRY_ENABLE_OTLP_HTTP_EXPORTER)
+        list(APPEND _myiot_opentelemetry_optional_components exporters_otlp_http)
+        list(APPEND _myiot_opentelemetry_imported_targets
+            opentelemetry-cpp::otlp_http_client
+            opentelemetry-cpp::otlp_http_exporter
+            opentelemetry-cpp::otlp_http_log_record_exporter
+            opentelemetry-cpp::otlp_http_metric_exporter
+        )
+    endif()
+
+    find_package(opentelemetry-cpp CONFIG QUIET COMPONENTS ${_myiot_opentelemetry_core_components})
+
+    if(TARGET opentelemetry-cpp::api AND TARGET opentelemetry-cpp::sdk)
+        message(STATUS "Found OpenTelemetry C++ package")
+        if(DEFINED OPENTELEMETRY_VERSION AND OPENTELEMETRY_VERSION)
+            message(STATUS "Using OpenTelemetry C++ version: ${OPENTELEMETRY_VERSION}")
+            if(OPENTELEMETRY_VERSION VERSION_LESS MYIOT_OPENTELEMETRY_PACKAGE_VERSION)
+                message(WARNING
+                    "Found OpenTelemetry C++ ${OPENTELEMETRY_VERSION}, which is older than the default bootstrap version "
+                    "${MYIOT_OPENTELEMETRY_PACKAGE_VERSION}."
+                )
+            endif()
+        endif()
+
+        if(_myiot_opentelemetry_optional_components)
+            find_package(opentelemetry-cpp CONFIG QUIET COMPONENTS ${_myiot_opentelemetry_optional_components})
+        endif()
+    elseif(MYIOT_ENABLE_OPENTELEMETRY_BOOTSTRAP)
+        find_package(Git REQUIRED)
+
+        file(MAKE_DIRECTORY "${MYIOT_DEPS_DIR}")
+
+        if(EXISTS "${MYIOT_OPENTELEMETRY_SOURCE_DIR}/CMakeLists.txt")
+            message(STATUS "Using official OpenTelemetry C++ sources from: ${MYIOT_OPENTELEMETRY_SOURCE_DIR}")
+        else()
+            if(EXISTS "${MYIOT_OPENTELEMETRY_SOURCE_DIR}")
+                get_filename_component(_myiot_opentelemetry_source_dir_real "${MYIOT_OPENTELEMETRY_SOURCE_DIR}" ABSOLUTE)
+                get_filename_component(_myiot_opentelemetry_deps_dir_real "${MYIOT_DEPS_DIR}" ABSOLUTE)
+                string(FIND
+                    "${_myiot_opentelemetry_source_dir_real}"
+                    "${_myiot_opentelemetry_deps_dir_real}"
+                    _myiot_opentelemetry_source_dir_in_deps
+                )
+
+                if(_myiot_opentelemetry_source_dir_in_deps EQUAL 0)
+                    message(STATUS "Removing incomplete OpenTelemetry C++ source tree: ${MYIOT_OPENTELEMETRY_SOURCE_DIR}")
+                    file(REMOVE_RECURSE "${MYIOT_OPENTELEMETRY_SOURCE_DIR}")
+                else()
+                    message(FATAL_ERROR
+                        "OpenTelemetry C++ source directory exists but does not look like a valid checkout: "
+                        "${MYIOT_OPENTELEMETRY_SOURCE_DIR}. Remove it manually or point MYIOT_OPENTELEMETRY_SOURCE_DIR "
+                        "at a valid opentelemetry-cpp source tree."
+                    )
+                endif()
+            endif()
+
+            message(STATUS "OpenTelemetry C++ was not found. Sources will be cloned under: ${MYIOT_OPENTELEMETRY_SOURCE_DIR}")
+            execute_process(
+                COMMAND
+                    "${GIT_EXECUTABLE}" clone
+                    "--branch" "${MYIOT_OPENTELEMETRY_VERSION}"
+                    "--depth" "1"
+                    "https://github.com/open-telemetry/opentelemetry-cpp.git"
+                    "${MYIOT_OPENTELEMETRY_SOURCE_DIR}"
+                RESULT_VARIABLE _myiot_opentelemetry_clone_result
+                COMMAND_ERROR_IS_FATAL ANY
+            )
+        endif()
+
+        set(_myiot_opentelemetry_had_build_testing_cache FALSE)
+        if(DEFINED CACHE{BUILD_TESTING})
+            set(_myiot_opentelemetry_had_build_testing_cache TRUE)
+            get_property(_myiot_opentelemetry_build_testing_type CACHE BUILD_TESTING PROPERTY TYPE)
+            get_property(_myiot_opentelemetry_build_testing_help CACHE BUILD_TESTING PROPERTY HELPSTRING)
+            set(_myiot_opentelemetry_saved_build_testing "${BUILD_TESTING}")
+        elseif(DEFINED BUILD_TESTING)
+            set(_myiot_opentelemetry_saved_build_testing "${BUILD_TESTING}")
+        else()
+            set(_myiot_opentelemetry_saved_build_testing "__MYIOT_UNSET__")
+        endif()
+
+        set(OPENTELEMETRY_INSTALL ON CACHE BOOL "Install OpenTelemetry C++ when bootstrapped by MyIoT" FORCE)
+        set(WITH_API_ONLY OFF CACHE BOOL "Build the OpenTelemetry C++ SDK" FORCE)
+        set(WITH_ABI_VERSION_1 ON CACHE BOOL "Use the stable OpenTelemetry C++ ABI v1" FORCE)
+        set(WITH_ABI_VERSION_2 OFF CACHE BOOL "Disable the experimental OpenTelemetry C++ ABI v2" FORCE)
+        set(WITH_CONFIGURATION OFF CACHE BOOL "Disable OpenTelemetry declarative YAML configuration" FORCE)
+        set(WITH_OTLP_GRPC OFF CACHE BOOL "Disable the OpenTelemetry OTLP gRPC exporter" FORCE)
+        if(MYIOT_OPENTELEMETRY_ENABLE_OTLP_HTTP_EXPORTER)
+            set(WITH_OTLP_HTTP ON CACHE BOOL "Enable the OpenTelemetry OTLP HTTP exporter" FORCE)
+        else()
+            set(WITH_OTLP_HTTP OFF CACHE BOOL "Disable the OpenTelemetry OTLP HTTP exporter" FORCE)
+        endif()
+        set(WITH_OTLP_FILE OFF CACHE BOOL "Disable the OpenTelemetry OTLP file exporter" FORCE)
+        set(WITH_OTLP_HTTP_COMPRESSION OFF CACHE BOOL "Disable OTLP HTTP compression" FORCE)
+        set(WITH_ZIPKIN OFF CACHE BOOL "Disable the OpenTelemetry Zipkin exporter" FORCE)
+        set(WITH_PROMETHEUS OFF CACHE BOOL "Disable the OpenTelemetry Prometheus exporter" FORCE)
+        set(WITH_ELASTICSEARCH OFF CACHE BOOL "Disable the OpenTelemetry Elasticsearch exporter" FORCE)
+        set(WITH_OPENTRACING OFF CACHE BOOL "Disable the OpenTelemetry OpenTracing shim" FORCE)
+        set(WITH_EXAMPLES OFF CACHE BOOL "Disable OpenTelemetry examples" FORCE)
+        set(WITH_EXAMPLES_HTTP OFF CACHE BOOL "Disable OpenTelemetry HTTP examples" FORCE)
+        set(WITH_FUNC_TESTS OFF CACHE BOOL "Disable OpenTelemetry functional tests" FORCE)
+        set(BUILD_TESTING OFF CACHE BOOL "Disable OpenTelemetry tests while bootstrapping MyIoT" FORCE)
+        set(WITH_BENCHMARK OFF CACHE BOOL "Disable OpenTelemetry benchmarks while bootstrapping MyIoT" FORCE)
+        if(MYIOT_OPENTELEMETRY_ENABLE_RESOURCE_DETECTORS)
+            set(WITH_RESOURCE_DETECTORS_PREVIEW ON CACHE BOOL "Enable OpenTelemetry resource detectors" FORCE)
+        else()
+            set(WITH_RESOURCE_DETECTORS_PREVIEW OFF CACHE BOOL "Disable OpenTelemetry resource detectors" FORCE)
+        endif()
+        if(WIN32)
+            set(WITH_ETW OFF CACHE BOOL "Disable the OpenTelemetry ETW exporter" FORCE)
+        endif()
+
+        message(STATUS "Bootstrapped OpenTelemetry artifacts will be installed to: ${CMAKE_INSTALL_PREFIX}")
+        add_subdirectory("${MYIOT_OPENTELEMETRY_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/opentelemetry-cpp-official" EXCLUDE_FROM_ALL)
+        set(MYIOT_BUNDLED_OPENTELEMETRY_INSTALL_SCRIPT "${CMAKE_BINARY_DIR}/opentelemetry-cpp-official/cmake_install.cmake")
+
+        add_custom_target(myiot_opentelemetry_bootstrap ALL
+            DEPENDS
+                opentelemetry_sdk
+                opentelemetry_common
+                opentelemetry_resources
+                opentelemetry_version
+                opentelemetry_logs
+                opentelemetry_trace
+                opentelemetry_metrics
+        )
+
+        if(MYIOT_OPENTELEMETRY_ENABLE_OSTREAM_EXPORTER)
+            add_dependencies(myiot_opentelemetry_bootstrap
+                opentelemetry_exporter_ostream_span
+                opentelemetry_exporter_ostream_metrics
+                opentelemetry_exporter_ostream_logs
+                opentelemetry_exporter_ostream_span_builder
+                opentelemetry_exporter_ostream_metrics_builder
+                opentelemetry_exporter_ostream_logs_builder
+            )
+        endif()
+
+        add_dependencies(myiot_opentelemetry_bootstrap
+            opentelemetry_exporter_in_memory
+            opentelemetry_exporter_in_memory_metric
+        )
+
+        if(MYIOT_OPENTELEMETRY_ENABLE_OTLP_HTTP_EXPORTER)
+            add_dependencies(myiot_opentelemetry_bootstrap
+                opentelemetry_exporter_otlp_http_client
+                opentelemetry_exporter_otlp_http
+                opentelemetry_exporter_otlp_http_log
+                opentelemetry_exporter_otlp_http_metric
+            )
+        endif()
+
+        if(MYIOT_OPENTELEMETRY_ENABLE_RESOURCE_DETECTORS)
+            add_dependencies(myiot_opentelemetry_bootstrap
+                opentelemetry_resource_detectors
+            )
+        endif()
+
+        if(_myiot_opentelemetry_had_build_testing_cache)
+            set(BUILD_TESTING "${_myiot_opentelemetry_saved_build_testing}"
+                CACHE ${_myiot_opentelemetry_build_testing_type}
+                "${_myiot_opentelemetry_build_testing_help}"
+                FORCE
+            )
+        elseif(NOT _myiot_opentelemetry_saved_build_testing STREQUAL "__MYIOT_UNSET__")
+            set(BUILD_TESTING "${_myiot_opentelemetry_saved_build_testing}")
+            unset(BUILD_TESTING CACHE)
+        else()
+            unset(BUILD_TESTING CACHE)
+            unset(BUILD_TESTING)
+        endif()
+    else()
+        message(FATAL_ERROR "OpenTelemetry C++ was not found and MYIOT_ENABLE_OPENTELEMETRY_BOOTSTRAP is OFF.")
+    endif()
+
+    foreach(_myiot_opentelemetry_target IN LISTS _myiot_opentelemetry_imported_targets)
+        myiot_normalize_imported_target_locations(${_myiot_opentelemetry_target})
+    endforeach()
+
+    add_library(myiot_opentelemetry INTERFACE)
+    target_link_libraries(myiot_opentelemetry
+        INTERFACE
+            opentelemetry-cpp::api
+            opentelemetry-cpp::sdk
+            opentelemetry-cpp::trace
+            opentelemetry-cpp::metrics
+            opentelemetry-cpp::logs
+            opentelemetry-cpp::resources
+    )
+
+    if(MYIOT_OPENTELEMETRY_ENABLE_RESOURCE_DETECTORS)
+        if(TARGET opentelemetry-cpp::resource_detectors)
+            add_library(myiot_opentelemetry_resource_detectors INTERFACE)
+            target_link_libraries(myiot_opentelemetry_resource_detectors
+                INTERFACE
+                    myiot_opentelemetry
+                    opentelemetry-cpp::resource_detectors
+            )
+        else()
+            message(WARNING
+                "OpenTelemetry resource detectors were requested, but the discovered package does not provide "
+                "the resource_detectors component."
+            )
+        endif()
+    endif()
+
+    if(MYIOT_OPENTELEMETRY_ENABLE_OSTREAM_EXPORTER)
+        if(TARGET opentelemetry-cpp::ostream_span_exporter)
+            add_library(myiot_opentelemetry_ostream INTERFACE)
+            target_link_libraries(myiot_opentelemetry_ostream
+                INTERFACE
+                    myiot_opentelemetry
+                    opentelemetry-cpp::ostream_span_exporter
+            )
+
+            if(TARGET opentelemetry-cpp::ostream_metrics_exporter)
+                target_link_libraries(myiot_opentelemetry_ostream
+                    INTERFACE
+                        opentelemetry-cpp::ostream_metrics_exporter
+                )
+            endif()
+
+            if(TARGET opentelemetry-cpp::ostream_log_record_exporter)
+                target_link_libraries(myiot_opentelemetry_ostream
+                    INTERFACE
+                        opentelemetry-cpp::ostream_log_record_exporter
+                )
+            endif()
+        else()
+            message(WARNING
+                "OpenTelemetry ostream exporters were requested, but the discovered package does not provide "
+                "the exporters_ostream component."
+            )
+        endif()
+    endif()
+
+    if(MYIOT_OPENTELEMETRY_ENABLE_OTLP_HTTP_EXPORTER)
+        if(TARGET opentelemetry-cpp::otlp_http_exporter
+           AND TARGET opentelemetry-cpp::otlp_http_log_record_exporter
+           AND TARGET opentelemetry-cpp::otlp_http_metric_exporter
+           AND TARGET opentelemetry-cpp::otlp_http_client)
+            add_library(myiot_opentelemetry_otlp_http INTERFACE)
+            target_link_libraries(myiot_opentelemetry_otlp_http
+                INTERFACE
+                    myiot_opentelemetry
+                    opentelemetry-cpp::otlp_http_client
+                    opentelemetry-cpp::otlp_http_exporter
+                    opentelemetry-cpp::otlp_http_log_record_exporter
+                    opentelemetry-cpp::otlp_http_metric_exporter
+            )
+        else()
+            message(WARNING
+                "OpenTelemetry OTLP HTTP exporters were requested, but the discovered package does not provide "
+                "the exporters_otlp_http component."
+            )
+        endif()
+    endif()
+endif()
+
 set(Poco_FOUND FALSE)
 set(_myiot_local_poco_config_dir "${CMAKE_INSTALL_PREFIX}/cmake")
 if(WIN32)
@@ -520,6 +868,18 @@ if(DEFINED MYIOT_BUNDLED_POCO_INSTALL_SCRIPT)
     )
 endif()
 
+if(DEFINED MYIOT_BUNDLED_OPENTELEMETRY_INSTALL_SCRIPT)
+    install(CODE
+        "execute_process(
+            COMMAND \"${CMAKE_COMMAND}\"
+                -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+                -DCMAKE_INSTALL_CONFIG_NAME=\${CMAKE_INSTALL_CONFIG_NAME}
+                -P \"${MYIOT_BUNDLED_OPENTELEMETRY_INSTALL_SCRIPT}\"
+            COMMAND_ERROR_IS_FATAL ANY
+        )"
+    )
+endif()
+
 if(WIN32)
     get_filename_component(MYIOT_OPENSSL_ROOT "${OPENSSL_INCLUDE_DIR}" DIRECTORY)
     set(MYIOT_OPENSSL_BIN_DIR "${MYIOT_OPENSSL_ROOT}/bin")
@@ -560,6 +920,15 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
     add_subdirectory("${MACCHINA_PLATFORM_DIR}/Serial" "${CMAKE_BINARY_DIR}/platform/Serial")
     add_subdirectory("${MACCHINA_PLATFORM_DIR}/WebTunnel" "${CMAKE_BINARY_DIR}/platform/WebTunnel")
     add_subdirectory("${MACCHINA_PLATFORM_DIR}/OSP" "${CMAKE_BINARY_DIR}/platform/OSP")
+    if(MYIOT_ENABLE_OPENTELEMETRY)
+        add_subdirectory("${CMAKE_SOURCE_DIR}/platform/OpenTelemetry" "${CMAKE_BINARY_DIR}/platform/OpenTelemetry")
+        if(TARGET OSPWeb AND TARGET Poco::OpenTelemetry)
+            target_link_libraries(OSPWeb PUBLIC Poco::OpenTelemetry)
+        endif()
+        if(TARGET OSP_Web_Bundle AND TARGET Poco::OpenTelemetry)
+            target_link_libraries(OSP_Web_Bundle PRIVATE Poco::OpenTelemetry)
+        endif()
+    endif()
 
     set(MYIOT_PLATFORM_TARGETS
         CodeGeneration
@@ -581,6 +950,12 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
         OSP_WebEvent_Bundle
         OSP_WebServer_Bundle
     )
+
+    if(TARGET OpenTelemetry)
+        list(APPEND MYIOT_PLATFORM_TARGETS
+            OpenTelemetry
+        )
+    endif()
 
     if(MYIOT_ENABLE_DATA_MODULES)
         list(APPEND MYIOT_PLATFORM_TARGETS
@@ -622,6 +997,13 @@ if(MYIOT_ENABLE_MACCHINA_PLATFORM)
             Poco::OSPWebEvent
             Poco::OSPUnit
     )
+
+    if(TARGET Poco::OpenTelemetry)
+        target_link_libraries(myiot_poco_platform
+            INTERFACE
+                Poco::OpenTelemetry
+        )
+    endif()
 
     if(MYIOT_ENABLE_DATA_MODULES)
         target_link_libraries(myiot_poco_platform

@@ -10,6 +10,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/String.h"
 #include "Poco/URI.h"
 
@@ -179,24 +180,35 @@ AuthRequestHandler::AuthRequestHandler(Poco::OSP::BundleContext::Ptr pContext, M
 
 void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(
+        _pContext,
+        request,
+        _mode == Mode::login ? "launcher.login" : "launcher.logout");
+    activity.tag("auth.mode", _mode == Mode::login ? "login" : "logout");
+
     if (request.getMethod() != Poco::Net::HTTPRequest::HTTP_POST)
     {
         logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "method_not_allowed", "", request.getMethod());
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_METHOD_NOT_ALLOWED);
         const std::string message = localized(request, "请求方式错误，必须使用 POST。", "Invalid request method. POST is required.");
         sendJSON(response, createPayload(false, "", message, message));
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_METHOD_NOT_ALLOWED, "invalid request method");
         return;
     }
 
     try
     {
         Poco::Net::HTMLForm form(request, request.stream());
+        activity.step("request.form_parsed");
         Poco::OSP::Web::WebSession::Ptr pSession = getSession(_pContext, request);
+        activity.step("session.ready");
 
         if (_mode == Mode::login)
         {
             const std::string username = form.get("username", "");
             const std::string password = form.get("password", "");
+            activity.tag("auth.username", username.empty() ? "-" : username);
+            activity.tag("auth.password.present", password.empty() ? "false" : "true");
 
             if (username.empty() || password.empty())
             {
@@ -206,10 +218,12 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
                 pSession->set("lastError", errorMessage);
                 logAudit(_pContext, request, "login", "invalid_request", username, "missing_username_or_password");
                 sendJSON(response, createPayload(false, "", errorMessage, errorMessage));
+                Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "missing username or password");
                 return;
             }
 
             Poco::OSP::Auth::AuthService::Ptr pAuthService = getAuthService(_pContext);
+            activity.step("auth.service_resolved");
             if (pAuthService->authenticate(username, password))
             {
                 const std::string successMessage = requestLocale(request) == "en"
@@ -220,6 +234,8 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
                 pSession->erase("lastError");
                 logAudit(_pContext, request, "login", "success", username, "session_established");
                 sendJSON(response, createPayload(true, username, successMessage, ""));
+                activity.step("auth.authenticated", username);
+                Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "login success");
             }
             else
             {
@@ -229,29 +245,36 @@ void AuthRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Po
                 pSession->set("lastError", errorMessage);
                 logAudit(_pContext, request, "login", "auth_failed", username, "credential_rejected");
                 sendJSON(response, createPayload(false, "", errorMessage, errorMessage));
+                activity.step("auth.rejected", username, "error");
+                Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "credential rejected");
             }
         }
         else
         {
             Poco::OSP::Web::WebSessionManager::Ptr pSessionManager = getSessionManager(_pContext);
             const std::string username = pSession ? pSession->getValue<std::string>("username", "") : "";
+            activity.tag("auth.username", username.empty() ? "-" : username);
             if (pSession)
             {
                 pSessionManager->remove(pSession);
             }
 
             logAudit(_pContext, request, "logout", "success", username, "session_removed");
+            activity.step("session.removed", username.empty() ? "-" : username);
+            Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "logout success");
             sendJSON(response, createPayload(false, "", localized(request, "已退出登录，请重新验证身份。", "Signed out. Please authenticate again."), ""));
         }
     }
     catch (const Poco::Exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "backend_error", "", exc.displayText(), true);
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
         sendJSON(response, createPayload(false, "", localized(request, "认证服务当前不可用。", "The authentication service is currently unavailable."), exc.displayText()));
     }
     catch (const std::exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         logAudit(_pContext, request, _mode == Mode::login ? "login" : "logout", "backend_error", "", exc.what(), true);
         response.setStatusAndReason(Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR);
         sendJSON(response, createPayload(false, "", localized(request, "认证服务当前不可用。", "The authentication service is currently unavailable."), exc.what()));

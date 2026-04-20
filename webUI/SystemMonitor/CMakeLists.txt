@@ -7,6 +7,10 @@ set(myiot_system_monitor_link_libs
     Poco::Foundation
 )
 
+if(TARGET Poco::OpenTelemetry)
+    list(APPEND myiot_system_monitor_link_libs Poco::OpenTelemetry)
+endif()
+
 if(WIN32)
     list(APPEND myiot_system_monitor_link_libs
         Iphlpapi
@@ -24,6 +28,7 @@ myiot_add_webui_package(
     SOURCES
         src/BundleActivator.cpp
         src/SystemMetricsRequestHandler.cpp
+        src/TelemetrySnapshotRequestHandler.cpp
     LINK_LIBS
         ${myiot_system_monitor_link_libs}
     INCLUDE_DIRS

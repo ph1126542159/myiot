@@ -6,6 +6,7 @@
 #include "Poco/JSON/Object.h"
 #include "Poco/NumberParser.h"
 #include "Poco/OSP/BundleContext.h"
+#include "Poco/OpenTelemetry/TelemetryClient.h"
 #include "Poco/Path.h"
 #include "Poco/Pipe.h"
 #include "Poco/PipeStream.h"
@@ -934,6 +935,18 @@ public:
         const std::string command = tokens.empty() ? "help" : Poco::toLower(tokens.front());
         const std::string currentWorkingDirectory = effectiveWorkingDirectory(workingDirectory);
         const std::string homeDirectory = shellHomeDirectory();
+        Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+        auto activity = telemetry.beginActivity(
+            "processconsole.execute",
+            "service.command",
+            trimmed.empty() ? "help" : trimmed,
+            {
+                {"bundle.symbolic_name", _pContext->thisBundle()->symbolicName()},
+                {"processconsole.command", command},
+                {"processconsole.working_directory", currentWorkingDirectory}
+            });
+        activity.tag("processconsole.limit", std::to_string(limit));
+        activity.step("command.dispatch", command);
 
         if (command == "help" || command == "?") return help(trimmed.empty() ? "help" : trimmed, currentWorkingDirectory, homeDirectory);
         if (command == "pwd") return pwd(trimmed.empty() ? "pwd" : trimmed, currentWorkingDirectory, homeDirectory);

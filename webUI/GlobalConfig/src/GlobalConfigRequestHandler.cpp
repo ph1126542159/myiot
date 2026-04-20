@@ -19,6 +19,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/Path.h"
 #include "Poco/String.h"
 #include "Poco/Timestamp.h"
@@ -429,6 +430,7 @@ GlobalConfigRequestHandler::GlobalConfigRequestHandler(Poco::OSP::BundleContext:
 
 void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(_pContext, request, "globalconfig.handle");
     try
     {
         if (!isAuthenticated(_pContext, request))
@@ -438,11 +440,14 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
             payload->set("authenticated", false);
             payload->set("message", localized(request, "未登录，无法读取全局配置。", "You are not signed in, so the global configuration cannot be read."));
             payload->set("sections", Poco::JSON::Array::Ptr(new Poco::JSON::Array));
+            Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED, "user is not authenticated");
             sendJSON(response, payload, Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
             return;
         }
 
         const std::string username = currentUsername(_pContext, request);
+        activity.tag("auth.username", username.empty() ? "-" : username);
+        activity.step("request.authorized", username.empty() ? "-" : username);
 
         if (Poco::icompare(request.getMethod(), std::string("POST")) == 0)
         {
@@ -453,17 +458,25 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
             const std::string sectionId = form.get("sectionId", "");
             Poco::JSON::Array::Ptr incoming = parseEntryArray(form.get("entries", "[]"));
             std::set<std::string> newKeys;
+            activity.tag("config.route", route);
+            activity.tag("config.scope", scope.empty() ? "-" : scope);
+            activity.tag("config.target", target.empty() ? "-" : target);
+            activity.tag("config.section_id", sectionId.empty() ? "-" : sectionId);
+            activity.step("request.post", route);
 
             try
             {
                 if (Poco::endsWith(route, std::string("/manage.json")))
                 {
                     const std::string action = form.get("action", "");
+                    activity.tag("bundle.action", action.empty() ? "-" : action);
+                    activity.step("bundle.manage", action.empty() ? "-" : action);
                     Poco::OSP::Bundle::Ptr pBundle = _pContext->findBundle(target).cast<Poco::OSP::Bundle>();
 
                     if (!pBundle)
                     {
                         logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "target_not_found", username, target);
+                        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_NOT_FOUND, "target bundle not found");
                         sendJSON(response,
                             createMessagePayload(false,
                                 localized(request, "目标 Bundle 不存在。", "The target bundle does not exist."),
@@ -476,6 +489,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
                     if (!isManageable(pBundle, _pContext))
                     {
                         logAudit(_pContext, request, action.empty() ? "bundle_manage" : action, "forbidden", username, target, "protected_bundle");
+                        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_FORBIDDEN, "bundle is protected");
                         sendJSON(response,
                             createMessagePayload(false,
                                 protectedReasonFor(request, target),
@@ -487,22 +501,27 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
 
                     if (action == "resolve")
                     {
+                        activity.step("bundle.resolve", target);
                         pBundle->resolve();
                         logAudit(_pContext, request, "resolve", "success", username, target);
+                        Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "bundle resolved");
                         sendJSON(response, createMessagePayload(true, localized(request, "Bundle 已解析，可以继续启动。", "The bundle has been resolved and can now be started."), sectionId));
                         return;
                     }
 
                     if (action == "start")
                     {
+                        activity.step("bundle.start", target);
                         pBundle->start();
                         logAudit(_pContext, request, "start", "success", username, target);
+                        Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "bundle started");
                         sendJSON(response, createMessagePayload(true, localized(request, "Bundle 已启动。", "The bundle has been started."), sectionId));
                         return;
                     }
 
                     if (action == "stop")
                     {
+                        activity.step("bundle.stop", target);
                         const auto dependents = collectActiveDependents(_pContext, target);
                         if (!dependents.empty())
                         {
@@ -510,6 +529,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
                             std::string message = localized(request, "以下依赖 Bundle 仍在运行，当前无法停止：", "The bundle cannot be stopped because dependent bundles are still running: ");
                             message += joinStrings(dependents, ", ");
                             logAudit(_pContext, request, "stop", "dependency_blocked", username, target, detail);
+                            Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_CONFLICT, "bundle stop blocked by dependencies");
                             sendJSON(response,
                                 createMessagePayload(false, message, sectionId, Poco::Net::HTTPResponse::HTTP_CONFLICT),
                                 Poco::Net::HTTPResponse::HTTP_CONFLICT);
@@ -518,11 +538,13 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
 
                         pBundle->stop();
                         logAudit(_pContext, request, "stop", "success", username, target);
+                        Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "bundle stopped");
                         sendJSON(response, createMessagePayload(true, localized(request, "Bundle 已停止。", "The bundle has been stopped."), sectionId));
                         return;
                     }
 
                     logAudit(_pContext, request, "bundle_manage", "unsupported_action", username, target, action);
+                    Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_BAD_REQUEST, "unsupported bundle action");
                     sendJSON(response,
                         createMessagePayload(false,
                             localized(request, "不支持的运行管理动作。", "Unsupported runtime management action."),
@@ -534,6 +556,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
 
                 if (scope == "application")
                 {
+                    activity.step("config.application.save");
                     const std::string configPath = applicationConfigPath();
                     Poco::AutoPtr<Poco::Util::PropertyFileConfiguration> pConfiguration = loadPropertyConfiguration(configPath);
 
@@ -564,6 +587,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
                     pConfiguration->save(configPath);
 
                     logAudit(_pContext, request, "save_application_config", "success", username, configPath, "keys=" + std::to_string(newKeys.size()));
+                    Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "application configuration saved");
                     sendJSON(response,
                         createMessagePayload(true,
                             localized(request, "全局配置已保存。部分设置需要重启服务后生效。", "The application configuration has been saved. Some settings may require a service restart."),
@@ -573,9 +597,11 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
 
                 if (scope == "bundle")
                 {
+                    activity.step("config.bundle.save", target.empty() ? "-" : target);
                     Poco::OSP::PreferencesService::Ptr pPreferencesService = findPreferencesService(_pContext);
                     if (!pPreferencesService)
                     {
+                        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE, "preferences service unavailable");
                         sendJSON(response,
                             createMessagePayload(false,
                                 localized(request, "当前系统未提供 PreferencesService。", "PreferencesService is not available in the current system."),
@@ -588,6 +614,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
                     Poco::OSP::Bundle::Ptr pBundle = _pContext->findBundle(target).cast<Poco::OSP::Bundle>();
                     if (!pBundle)
                     {
+                        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_NOT_FOUND, "target bundle not found");
                         sendJSON(response,
                             createMessagePayload(false,
                                 localized(request, "目标功能包不存在。", "The target bundle does not exist."),
@@ -622,6 +649,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
 
                     pPreferences->save();
                     logAudit(_pContext, request, "save_bundle_preferences", "success", username, target, "keys=" + std::to_string(newKeys.size()));
+                    Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "bundle preferences saved");
                     sendJSON(response,
                         createMessagePayload(true,
                             localized(request, "功能包配置已保存。", "The bundle preferences have been saved."),
@@ -630,6 +658,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
                 }
 
                 logAudit(_pContext, request, "config_request", "unsupported_scope", username, target, scope);
+                Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_BAD_REQUEST, "unsupported configuration scope");
                 sendJSON(response,
                     createMessagePayload(false,
                         localized(request, "不支持的配置范围。", "Unsupported configuration scope."),
@@ -640,6 +669,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
             }
             catch (const Poco::Exception& exc)
             {
+                Poco::OpenTelemetry::failException(activity, exc);
                 logAudit(_pContext, request, Poco::endsWith(route, std::string("/manage.json")) ? "bundle_manage" : "save_global_config", "backend_error", username, target, exc.displayText(), true);
                 sendJSON(response,
                     createMessagePayload(false, exc.displayText(), sectionId, Poco::Net::HTTPResponse::HTTP_INTERNAL_SERVER_ERROR),
@@ -721,10 +751,13 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
         payload->set("sections", sections);
 
         logAudit(_pContext, request, "global_config", "success", username, "", "sectionCount=" + std::to_string(sections->size()));
+        activity.tag("config.section_count", std::to_string(sections->size()));
+        Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "configuration synchronized");
         sendJSON(response, payload);
     }
     catch (const Poco::Exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         _pContext->logger().error("Global config request failed: " + exc.displayText());
         sendJSON(response,
             createMessagePayload(false,
@@ -735,6 +768,7 @@ void GlobalConfigRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& req
     }
     catch (const std::exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         _pContext->logger().error("Global config request failed: " + std::string(exc.what()));
         sendJSON(response,
             createMessagePayload(false,

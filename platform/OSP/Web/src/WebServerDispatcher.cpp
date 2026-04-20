@@ -38,6 +38,7 @@
 #include "Poco/DateTimeFormat.h"
 #include "Poco/DeflatingStream.h"
 #include "Poco/MemoryStream.h"
+#include "Poco/OpenTelemetry/TelemetryClient.h"
 #include "Poco/StringTokenizer.h"
 #include "Poco/String.h"
 #include "Poco/Message.h"
@@ -281,26 +282,44 @@ void WebServerDispatcher::removeFilter(const std::string& mediaType)
 void WebServerDispatcher::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response, bool secure)
 {
 	std::string username;
+	Poco::OpenTelemetry::TelemetryClient telemetry(_pContext);
+	Poco::OpenTelemetry::TelemetryActivity activity;
 	try
 	{
 		addCustomResponseHeaders(response);
 
 		URI uri(request.getURI());
 		std::string path(uri.getPath());
+		activity = telemetry.beginActivity(
+			"HTTP "s + request.getMethod() + " "s + (path.empty() ? "/"s : path),
+			"http.request"s,
+			request.getMethod() + " "s + request.getURI(),
+			{
+				{"http.method"s, request.getMethod()},
+				{"http.path"s, path},
+				{"http.uri"s, request.getURI()},
+				{"http.secure"s, secure ? "true"s : "false"s}
+			});
+		activity.step("path.parse"s, path.empty() ? "/"s : path);
 		if (cleanPath(path))
 		{
+			activity.step("path.clean"s, path);
 			Poco::ScopedLockWithUnlock<Poco::FastMutex> lock(_mutex);
 			const VirtualPath& vPath = mapPath(path, request.getMethod());
+			activity.step("route.match"s, vPath.path);
 			if (vPath.security.secure && !secure)
 			{
 				std::string vpath(vPath.path);
 				lock.unlock();
+				activity.fail("secure transport required"s, "HTTP 403"s);
 				sendResponse(request, HTTPResponse::HTTP_FORBIDDEN, formatMessage("secure"s, vpath), vPath.responseFormat);
 			}
 			else if (handleCORS(request, response, vPath))
 			{
+				activity.step("cors.check"s, "accepted"s);
 				if (authorize(request, vPath, username))
 				{
+					activity.step("authorize"s, username.empty() ? "-"s : username);
 					if (vPath.pFactory)
 					{
 						if (vPath.methods.empty() || vPath.methods.count(request.getMethod()) == 1)
@@ -311,17 +330,26 @@ void WebServerDispatcher::handleRequest(Poco::Net::HTTPServerRequest& request, P
 							try
 							{
 								if (pHandler.get())
+								{
+									activity.step("handler.execute"s, vPath.path);
 									pHandler->handleRequest(request, response);
+									activity.output("HTTP "s + NumberFormatter::format(static_cast<int>(request.response().getStatus())));
+								}
 								else
+								{
+									activity.fail("request handler missing"s, "HTTP 404"s);
 									sendNotFound(request, path, vPath.responseFormat);
+								}
 							}
 							catch (Poco::Exception& exc)
 							{
+								activity.fail(exc.displayText(), "HTTP 500"s);
 								throw Poco::UnhandledException("Request Handler", exc);
 							}
 						}
 						else
 						{
+							activity.fail("method not allowed"s, "HTTP 405"s);
 							sendMethodNotAllowed(request, formatMessage("method"s, request.getMethod(), request.getURI()), vPath.responseFormat);
 						}
 					}
@@ -337,13 +365,17 @@ void WebServerDispatcher::handleRequest(Poco::Net::HTTPServerRequest& request, P
 							Bundle::ConstPtr pBundle(vPath.pOwnerBundle);
 							bool canCache = vPath.cache;
 							lock.unlock();
+							activity.step("resource.send"s, resPath.empty() ? index : resPath);
 							sendResource(request, path, vpath, resPath, resBase, index, pBundle, canCache);
+							activity.output("HTTP "s + NumberFormatter::format(static_cast<int>(request.response().getStatus())));
 						}
 						else
 						{
 							std::string newPath(vPath.path);
 							lock.unlock();
+							activity.step("resource.redirect"s, newPath);
 							sendFound(request, newPath);
+							activity.output("HTTP 302"s);
 						}
 					}
 				}
@@ -358,12 +390,14 @@ void WebServerDispatcher::handleRequest(Poco::Net::HTTPServerRequest& request, P
 					}
 					std::string vpath(vPath.path);
 					lock.unlock();
+					activity.fail("not authorized"s, "HTTP 401"s);
 					sendNotAuthorized(request, vpath, vPath.responseFormat);
 				}
 			}
 		}
 		else
 		{
+			activity.fail("invalid request path"s, "HTTP 400"s);
 			sendBadRequest(request, formatMessage("invalid"s));
 		}
 	}
@@ -371,6 +405,7 @@ void WebServerDispatcher::handleRequest(Poco::Net::HTTPServerRequest& request, P
 	{
 		try
 		{
+			activity.fail("not found"s, "HTTP 404"s);
 			sendNotFound(request, request.getURI());
 		}
 		catch (Poco::Exception& exc)
@@ -382,6 +417,7 @@ void WebServerDispatcher::handleRequest(Poco::Net::HTTPServerRequest& request, P
 	{
 		try
 		{
+			activity.fail(exc.displayText(), "HTTP 500"s);
 			std::string reference = Poco::UUIDGenerator::defaultGenerator().createRandom().toString();
 			std::string excName;
 			std::string msg("Error processing ");

@@ -4,6 +4,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include <utility>
 
 namespace {
@@ -52,9 +53,13 @@ RootRedirectRequestHandler::RootRedirectRequestHandler(
 
 void RootRedirectRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
-    response.redirect(
-        resolveRedirectTarget(_pContext, request, _anonymousTargetURI, _authenticatedTargetURI),
-        Poco::Net::HTTPResponse::HTTP_SEE_OTHER);
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(_pContext, request, "launcher.redirect");
+    const std::string target =
+        resolveRedirectTarget(_pContext, request, _anonymousTargetURI, _authenticatedTargetURI);
+    activity.tag("redirect.target", target);
+    activity.step("redirect.resolve", target);
+    response.redirect(target, Poco::Net::HTTPResponse::HTTP_SEE_OTHER);
+    Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_SEE_OTHER, target);
 }
 
 Poco::Net::HTTPRequestHandler* RootRedirectRequestHandlerFactory::createRequestHandler(const Poco::Net::HTTPServerRequest&)

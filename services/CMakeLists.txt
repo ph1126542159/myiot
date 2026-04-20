@@ -20,6 +20,10 @@ function(myiot_add_service_bundle)
         set(SVC_PACKAGE_VERSION "0.1.0")
     endif()
 
+    if(TARGET Poco::OpenTelemetry)
+        list(APPEND SVC_LINK_LIBS Poco::OpenTelemetry)
+    endif()
+
     set(bundle_spec "${CMAKE_CURRENT_BINARY_DIR}/${SVC_TARGET_NAME}.bndlspec")
     set(bundle_file "${CMAKE_BINARY_DIR}/bundles/${SVC_BUNDLE_NAME}_${SVC_PACKAGE_VERSION}.bndl")
     set(MYIOT_SERVICE_BUNDLE_NAME "${SVC_BUNDLE_NAME}")

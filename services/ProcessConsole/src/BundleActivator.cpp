@@ -7,6 +7,7 @@
 #include "Poco/OSP/Properties.h"
 #include "Poco/OSP/ServiceRef.h"
 #include "Poco/OSP/ServiceRegistry.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 
 namespace MyIoT {
 namespace Services {
@@ -17,13 +18,16 @@ class BundleActivator: public Poco::OSP::BundleActivator
 public:
     void start(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        auto activity = Poco::OpenTelemetry::beginBundleActivity(pContext, "bundle.start");
         _pServiceInstance = createProcessConsoleService(pContext);
         _pServiceRef = pContext->registry().registerService(ProcessConsoleService::SERVICE_NAME, _pServiceInstance, Poco::OSP::Properties());
         pContext->logger().information("MyIoT Process Console bundle started.");
+        activity.success("process console ready");
     }
 
     void stop(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        auto activity = Poco::OpenTelemetry::beginBundleActivity(pContext, "bundle.stop");
         if (_pServiceRef)
         {
             pContext->registry().unregisterService(_pServiceRef);
@@ -32,6 +36,7 @@ public:
 
         _pServiceInstance = 0;
         pContext->logger().information("MyIoT Process Console bundle stopped.");
+        activity.success("process console stopped");
     }
 
 private:

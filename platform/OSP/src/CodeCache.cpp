@@ -14,6 +14,7 @@
 
 #include "Poco/OSP/CodeCache.h"
 #include "Poco/File.h"
+#include "Poco/DirectoryIterator.h"
 #include "Poco/FileStream.h"
 #include "Poco/SharedLibrary.h"
 #include "Poco/StreamCopier.h"
@@ -89,10 +90,58 @@ std::string CodeCache::pathFor(const std::string& name, bool appendSuffix)
 	Path p(_path);
 	if (!name.empty())
 	{
-		if (appendSuffix)
-			p.setFileName(name + SharedLibrary::suffix());
-		else
-			p.setFileName(name);
+		const std::string fileName = appendSuffix ? name + SharedLibrary::suffix() : name;
+		p.setFileName(fileName);
+		if (!appendSuffix)
+		{
+			return p.toString();
+		}
+
+		File f(p);
+		if (!f.exists())
+		{
+			const std::string extension = p.getExtension();
+			int bestScore = 0;
+			Poco::Timestamp bestTimestamp;
+			std::string bestPath;
+			bool found = false;
+			Poco::DirectoryIterator end;
+			for (Poco::DirectoryIterator it(_path); it != end; ++it)
+			{
+				if (!it->isFile()) continue;
+				Poco::Path candidatePath(it.path());
+				const std::string candidateBaseName = candidatePath.getBaseName();
+				if (!extension.empty() && candidatePath.getExtension() != extension) continue;
+
+				int candidateScore = -1;
+#if defined(_DEBUG)
+				if (candidateBaseName == name + "d")
+					candidateScore = 0;
+				else if (candidateBaseName == name + "md")
+					candidateScore = 1;
+				else if (candidateBaseName == name)
+					candidateScore = 2;
+#else
+				if (candidateBaseName == name + "md")
+					candidateScore = 0;
+				else if (candidateBaseName == name)
+					candidateScore = 1;
+				else if (candidateBaseName == name + "d")
+					candidateScore = 2;
+#endif
+				if (candidateScore < 0) continue;
+
+				const Poco::Timestamp candidateTimestamp = it->getLastModified();
+				if (!found || candidateScore < bestScore || (candidateScore == bestScore && bestTimestamp < candidateTimestamp))
+				{
+					bestScore = candidateScore;
+					bestTimestamp = candidateTimestamp;
+					bestPath = it.path().toString();
+					found = true;
+				}
+			}
+			if (found) return bestPath;
+		}
 	}
 	return p.toString();
 }

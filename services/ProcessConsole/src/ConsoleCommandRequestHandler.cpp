@@ -12,6 +12,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/NumberParser.h"
 #include "Poco/String.h"
 #include "Poco/Timestamp.h"
@@ -125,8 +126,10 @@ ConsoleCommandRequestHandler::ConsoleCommandRequestHandler(Poco::OSP::BundleCont
 
 void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(_pContext, request, "processconsole.command");
     if (!isAuthenticated(_pContext, request))
     {
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED, "user is not authenticated");
         sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
         return;
     }
@@ -139,6 +142,7 @@ void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& r
         payload->set("ok", false);
         payload->set("message", "仅支持 GET 或 POST 请求。");
         payload->set("output", Poco::JSON::Array::Ptr(new Poco::JSON::Array));
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_METHOD_NOT_ALLOWED, "unsupported method");
         sendJSON(response, payload, Poco::Net::HTTPResponse::HTTP_METHOD_NOT_ALLOWED);
         return;
     }
@@ -146,6 +150,9 @@ void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& r
     Poco::Net::HTMLForm form(request, request.stream());
     const std::string command = Poco::trim(form.get("command", "help"));
     const int limit = parseLimit(form);
+    activity.tag("processconsole.command", command.empty() ? "help" : command);
+    activity.tag("processconsole.limit", std::to_string(limit));
+    activity.step("command.received", command.empty() ? "help" : command);
     Poco::OSP::Web::WebSession::Ptr pSession;
     try
     {
@@ -158,6 +165,7 @@ void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& r
     ProcessConsoleService::Ptr pConsoleService;
     try
     {
+        activity.step("service.resolve", ProcessConsoleService::SERVICE_NAME);
         pConsoleService = Poco::OSP::ServiceFinder::findByName<ProcessConsoleService>(_pContext, ProcessConsoleService::SERVICE_NAME);
     }
     catch (const Poco::Exception& exc)
@@ -168,14 +176,24 @@ void ConsoleCommandRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& r
         payload->set("message", "诊断控制台服务当前不可用。");
         payload->set("detail", exc.displayText());
         payload->set("output", Poco::JSON::Array::Ptr(new Poco::JSON::Array));
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE, exc.displayText());
         sendJSON(response, payload, Poco::Net::HTTPResponse::HTTP_SERVICE_UNAVAILABLE);
         return;
     }
 
+    activity.step("service.execute", command.empty() ? "help" : command);
     Poco::JSON::Object::Ptr payload = pConsoleService->execute(command, limit, currentWorkingDirectory(pSession));
     payload->set("authenticated", true);
     payload->set("updatedAt", Poco::DateTimeFormatter::format(Poco::Timestamp(), Poco::DateTimeFormat::ISO8601_FORMAT));
     updateWorkingDirectory(pSession, payload);
+    if (payload->optValue("ok", true))
+    {
+        Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, payload->optValue("message", std::string("command complete")));
+    }
+    else
+    {
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, payload->optValue("message", std::string("command failed")));
+    }
     sendJSON(response, payload);
 }
 

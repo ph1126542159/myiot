@@ -718,15 +718,43 @@ BundleActivator* BundleLoader::loadActivator(BundleInfo& bundleInfo)
 				_logger.debug("Loading library %s."s, libPath);
 			}
 			pClassLoader->loadLibrary(libPath);
-			const ActivatorClassLoader::Meta& meta = pClassLoader->classFor(activatorClass);
-			if (meta.canCreate())
+			try
 			{
-				pActivator = meta.create();
-				meta.autoDelete(pActivator);
+				const ActivatorClassLoader::Meta& meta = pClassLoader->classFor(activatorClass);
+				if (meta.canCreate())
+				{
+					pActivator = meta.create();
+					meta.autoDelete(pActivator);
+				}
+				else
+				{
+					pActivator = &meta.instance();
+				}
 			}
-			else
+			catch (Poco::NotFoundException&)
 			{
-				pActivator = &meta.instance();
+				const ActivatorClassLoader::Manif& manifest = pClassLoader->manifestFor(libPath);
+				std::string msg("Activator class '"s);
+				msg += activatorClass;
+				msg += "' was not found in ";
+				msg += libPath;
+				msg += ". Available classes: ";
+				if (manifest.empty())
+				{
+					msg += "<empty>";
+				}
+				else
+				{
+					bool first = true;
+					for (ActivatorClassLoader::Manif::Iterator it = manifest.begin(); it != manifest.end(); ++it)
+					{
+						if (!first) msg += ", ";
+						msg += (*it)->name();
+						first = false;
+					}
+				}
+				_logger.error(msg);
+				throw;
 			}
 			bundleInfo.pBundle->setActivator(pActivator);
 		}

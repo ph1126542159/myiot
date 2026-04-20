@@ -1,6 +1,7 @@
 #include "IndexRequestHandler.h"
 #include "Poco/Net/HTTPServerRequest.h"
 #include "Poco/Net/HTTPServerResponse.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/StreamCopier.h"
 #include <memory>
 
@@ -24,8 +25,9 @@ IndexRequestHandler::IndexRequestHandler(Poco::OSP::BundleContext::Ptr pContext)
 {
 }
 
-void IndexRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& /*request*/, Poco::Net::HTTPServerResponse& response)
+void IndexRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& request, Poco::Net::HTTPServerResponse& response)
 {
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(_pContext, request, "logviewer.index");
     std::unique_ptr<std::istream> pResource(_pContext->thisBundle()->getResource("webapp/index.html"));
     if (!pResource)
     {
@@ -33,6 +35,7 @@ void IndexRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& /*request*
         response.setContentType("text/plain");
         applyNoCacheHeaders(response);
         response.send() << "Not Found";
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_NOT_FOUND, "index resource not found");
         return;
     }
 
@@ -43,6 +46,7 @@ void IndexRequestHandler::handleRequest(Poco::Net::HTTPServerRequest& /*request*
 
     std::ostream& out = response.send();
     Poco::StreamCopier::copyStream(*pResource, out);
+    Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "index served");
 }
 
 Poco::Net::HTTPRequestHandler* IndexRequestHandlerFactory::createRequestHandler(const Poco::Net::HTTPServerRequest& /*request*/)

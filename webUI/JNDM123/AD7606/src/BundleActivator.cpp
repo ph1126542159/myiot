@@ -2,6 +2,7 @@
 #include "Poco/ClassLibrary.h"
 #include "Poco/OSP/BundleActivator.h"
 #include "Poco/OSP/BundleContext.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 
 namespace MyIoT {
 namespace WebUI {
@@ -12,14 +13,18 @@ class BundleActivator: public Poco::OSP::BundleActivator
 public:
     void start(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        auto activity = Poco::OpenTelemetry::beginBundleActivity(pContext, "bundle.start");
         initializeJNDM123Runtime(pContext);
         pContext->logger().information("MyIoT WebUI JNDM123 bundle started.");
+        activity.success("jndm123 web bundle ready");
     }
 
     void stop(Poco::OSP::BundleContext::Ptr pContext) override
     {
+        auto activity = Poco::OpenTelemetry::beginBundleActivity(pContext, "bundle.stop");
         stopJNDM123Runtime();
         pContext->logger().information("MyIoT WebUI JNDM123 bundle stopped.");
+        activity.success("jndm123 web bundle stopped");
     }
 };
 

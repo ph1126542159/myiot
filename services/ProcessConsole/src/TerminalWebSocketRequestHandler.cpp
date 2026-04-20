@@ -11,6 +11,7 @@
 #include "Poco/OSP/ServiceFinder.h"
 #include "Poco/OSP/Web/WebSession.h"
 #include "Poco/OSP/Web/WebSessionManager.h"
+#include "Poco/OpenTelemetry/TelemetryHelpers.h"
 #include "Poco/Path.h"
 #include "Poco/String.h"
 #include "Poco/UUIDGenerator.h"
@@ -851,8 +852,10 @@ void TerminalWebSocketRequestHandler::handleRequest(
     Poco::Net::HTTPServerRequest& request,
     Poco::Net::HTTPServerResponse& response)
 {
+    auto activity = Poco::OpenTelemetry::beginRequestActivity(_pContext, request, "processconsole.terminal.websocket");
     if (!isAuthenticated(_pContext, request))
     {
+        Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED, "user is not authenticated");
         sendJSON(response, createUnauthorizedPayload(), Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED);
         return;
     }
@@ -862,18 +865,22 @@ void TerminalWebSocketRequestHandler::handleRequest(
     {
         Poco::Net::WebSocket webSocket(request, response);
         webSocket.setNoDelay(true);
+        activity.step("websocket.accepted");
 
         TerminalPtySession session(_pContext, webSocket, request);
         session.run();
+        Poco::OpenTelemetry::succeedRequest(activity, Poco::Net::HTTPResponse::HTTP_OK, "pty session closed");
     }
     catch (const Poco::Exception& exc)
     {
+        Poco::OpenTelemetry::failException(activity, exc);
         _pContext->logger().error("PTY websocket request failed: " + exc.displayText());
     }
 #else
     Poco::JSON::Object::Ptr payload = new Poco::JSON::Object;
     payload->set("ok", false);
     payload->set("message", "PTY terminal is currently only implemented for Windows hosts.");
+    Poco::OpenTelemetry::failRequest(activity, Poco::Net::HTTPResponse::HTTP_NOT_IMPLEMENTED, "pty terminal unsupported on this host");
     sendJSON(response, payload, Poco::Net::HTTPResponse::HTTP_NOT_IMPLEMENTED);
 #endif
 }

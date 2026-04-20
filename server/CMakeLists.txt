@@ -12,6 +12,10 @@ target_link_libraries(macchina
         Poco::Foundation
 )
 
+if(TARGET Poco::OpenTelemetry)
+    target_link_libraries(macchina PRIVATE Poco::OpenTelemetry)
+endif()
+
 add_custom_command(TARGET macchina POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/macchina.properties"

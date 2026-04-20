@@ -19,6 +19,9 @@ set_target_properties(OSPWeb
 )
 
 target_link_libraries(OSPWeb PUBLIC Poco::OSP Poco::Net Poco::Util Poco::XML Poco::Foundation)
+if(TARGET Poco::OpenTelemetry)
+    target_link_libraries(OSPWeb PUBLIC Poco::OpenTelemetry)
+endif()
 target_include_directories(OSPWeb
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
