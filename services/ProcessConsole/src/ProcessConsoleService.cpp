@@ -25,6 +25,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -283,6 +284,10 @@ std::vector<std::string> splitOutputLines(const std::string& text)
     return lines;
 }
 
+#if defined(_WIN32)
+std::string normalizeCapturedWindowsOutput(const std::string& value);
+#endif
+
 std::vector<std::string> captureCommandOutput(
     const std::string& executable,
     const Poco::Process::Args& args,
@@ -335,6 +340,12 @@ std::vector<std::string> captureCommandOutput(
         reader.join();
     }
 
+#if defined(_WIN32)
+    // Native Windows tools may still emit the active code page even when the
+    // hosting shell is configured for UTF-8, so normalize before JSON encoding.
+    buffer = normalizeCapturedWindowsOutput(buffer);
+#endif
+
     return splitOutputLines(buffer);
 }
 
@@ -371,6 +382,82 @@ struct ShellBackendInfo
 
 #if defined(_WIN32)
 
+bool isValidUtf8(std::string_view value)
+{
+    const auto* bytes = reinterpret_cast<const unsigned char*>(value.data());
+    std::size_t index = 0;
+
+    while (index < value.size())
+    {
+        const unsigned char lead = bytes[index];
+        if (lead <= 0x7F)
+        {
+            ++index;
+            continue;
+        }
+
+        std::size_t continuationCount = 0;
+        unsigned char secondMin = 0x80;
+        unsigned char secondMax = 0xBF;
+
+        if (lead >= 0xC2 && lead <= 0xDF)
+        {
+            continuationCount = 1;
+        }
+        else if (lead == 0xE0)
+        {
+            continuationCount = 2;
+            secondMin = 0xA0;
+        }
+        else if (lead >= 0xE1 && lead <= 0xEC)
+        {
+            continuationCount = 2;
+        }
+        else if (lead == 0xED)
+        {
+            continuationCount = 2;
+            secondMax = 0x9F;
+        }
+        else if (lead >= 0xEE && lead <= 0xEF)
+        {
+            continuationCount = 2;
+        }
+        else if (lead == 0xF0)
+        {
+            continuationCount = 3;
+            secondMin = 0x90;
+        }
+        else if (lead >= 0xF1 && lead <= 0xF3)
+        {
+            continuationCount = 3;
+        }
+        else if (lead == 0xF4)
+        {
+            continuationCount = 3;
+            secondMax = 0x8F;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (index + continuationCount >= value.size()) return false;
+
+        const unsigned char second = bytes[index + 1];
+        if (second < secondMin || second > secondMax) return false;
+
+        for (std::size_t offset = 2; offset <= continuationCount; ++offset)
+        {
+            const unsigned char continuation = bytes[index + offset];
+            if (continuation < 0x80 || continuation > 0xBF) return false;
+        }
+
+        index += continuationCount + 1;
+    }
+
+    return true;
+}
+
 std::string utf8FromWide(const std::wstring& value)
 {
     if (value.empty()) return std::string();
@@ -388,6 +475,57 @@ std::string utf8FromWide(const std::wstring& value)
         nullptr,
         nullptr);
     return result;
+}
+
+std::string utf8FromCodePage(const std::string& value, UINT codePage)
+{
+    if (value.empty() || codePage == 0) return std::string();
+
+    const int wideLength = MultiByteToWideChar(
+        codePage,
+        MB_ERR_INVALID_CHARS,
+        value.data(),
+        static_cast<int>(value.size()),
+        nullptr,
+        0);
+    if (wideLength <= 0) return std::string();
+
+    std::wstring wide(static_cast<std::size_t>(wideLength), L'\0');
+    const int converted = MultiByteToWideChar(
+        codePage,
+        MB_ERR_INVALID_CHARS,
+        value.data(),
+        static_cast<int>(value.size()),
+        wide.data(),
+        wideLength);
+    if (converted != wideLength) return std::string();
+
+    return utf8FromWide(wide);
+}
+
+std::string normalizeCapturedWindowsOutput(const std::string& value)
+{
+    if (value.empty() || isValidUtf8(value)) return value;
+
+    std::vector<UINT> codePages;
+    const auto tryAddCodePage = [&codePages](UINT codePage)
+    {
+        if (codePage == 0 || codePage == CP_UTF8) return;
+        if (std::find(codePages.begin(), codePages.end(), codePage) != codePages.end()) return;
+        codePages.push_back(codePage);
+    };
+
+    tryAddCodePage(GetConsoleOutputCP());
+    tryAddCodePage(GetOEMCP());
+    tryAddCodePage(GetACP());
+
+    for (UINT codePage: codePages)
+    {
+        const std::string converted = utf8FromCodePage(value, codePage);
+        if (!converted.empty()) return converted;
+    }
+
+    return value;
 }
 
 std::string searchExecutable(const std::wstring& executableName)
@@ -1410,7 +1548,9 @@ private:
                 args.push_back(
                     "$ProgressPreference='SilentlyContinue'; "
                     "$ErrorActionPreference='Continue'; "
+                    "[Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false); "
                     "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); "
+                    "$OutputEncoding=[System.Text.UTF8Encoding]::new($false); "
                     "Invoke-Expression '" + escapePowerShellCommand(commandLine) + "'");
                 lines = captureCommandOutput(backend.executable, args, workingDirectory, timeoutMs, exitCode, timedOut);
                 break;

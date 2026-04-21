@@ -373,6 +373,46 @@ function(myiot_bootstrap_clone_if_missing source_dir repository tag display_name
     )
 endfunction()
 
+function(myiot_bootstrap_update_submodules source_dir display_name)
+    set(options)
+    set(oneValueArgs)
+    set(multiValueArgs PATHS)
+    cmake_parse_arguments(MYIOT_SUBMODULES "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(NOT EXISTS "${source_dir}/.gitmodules")
+        return()
+    endif()
+
+    if(NOT EXISTS "${source_dir}/.git")
+        message(FATAL_ERROR
+            "${display_name} source tree at ${source_dir} declares git submodules, "
+            "but it is not a git checkout. Remove the directory so bootstrap can clone it again."
+        )
+    endif()
+
+    find_package(Git REQUIRED)
+
+    set(_myiot_submodule_command
+        "${GIT_EXECUTABLE}"
+        -C "${source_dir}"
+        submodule
+        update
+        --init
+        --recursive
+    )
+
+    if(MYIOT_SUBMODULES_PATHS)
+        list(APPEND _myiot_submodule_command ${MYIOT_SUBMODULES_PATHS})
+    endif()
+
+    string(MAKE_C_IDENTIFIER "submodules-${display_name}" _myiot_submodule_log_name)
+    myiot_bootstrap_run_logged(
+        "Updating ${display_name} git submodules"
+        "${_myiot_submodule_log_name}"
+        COMMAND ${_myiot_submodule_command}
+    )
+endfunction()
+
 function(myiot_bootstrap_append_common_configure_args out_var)
     set(_myiot_args ${ARGN})
 

@@ -69,12 +69,32 @@ function(myiot_add_webui_package)
     set(MYIOT_WEBUI_PACKAGE_VERSION "${WEBUI_PACKAGE_VERSION}")
     configure_file("${WEBUI_BUNDLE_SPEC_TEMPLATE}" "${bundle_spec}" @ONLY)
 
+    set(npm_env_command
+        ${CMAKE_COMMAND} -E env
+        "CI=1"
+        "FORCE_COLOR=0"
+        "NO_COLOR=1"
+        "npm_config_color=false"
+    )
+
     if(WIN32)
-        set(npm_install_command cmd /c call "${MYIOT_NPM_EXECUTABLE}" install)
-        set(npm_build_command cmd /c call "${MYIOT_NPM_EXECUTABLE}" run build)
+        set(npm_install_command
+            ${npm_env_command}
+            cmd /d /c call "${MYIOT_NPM_EXECUTABLE}" install
+        )
+        set(npm_build_command
+            ${npm_env_command}
+            cmd /d /c call "${MYIOT_NPM_EXECUTABLE}" run build
+        )
     else()
-        set(npm_install_command "${MYIOT_NPM_EXECUTABLE}" install)
-        set(npm_build_command "${MYIOT_NPM_EXECUTABLE}" run build)
+        set(npm_install_command
+            ${npm_env_command}
+            "${MYIOT_NPM_EXECUTABLE}" install
+        )
+        set(npm_build_command
+            ${npm_env_command}
+            "${MYIOT_NPM_EXECUTABLE}" run build
+        )
     endif()
 
     add_custom_target(${WEBUI_TARGET_NAME}_UIInstall

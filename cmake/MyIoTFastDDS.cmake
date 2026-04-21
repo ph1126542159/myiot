@@ -22,8 +22,6 @@ find_package(fastdds CONFIG QUIET NO_DEFAULT_PATH PATHS "${_myiot_fastdds_config
 
 if(fastdds_FOUND)
     message(STATUS "Found Fast-DDS package in install prefix: ${fastdds_DIR}")
-elseif(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    message(STATUS "Skipping Fast-DDS bootstrap for non-Linux target platform: ${CMAKE_SYSTEM_NAME}")
 elseif(MYIOT_ENABLE_FASTDDS_BOOTSTRAP)
     myiot_collect_bootstrap_context_definitions(_myiot_fastdds_bootstrap_defs)
     list(APPEND _myiot_fastdds_bootstrap_defs
