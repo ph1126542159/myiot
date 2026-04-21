@@ -303,7 +303,7 @@ DividerSnapshot initializeHardwareFromSavedConfiguration()
     const SavedDividerConfiguration saved = loadSavedDividerConfiguration();
     if (!saved.hasAnyOutput)
     {
-        throw Poco::NotFoundException("No valid saved divider configuration was found for Y1~Y6.");
+        throw Poco::NotFoundException("No valid saved divider configuration was found for Y1~Y7.");
     }
 
     DividerSnapshot snapshot = withCdce937(
@@ -321,7 +321,7 @@ DividerSnapshot initializeHardwareFromSavedConfiguration()
         });
 
     snapshot.message = saved.hasAllOutputs
-        ? "CDCE937 PLL bypass enabled and saved divider state restored for Y1~Y6."
+        ? "CDCE937 PLL bypass enabled and saved divider state restored for Y1~Y7."
         : "CDCE937 PLL bypass enabled and saved divider state restored for available outputs.";
     return snapshot;
 }

@@ -272,6 +272,7 @@ AcquisitionRuntime::AcquisitionRuntime(int ddsDomain):
         (_udpPublisher && _udpPublisher->enabled() ? "enabled" : "disabled") +
         " target=" + _udpHost + ":" + std::to_string(_udpPort) +
         " framesPerPacket=" + std::to_string(_udpMaxFramesPerPacket));
+    initializeFromSavedConfigurationLocked();
     publishSnapshot();
 }
 
@@ -837,6 +838,71 @@ void AcquisitionRuntime::publishSnapshot()
 
     Poco::FastMutex::ScopedLock lock(_stateMutex);
     _lastPublishedAt = message.updatedAt;
+}
+
+void AcquisitionRuntime::initializeFromSavedConfigurationLocked()
+{
+#if defined(__linux__)
+    Poco::FastMutex::ScopedLock lock(_controlMutex);
+    _lastCommandAction = "startup-init";
+    _lastCommandUpdatedAt = isoTimestamp();
+
+    try
+    {
+        const DividerSnapshot dividerSnapshot = initializeHardwareFromSavedConfiguration();
+        updateDividerSnapshotLocked(dividerSnapshot);
+        _statusMessage = dividerSnapshot.message;
+        _lastError.clear();
+        _lastCommandOk = dividerSnapshot.ok;
+        logger().information("JNDM123 startup divider restore: " + dividerSnapshot.message);
+
+        const std::string safetyMessage = acquisitionClockSafetyMessage(dividerSnapshot);
+        if (!safetyMessage.empty())
+        {
+            _statusMessage += " " + safetyMessage;
+            _lastError = safetyMessage;
+            _lastCommandOk = false;
+            logger().warning("JNDM123 startup acquisition skipped: " + safetyMessage);
+            return;
+        }
+
+        Object::Ptr startPayload = startAcquisitionLocked();
+        const bool startedOk = startPayload->optValue("ok", false);
+        _statusMessage = startPayload->optValue("message", _statusMessage);
+        _lastError = startPayload->optValue("lastError", _lastError);
+        _lastCommandOk = startedOk;
+
+        if (startedOk)
+        {
+            logger().information("JNDM123 startup acquisition restore: " + _statusMessage);
+        }
+        else
+        {
+            logger().warning("JNDM123 startup acquisition restore failed: " + _statusMessage);
+        }
+    }
+    catch (const Poco::NotFoundException& exc)
+    {
+        _statusMessage = "Acquisition agent ready. No saved divider configuration found.";
+        _lastError.clear();
+        _lastCommandOk = true;
+        logger().information("JNDM123 startup restore skipped: " + exc.displayText());
+    }
+    catch (const Poco::Exception& exc)
+    {
+        _statusMessage = "Acquisition agent startup restore failed: " + exc.displayText();
+        _lastError = exc.displayText();
+        _lastCommandOk = false;
+        logger().warning(_statusMessage);
+    }
+    catch (const std::exception& exc)
+    {
+        _statusMessage = std::string("Acquisition agent startup restore failed: ") + exc.what();
+        _lastError = exc.what();
+        _lastCommandOk = false;
+        logger().warning(_statusMessage);
+    }
+#endif
 }
 
 void AcquisitionRuntime::drainQueue()

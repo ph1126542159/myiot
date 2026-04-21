@@ -82,6 +82,7 @@ public:
     void handleControlMessage(const AcquisitionDdsJsonMessage& message);
 
 private:
+    void initializeFromSavedConfigurationLocked();
     void publishSnapshot();
     Poco::JSON::Object::Ptr startAcquisitionLocked();
     void stopAcquisitionLocked(const std::string& message);

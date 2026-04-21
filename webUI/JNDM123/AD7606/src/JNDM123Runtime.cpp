@@ -79,38 +79,18 @@ void JNDM123Runtime::initializeFromSavedConfiguration()
 #if defined(__linux__)
     try
     {
-        Poco::FastMutex::ScopedLock lock(_controlMutex);
-        Object::Ptr payload = DdsAcquisitionBridge::instance().sendCommandAndAwait("divider-init", std::string(), true);
-        DividerSnapshot snapshot = dividerSnapshotFromPayload(payload);
-
-        const std::string safetyMessage = acquisitionClockSafetyMessage(snapshot);
-        if (!safetyMessage.empty())
-        {
-            logger().warning(safetyMessage);
-            return;
-        }
-
-        try
-        {
-            Object::Ptr payload = DdsAcquisitionBridge::instance().sendCommandAndAwait("start", std::string(), true);
-            const std::string message = payload->optValue(
-                "message",
-                std::string("CDCE937 PLL bypass enabled, saved divider state restored for Y1~Y6, acquisition started."));
-            logger().information(message);
-        }
-        catch (const Poco::Exception& exc)
-        {
-            logger().warning(
-                "Saved divider state restored, but the external acquisition process did not start: " + exc.displayText());
-        }
+        Object::Ptr payload = DdsAcquisitionBridge::instance().latestSnapshot();
+        logger().information(
+            "JNDM123 WebUI runtime initialized; acquisition bootstrap is handled by the external acquisition agent. "
+            "Current state: " + payload->optValue("message", std::string("Waiting for acquisition snapshots.")));
     }
     catch (const Poco::Exception& exc)
     {
-        logger().warning("JNDM123 startup initialization skipped: " + exc.displayText());
+        logger().warning("JNDM123 WebUI startup bridge initialization skipped: " + exc.displayText());
     }
     catch (const std::exception& exc)
     {
-        logger().warning(std::string("JNDM123 startup initialization skipped: ") + exc.what());
+        logger().warning(std::string("JNDM123 WebUI startup bridge initialization skipped: ") + exc.what());
     }
 #endif
 }
