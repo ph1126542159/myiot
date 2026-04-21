@@ -108,11 +108,6 @@ function(myiot_add_webui_package)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${stage_code_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${WEBUI_TARGET_NAME}>" "${stage_code_dir}/"
     )
-    if(MSVC)
-        list(APPEND bundle_stage_commands
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_PDB_FILE:${WEBUI_TARGET_NAME}>" "${stage_code_dir}/"
-        )
-    endif()
 
     add_custom_target(${WEBUI_TARGET_NAME}_Bundle ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundles"

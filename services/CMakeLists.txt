@@ -51,7 +51,6 @@ function(myiot_add_service_bundle)
     if(MSVC)
         set(bundle_code_args
             "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>"
-            "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${SVC_TARGET_NAME}>"
         )
     else()
         set(bundle_code_args "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_FILE_NAME:${SVC_TARGET_NAME}>*")

@@ -9,6 +9,7 @@ myiot_add_webui_package(
         ${CMAKE_CURRENT_SOURCE_DIR}/src/BundleActivator.cpp
     LINK_LIBS
         Poco::OSP
+        Poco::Net
     INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

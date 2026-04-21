@@ -15,10 +15,26 @@ class OpenTelemetry_API TelemetryService: public Poco::OSP::Service
 public:
     using Ptr = Poco::AutoPtr<TelemetryService>;
 
+#if defined(MYIOT_POCO_OPENTELEMETRY_ENABLED) && MYIOT_POCO_OPENTELEMETRY_ENABLED
     static const std::string SERVICE_NAME;
+#else
+    inline static const std::string SERVICE_NAME = "io.myiot.telemetry";
+#endif
 
+#if defined(MYIOT_POCO_OPENTELEMETRY_ENABLED) && MYIOT_POCO_OPENTELEMETRY_ENABLED
     const std::type_info& type() const override;
     bool isA(const std::type_info& otherType) const override;
+#else
+    const std::type_info& type() const override
+    {
+        return typeid(TelemetryService);
+    }
+
+    bool isA(const std::type_info& otherType) const override
+    {
+        return typeid(TelemetryService) == otherType || Poco::OSP::Service::isA(otherType);
+    }
+#endif
 
     virtual std::string beginActivity(
         const std::string& name,
@@ -60,11 +76,24 @@ public:
     virtual TelemetrySnapshot snapshot(const TelemetrySnapshotOptions& options) const = 0;
 
 protected:
+#if defined(MYIOT_POCO_OPENTELEMETRY_ENABLED) && MYIOT_POCO_OPENTELEMETRY_ENABLED
     ~TelemetryService() override;
+#else
+    ~TelemetryService() override = default;
+#endif
 };
 
+#if defined(MYIOT_POCO_OPENTELEMETRY_ENABLED) && MYIOT_POCO_OPENTELEMETRY_ENABLED
 OpenTelemetry_API TelemetryService::Ptr createTelemetryService(
     const TelemetryConfiguration& configuration = TelemetryConfiguration());
+#else
+inline TelemetryService::Ptr createTelemetryService(
+    const TelemetryConfiguration& configuration = TelemetryConfiguration())
+{
+    static_cast<void>(configuration);
+    return nullptr;
+}
+#endif
 
 } } // namespace Poco::OpenTelemetry
 

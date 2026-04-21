@@ -1,5 +1,6 @@
 set(myiot_bundle_watcher_link_libs
     Poco::OSP
+    Poco::Net
     Poco::Util
     Poco::Foundation
 )

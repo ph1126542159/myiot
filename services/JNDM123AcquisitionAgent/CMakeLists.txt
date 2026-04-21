@@ -1,21 +1,7 @@
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-set(myiot_fastdds_prefix "/home/ph/work/myiot/build/install")
-set(myiot_fastdds_dir "${myiot_fastdds_prefix}/share/fastdds/cmake")
-set(myiot_fastcdr_dir "${myiot_fastdds_prefix}/lib/cmake/fastcdr")
-set(myiot_foonathan_dir "${myiot_fastdds_prefix}/lib/foonathan_memory/cmake")
-
-if(NOT fastdds_FOUND)
-    if(EXISTS "${myiot_fastdds_dir}/fastdds-config.cmake")
-        set(fastdds_DIR "${myiot_fastdds_dir}")
-    endif()
-    if(EXISTS "${myiot_fastcdr_dir}/fastcdr-config.cmake")
-        set(fastcdr_DIR "${myiot_fastcdr_dir}")
-    endif()
-    if(EXISTS "${myiot_foonathan_dir}/foonathan_memory-config.cmake")
-        set(foonathan_memory_DIR "${myiot_foonathan_dir}")
-    endif()
+if(NOT TARGET fastdds)
     find_package(fastdds CONFIG REQUIRED)
 endif()
 
@@ -100,15 +86,9 @@ install(TARGETS MyIoTJNDM123AcquisitionApi
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-install(FILES
-    "${myiot_fastdds_prefix}/lib/libfastdds.so.3.6.0.0"
-    "${myiot_fastdds_prefix}/lib/libfastcdr.so.2.3.5"
+install(DIRECTORY "${MYIOT_FASTDDS_PREFIX}/lib/"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    FILES_MATCHING
+        PATTERN "libfastdds.so*"
+        PATTERN "libfastcdr.so*"
 )
-
-install(CODE [[
-    file(CREATE_LINK "libfastdds.so.3.6.0.0" "${CMAKE_INSTALL_PREFIX}/lib/libfastdds.so.3.6" SYMBOLIC)
-    file(CREATE_LINK "libfastdds.so.3.6" "${CMAKE_INSTALL_PREFIX}/lib/libfastdds.so" SYMBOLIC)
-    file(CREATE_LINK "libfastcdr.so.2.3.5" "${CMAKE_INSTALL_PREFIX}/lib/libfastcdr.so.2" SYMBOLIC)
-    file(CREATE_LINK "libfastcdr.so.2" "${CMAKE_INSTALL_PREFIX}/lib/libfastcdr.so" SYMBOLIC)
-]])

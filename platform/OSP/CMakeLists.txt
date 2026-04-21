@@ -39,11 +39,6 @@ function(myiot_add_osp_bundle target_name output_name)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bundle")
             file(GLOB_RECURSE bundle_resource_deps CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/bundle/*")
         endif()
-
-        if(MSVC)
-            list(APPEND bundle_code_args "${MYIOT_BUNDLE_OPT_PREFIX}code=${bundle_code_rel_dir}/$<TARGET_PDB_FILE_NAME:${target_name}>")
-        endif()
-
         add_custom_command(
             OUTPUT "${bundle_stamp}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${bundle_output_dir}"
