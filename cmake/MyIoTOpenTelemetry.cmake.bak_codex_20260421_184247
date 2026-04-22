@@ -5,7 +5,6 @@ if(NOT MYIOT_ENABLE_OPENTELEMETRY)
 endif()
 
 set(_myiot_local_opentelemetry_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/opentelemetry-cpp")
-find_package(Threads REQUIRED)
 if(EXISTS "${_myiot_local_opentelemetry_config_dir}/opentelemetry-cpp-config.cmake"
    AND (
         NOT EXISTS "${_myiot_local_opentelemetry_config_dir}/component-definitions.cmake"

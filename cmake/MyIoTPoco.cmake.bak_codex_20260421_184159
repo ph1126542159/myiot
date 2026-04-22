@@ -56,50 +56,6 @@ elseif(WIN32 AND CMAKE_CONFIGURATION_TYPES
     )
 endif()
 
-set(_myiot_local_poco_targets_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/Poco")
-set(_myiot_local_poco_target_components
-    Foundation
-    XML
-    JSON
-    Util
-    Net
-    Crypto
-    NetSSL
-    Zip
-    CppParser
-    Redis
-    JWT
-)
-if(MYIOT_ENABLE_DATA_MODULES)
-    list(APPEND _myiot_local_poco_target_components
-        Data
-        DataSQLite
-        ActiveRecord
-    )
-endif()
-
-set(_myiot_local_poco_can_import_targets TRUE)
-foreach(_myiot_poco_component IN LISTS _myiot_local_poco_target_components)
-    if(NOT EXISTS "${_myiot_local_poco_targets_dir}/Poco${_myiot_poco_component}Targets.cmake")
-        set(_myiot_local_poco_can_import_targets FALSE)
-        break()
-    endif()
-endforeach()
-unset(_myiot_poco_component)
-
-if(NOT Poco_FOUND
-   AND _myiot_local_poco_can_import_targets
-   AND EXISTS "${_myiot_local_cppunit_release}"
-   AND EXISTS "${CMAKE_BINARY_DIR}/staging/cmake/PocoCppUnitTargets.cmake")
-    foreach(_myiot_poco_component IN LISTS _myiot_local_poco_target_components)
-        include("${_myiot_local_poco_targets_dir}/Poco${_myiot_poco_component}Targets.cmake")
-    endforeach()
-    unset(_myiot_poco_component)
-    set(Poco_DIR "${_myiot_local_poco_targets_dir}")
-    set(Poco_FOUND TRUE)
-    message(STATUS "Falling back to direct Poco imported targets from: ${Poco_DIR}")
-endif()
-
 if(NOT Poco_FOUND AND MYIOT_ENABLE_POCO_BOOTSTRAP)
     myiot_collect_bootstrap_context_definitions(_myiot_poco_bootstrap_defs)
     list(APPEND _myiot_poco_bootstrap_defs
