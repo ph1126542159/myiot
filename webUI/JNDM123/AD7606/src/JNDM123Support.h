@@ -27,7 +27,8 @@ using Poco::JSON::Object;
 constexpr const char* kDefaultI2CDevice = "/dev/i2c-0";
 constexpr const char* kDividerStateFile = "/var/lib/myiot/jndm123-divider-state.properties";
 constexpr std::size_t kDividerOutputCount = 7;
-constexpr std::size_t kDividerStartupOutputCount = 6;
+constexpr std::size_t kDividerPersistedOutputCount = kDividerOutputCount;
+constexpr std::size_t kDividerAcquisitionOutputCount = 6;
 constexpr std::size_t kAd7606Count = 6;
 constexpr std::size_t kChannelsPerChip = 8;
 constexpr std::size_t kHistoryLimit = 240;
@@ -55,8 +56,8 @@ struct SavedDividerConfiguration
 {
     std::string devicePath = kDefaultI2CDevice;
     Poco::UInt64 referenceClockHz = kFallbackReferenceClockHz;
-    std::array<int, kDividerStartupOutputCount> dividers{{1, 1, 1, 1, 1, 1}};
-    std::array<bool, kDividerStartupOutputCount> savedOutputs{{false, false, false, false, false, false}};
+    std::array<int, kDividerPersistedOutputCount> dividers{{1, 1, 1, 1, 1, 1, 1}};
+    std::array<bool, kDividerPersistedOutputCount> savedOutputs{{false, false, false, false, false, false, false}};
     bool hasAnyOutput = false;
     bool hasAllOutputs = false;
 };
