@@ -37,6 +37,31 @@ function(myiot_normalize_imported_target_locations target_name)
     endif()
 endfunction()
 
+function(myiot_copy_windows_runtime_dlls target_name)
+    if(NOT WIN32 OR NOT TARGET ${target_name})
+        return()
+    endif()
+
+    # Bootstrap dependencies install runtime DLLs to the shared install/bin prefix.
+    # Mirror them into the local target output directory so Windows executables can run in-place.
+    file(GLOB _myiot_windows_runtime_dlls
+        "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/*.dll"
+    )
+    list(REMOVE_DUPLICATES _myiot_windows_runtime_dlls)
+
+    foreach(_myiot_runtime_dll IN LISTS _myiot_windows_runtime_dlls)
+        if(EXISTS "${_myiot_runtime_dll}")
+            get_filename_component(_myiot_runtime_dll_name "${_myiot_runtime_dll}" NAME)
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${_myiot_runtime_dll}"
+                    "$<TARGET_FILE_DIR:${target_name}>/${_myiot_runtime_dll_name}"
+                VERBATIM
+            )
+        endif()
+    endforeach()
+endfunction()
+
 function(myiot_append_toolchain_cmake_args out_var)
     set(_myiot_args ${ARGN})
 

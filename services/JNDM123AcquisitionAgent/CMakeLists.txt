@@ -62,6 +62,7 @@ add_executable(myiot-jndm123-acquisition-agent
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionUdpStream.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/AcquisitionRuntime.cpp
 )
+myiot_copy_windows_runtime_dlls(myiot-jndm123-acquisition-agent)
 target_link_libraries(myiot-jndm123-acquisition-agent PRIVATE
     Poco::JSON
     Poco::Net

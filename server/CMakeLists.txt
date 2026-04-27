@@ -23,6 +23,8 @@ add_custom_command(TARGET macchina POST_BUILD
     VERBATIM
 )
 
+myiot_copy_windows_runtime_dlls(macchina)
+
 if(WIN32 AND MYIOT_OPENSSL_RUNTIME_DLLS)
     foreach(openssl_dll IN LISTS MYIOT_OPENSSL_RUNTIME_DLLS)
         if(EXISTS "${openssl_dll}")

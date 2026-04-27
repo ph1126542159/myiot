@@ -9,6 +9,8 @@ set_target_properties(OSPBundleCreator
     OUTPUT_NAME bundle
 )
 
+myiot_copy_windows_runtime_dlls(OSPBundleCreator)
+
 target_link_libraries(OSPBundleCreator
     PRIVATE
         Poco::OSP

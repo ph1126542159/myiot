@@ -7,6 +7,8 @@ set_target_properties(OSPStripBundle
     OUTPUT_NAME strip-bundle
 )
 
+myiot_copy_windows_runtime_dlls(OSPStripBundle)
+
 target_link_libraries(OSPStripBundle
     PRIVATE
         Poco::Zip

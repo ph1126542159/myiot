@@ -7,6 +7,8 @@ set_target_properties(OSPCodeCacheUtility
     OUTPUT_NAME ccutil
 )
 
+myiot_copy_windows_runtime_dlls(OSPCodeCacheUtility)
+
 target_link_libraries(OSPCodeCacheUtility
     PRIVATE
         Poco::OSP

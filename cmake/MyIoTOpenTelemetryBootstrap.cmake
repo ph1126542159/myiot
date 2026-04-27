@@ -54,6 +54,10 @@ endif()
 if(WIN32)
     list(APPEND _myiot_opentelemetry_args
         -DWITH_ETW:BOOL=OFF
+        -Dprotobuf_MSVC_STATIC_RUNTIME:BOOL=OFF
+        -DABSL_MSVC_STATIC_RUNTIME:BOOL=OFF
+        -DCURL_STATIC_CRT:BOOL=OFF
+        -Dprotobuf_FORCE_FETCH_DEPENDENCIES:BOOL=ON
     )
 endif()
 
